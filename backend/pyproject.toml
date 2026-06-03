@@ -1,0 +1,36 @@
+[project]
+name = "aideepresearch"
+version = "0.1.0"
+description = "AIDeepresearch - deep research assistant (LangGraph + LangChain)."
+authors = [
+    { name = "Lance Martin" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "tavily-python>=0.5.0",
+    "python-dotenv==1.0.1",
+    "requests>=2.31.0",
+    "openai>=1.12.0",
+    "uvicorn[standard]>=0.32.0",
+    "ddgs>=9.6.1",
+    "loguru>=0.7.3",
+]
+
+[project.optional-dependencies]
+dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
+
+[build-system]
+requires = ["setuptools>=73.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
