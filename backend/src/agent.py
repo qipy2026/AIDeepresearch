@@ -52,16 +52,36 @@ class DeepResearchAgent:
 
     def run(self, topic: str) -> SummaryStateOutput:
         if getattr(self.reporting, '_style', None) == 'weekly':
-            topic = f"{topic} 贷后监管分析：行业动态、核心企业风险、债务企业自身监管、政策法规"
+            return run_research_graph(self, topic)
         return run_research_graph(self, topic)
 
+    @staticmethod
+    def _make_weekly_tasks(topic: str) -> list[TodoItem]:
+        from services.reporter import ReportingService
+        enterprise = ReportingService._extract_enterprise_from_topic(topic)
+        return [
+            TodoItem(id=1, title="行业与宏观监管",
+                     intent="搜索该企业所处行业的宏观动态、政策变化和舆情监控",
+                     query=f"{enterprise} 所属行业 动态 政策 监管 2026"),
+            TodoItem(id=2, title="核心企业监管",
+                     intent="排查债务企业的甲方/核心客户是否存在经营风险",
+                     query=f"{enterprise} 核心企业 甲方 客户 风险 经营"),
+            TodoItem(id=3, title="债务企业自身监管",
+                     intent="排查债务企业自身的工商经营状态、诉讼舆情和高管信息",
+                     query=f"{enterprise} 工商 诉讼 经营 舆情"),
+            TodoItem(id=4, title="现场视频巡检",
+                     intent="查看企业现场监控摄像头巡检数据",
+                     query=f"{enterprise} 监控 巡检 摄像头"),
+        ]
+
     def run_stream(self, topic: str) -> Iterator[dict[str, Any]]:
-        if getattr(self.reporting, '_style', None) == 'weekly':
-            topic = f"{topic} 贷后监管分析：行业动态、核心企业风险、债务企业自身监管、政策法规"
         state = SummaryState(research_topic=topic)
         yield {"type": "status", "message": "初始化研究流程（LangGraph 流式管线）"}
 
-        state.todo_items = self.planner.plan_todo_list(state)
+        if getattr(self.reporting, '_style', None) == 'weekly':
+            state.todo_items = self._make_weekly_tasks(topic)
+        else:
+            state.todo_items = self.planner.plan_todo_list(state)
         if not state.todo_items:
             state.todo_items = [self.planner.create_fallback_task(state)]
 
