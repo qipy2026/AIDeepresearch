@@ -18,17 +18,17 @@
             </svg>
           </div>
           <div>
-            <h1>深度研究助手</h1>
+            <h1>贷后管理综合报告</h1>
             <p>结合多轮智能检索与总结，实时呈现洞见与引用。</p>
           </div>
         </header>
 
         <form class="form" @submit.prevent="handleSubmit">
           <label class="field">
-            <span>研究主题</span>
+            <span>债务企业</span>
             <textarea
               v-model="form.topic"
-              placeholder="例如：探索多模态模型在 2025 年的关键突破"
+              placeholder="例如：四川振海保安服务有限公司"
               rows="4"
               required
             ></textarea>
@@ -121,6 +121,19 @@
             </div>
             <p class="progress-text">{{ completedTasks }} / {{ totalTasks }} 任务完成</p>
           </div>
+
+          <div class="info-item timeline-sidebar" v-if="progressLogs.length">
+            <div class="timeline-sidebar-header">
+              <label>流程记录</label>
+              <span class="log-count muted">{{ progressLogs.length }} 条</span>
+            </div>
+            <ul class="timeline timeline-compact">
+              <li v-for="(log, index) in progressLogs" :key="`${log}-${index}`">
+                <span class="timeline-node"></span>
+                <p>{{ log }}</p>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <div class="sidebar-actions">
@@ -146,24 +159,9 @@
             </div>
             <span class="status-meta">
               任务进度：{{ completedTasks }} / {{ totalTasks || todoTasks.length || 1 }}
-              · 阶段记录 {{ progressLogs.length }} 条
             </span>
           </div>
-          <div class="status-controls">
-            <button class="secondary-btn" @click="logsCollapsed = !logsCollapsed">
-              {{ logsCollapsed ? "展开流程" : "收起流程" }}
-            </button>
-          </div>
         </header>
-
-        <div class="timeline-wrapper" v-show="!logsCollapsed && progressLogs.length">
-          <transition-group name="timeline" tag="ul" class="timeline">
-            <li v-for="(log, index) in progressLogs" :key="`${log}-${index}`">
-              <span class="timeline-node"></span>
-              <p>{{ log }}</p>
-            </li>
-          </transition-group>
-        </div>
 
         <div class="result-main">
           <div
@@ -171,17 +169,21 @@
             class="report-block report-block--final"
             :class="{ 'block-highlight': reportHighlight }"
           >
-            <div class="report-head">
+            <div class="report-head collapsible-head" @click="reportCollapsed = !reportCollapsed">
               <span class="report-head-accent" aria-hidden="true"></span>
               <h3>最终报告</h3>
+              <span class="collapse-arrow">{{ reportCollapsed ? '▶' : '▼' }}</span>
             </div>
-            <div class="report-body" v-html="reportHtml"></div>
+            <div class="report-body" v-show="!reportCollapsed" v-html="reportHtml"></div>
           </div>
 
           <div class="tasks-section" v-if="todoTasks.length">
-            <h3 class="tasks-section-title">任务过程</h3>
+            <div class="tasks-section-header collapsible-head" @click="tasksCollapsed = !tasksCollapsed">
+              <h3 class="tasks-section-title">任务过程</h3>
+              <span class="collapse-arrow">{{ tasksCollapsed ? '▶' : '▼' }}</span>
+            </div>
             <p class="tasks-section-hint muted">点击卡片查看来源、总结与工具调用详情</p>
-            <ul class="task-card-list">
+            <ul class="task-card-list" v-show="!tasksCollapsed">
               <li
                 v-for="task in todoTasks"
                 :key="task.id"
@@ -422,15 +424,16 @@ interface TodoTaskView {
 }
 
 const form = reactive({
-  topic: "探索大模型在 今年的关键突破",
+  topic: "四川振海保安服务有限公司",
   searchApi: ""
 });
 
 const loading = ref(false);
 const error = ref("");
 const progressLogs = ref<string[]>([]);
-const logsCollapsed = ref(false);
 const isExpanded = ref(false);
+const reportCollapsed = ref(false);
+const tasksCollapsed = ref(false);
 
 const todoTasks = ref<TodoTaskView[]>([]);
 const activeTaskId = ref<number | null>(null);
@@ -2756,6 +2759,69 @@ select:focus {
 
 .new-research-btn:active {
   transform: translateY(0);
+}
+
+/* 可折叠区域 */
+.collapsible-head {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.collapsible-head:hover {
+  opacity: 0.85;
+}
+.collapse-arrow {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+
+/* 侧边栏流程记录 */
+.timeline-sidebar {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.timeline-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.log-count {
+  font-size: 12px;
+}
+.timeline-compact {
+  gap: 8px;
+  padding-left: 8px;
+}
+.timeline-compact li {
+  font-size: 13px;
+  padding-left: 20px;
+}
+.timeline-compact .timeline-node {
+  width: 7px;
+  height: 7px;
+  left: -10px;
+  top: 5px;
+}
+.timeline-compact::before {
+  display: none;
+}
+
+/* 任务过程头部布局 */
+.tasks-section-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  justify-content: space-between;
+}
+.tasks-section-header:hover {
+  opacity: 0.85;
 }
 
 /* 全屏状态下的结果面板 */
