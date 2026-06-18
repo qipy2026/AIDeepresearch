@@ -156,6 +156,11 @@ class ReportingService:
                 f"\n结构化数据：\n{weekly_ctx}\n"
                 f"\n参考来源：\n{sources}\n"
             )
+            # 企查查原始数据注入
+            for t in state.todo_items:
+                if t.id == 5 and t.summary and t.status == "completed":
+                    prompt += "\n【企查查原始数据】\n" + t.summary + "\n"
+                    break
             if notes_block:
                 prompt += f"\n任务笔记摘录：\n{''.join(notes_block)}\n"
             prompt += "\n请整合以上搜索任务总结、结构化数据和参考来源，严格按贷后监管综合周报模板生成报告。"

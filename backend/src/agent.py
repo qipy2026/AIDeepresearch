@@ -87,6 +87,14 @@ class DeepResearchAgent:
                      intent="巡检数据",
                      query=f"{enterprise} 监控",
                      micro_queries=[]),
+            TodoItem(id=5, title="企查查数据查询",
+                     intent="通过企查查查询核心企业(甲方)和债务企业的工商、风险、经营数据",
+                     query="企查查 企业查询",
+                     micro_queries=[
+                         "国家管网集团西南管道有限责任公司重庆输油气分公司",
+                         "中铁建物业管理有限公司成都分公司",
+                         enterprise,
+                     ]),
         ]
 
     def run_stream(self, topic: str) -> Iterator[dict[str, Any]]:
@@ -214,6 +222,50 @@ class DeepResearchAgent:
     ) -> Iterator[dict[str, Any]]:
         task.status = "in_progress"
 
+        # ── 企查查 MCP 任务（独立第 5 路并行） ──
+        if task.id == 5:
+            from services.qichacha_mcp import query_risk_scan, query_judicial_documents, query_bidding, query_news
+            parts: list[str] = []
+            for ent_name in (task.micro_queries or []):
+                if not ent_name.strip():
+                    continue
+                parts.append(f"【{ent_name}】")
+                risk = query_risk_scan(ent_name)
+                if risk:
+                    parts.append(f"风险扫描：{risk}")
+                jud = query_judicial_documents(ent_name)
+                if jud:
+                    parts.append(f"司法文书：{jud}")
+                bid = query_bidding(ent_name)
+                if bid:
+                    parts.append(f"招投标：{bid}")
+                news = query_news(ent_name)
+                if news:
+                    parts.append(f"新闻舆情：{news}")
+            if parts:
+                task.summary = "\n".join(parts)
+                task.status = "completed"
+                if emit_stream:
+                    yield {
+                        "type": "task_status",
+                        "task_id": task.id,
+                        "status": "completed",
+                        "summary": task.summary,
+                        "title": task.title,
+                        "step": step,
+                    }
+            else:
+                task.status = "skipped"
+                if emit_stream:
+                    yield {
+                        "type": "task_status",
+                        "task_id": task.id,
+                        "status": "skipped",
+                        "title": task.title,
+                        "step": step,
+                    }
+            return
+
         # ── 微服务模式：遍历所有 query 合并结果 ──
         queries = task.micro_queries or [task.query]
         all_results: list[dict] = []
@@ -249,9 +301,6 @@ class DeepResearchAgent:
         if not all_results:
             # ── 搜索无结果 → RAG 回退 ──
             from services.rag_store import query as rag_query
-            enterprise = ReportingService._extract_enterprise_from_topic(
-                state.research_topic
-            )
             rag_text = rag_query(task.intent or task.title, "", n_results=3)
             if rag_text:
                 task.summary = f"[参考文档] {rag_text[:500]}"

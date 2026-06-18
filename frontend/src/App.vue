@@ -287,6 +287,14 @@
                 </section>
 
                 <section
+                  class="summary-block"
+                  :class="{ 'block-highlight': summaryHighlight }"
+                >
+                  <h3>任务总结</h3>
+                  <pre class="block-pre">{{ currentTaskSummary || "暂无可用信息" }}</pre>
+                </section>
+
+                <section
                   class="sources-block"
                   :class="{ 'block-highlight': sourcesHighlight }"
                 >
@@ -314,14 +322,6 @@
                     </ul>
                   </template>
                   <p v-else class="muted">暂无可用来源</p>
-                </section>
-
-                <section
-                  class="summary-block"
-                  :class="{ 'block-highlight': summaryHighlight }"
-                >
-                  <h3>任务总结</h3>
-                  <pre class="block-pre">{{ currentTaskSummary || "暂无可用信息" }}</pre>
                 </section>
 
                 <section
@@ -2233,7 +2233,7 @@ select:focus {
 
 .summary-block .block-pre,
 .sources-block .block-pre {
-  max-height: 360px;
+  max-height: none;
 }
 
 
