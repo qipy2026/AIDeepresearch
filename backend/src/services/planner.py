@@ -1,4 +1,4 @@
-"""研究任务规划（LangChain LLM）。"""
+"""调查任务规划（LangChain LLM）。"""
 
 from __future__ import annotations
 

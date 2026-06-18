@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from io import BytesIO
 
 if sys.platform == "win32":
     for _stream in (sys.stdout, sys.stderr):
@@ -15,9 +16,9 @@ if sys.platform == "win32":
 
 from typing import Any, Dict, Iterator, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -184,6 +185,77 @@ def create_app() -> FastAPI:
                 "Connection": "keep-alive",
             },
         )
+
+    # ── RAG 文件上传路由 ─────────────────────────────────
+    from pathlib import Path
+    from services.rag_store import upload_text, list_enterprises, delete_enterprise
+    from services.minio_storage import upload_bytes
+    from pydantic import BaseModel as PydanticBase
+
+    class UploadReq(PydanticBase):
+        enterprise: str
+        content: str
+
+    @app.get("/rag/upload", response_class=HTMLResponse)
+    def rag_upload_page():
+        html_path = Path(__file__).parent / "templates" / "upload.html"
+        return html_path.read_text(encoding="utf-8")
+
+    @app.post("/rag/upload")
+    def rag_upload(req: UploadReq):
+        if not req.enterprise.strip():
+            raise HTTPException(400, "企业名称不能为空")
+        if not req.content.strip():
+            raise HTTPException(400, "文件内容不能为空")
+        result = upload_text(req.content, req.enterprise.strip())
+        return {"status": "ok", "enterprise": req.enterprise, "chunks": result["chunks"]}
+
+    def _extract_text(content: bytes, filename: str) -> str:
+        """根据文件后缀提取文本内容。"""
+        name = filename.lower()
+        if name.endswith(".docx"):
+            from docx import Document
+            doc = Document(BytesIO(content))
+            return "\n".join(p.text for p in doc.paragraphs)
+        elif name.endswith(".pdf"):
+            from pypdf import PdfReader
+            reader = PdfReader(BytesIO(content))
+            return "\n".join(page.extract_text() or "" for page in reader.pages)
+        else:
+            return content.decode("utf-8", errors="replace")
+
+    @app.post("/rag/upload/file")
+    def rag_upload_file(
+        enterprise: str = Form(...),
+        file: UploadFile = File(...),
+    ):
+        if not enterprise.strip():
+            raise HTTPException(400, "企业名称不能为空")
+        raw = file.file.read()
+        text = _extract_text(raw, file.filename or "upload")
+        if not text.strip():
+            raise HTTPException(400, "文件内容为空")
+        # 保存到 MinIO（可选，失败不影响向量嵌入）
+        object_name = f"{enterprise.strip()}/{file.filename or 'upload'}"
+        try:
+            upload_bytes(raw, object_name)
+        except Exception:
+            object_name = None
+        # 嵌入向量库
+        result = upload_text(text, enterprise.strip(), source=file.filename or "upload")
+        resp = {"status": "ok", "enterprise": enterprise, "chunks": result["chunks"]}
+        if object_name:
+            resp["minio"] = object_name
+        return resp
+
+    @app.get("/rag/enterprises")
+    def rag_enterprises():
+        return {"enterprises": list_enterprises()}
+
+    @app.delete("/rag/enterprise/{name:path}")
+    def rag_delete_enterprise(name: str):
+        delete_enterprise(name)
+        return {"status": "ok", "enterprise": name}
 
     return app
 

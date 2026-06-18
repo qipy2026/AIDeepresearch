@@ -1,4 +1,4 @@
-"""深度研究编排（LangGraph + LangChain，已脱离 hello_agents）。"""
+"""贷后管理编排（LangGraph + LangChain，已脱离 hello_agents）。"""
 
 from __future__ import annotations
 
@@ -61,22 +61,37 @@ class DeepResearchAgent:
         enterprise = ReportingService._extract_enterprise_from_topic(topic)
         return [
             TodoItem(id=1, title="行业与宏观监管",
-                     intent="搜索该企业所处行业的宏观动态、政策变化和舆情监控",
-                     query=f"{enterprise} 所属行业 动态 政策 监管 2026"),
+                     intent="搜索行业动态、政策变化和风险提示",
+                     query="保安服务 行业 发展 营收 2026",
+                     micro_queries=[
+                         "保安服务 行业发展 营收 规模 2026",
+                         "保安服务 监管 政策 公安部 新规",
+                         "保安服务 行业 风险 挑战",
+                     ]),
             TodoItem(id=2, title="核心企业监管",
-                     intent="排查债务企业的甲方/核心客户是否存在经营风险",
-                     query=f"{enterprise} 核心企业 甲方 客户 风险 经营"),
+                     intent="排查两家甲方核心企业的经营风险",
+                     query="核心企业 风险 排查",
+                     micro_queries=[
+                         "中铁建物业管理有限公司成都分公司 项目 经营 诉讼",
+                         "国家管网集团西南管道有限责任公司重庆输油气分公司 项目 动态 处罚",
+                     ]),
             TodoItem(id=3, title="债务企业自身监管",
-                     intent="排查债务企业自身的工商经营状态、诉讼舆情和高管信息",
-                     query=f"{enterprise} 工商 诉讼 经营 舆情"),
+                     intent="排查企业工商、诉讼、高管信息",
+                     query=f"{enterprise} 工商 状态",
+                     micro_queries=[
+                         f"{enterprise} 工商 信息",
+                         f"{enterprise} 法律 诉讼 裁判",
+                         "马振朋 保安",
+                     ]),
             TodoItem(id=4, title="现场视频巡检",
-                     intent="查看企业现场监控摄像头巡检数据",
-                     query=f"{enterprise} 监控 巡检 摄像头"),
+                     intent="巡检数据",
+                     query=f"{enterprise} 监控",
+                     micro_queries=[]),
         ]
 
     def run_stream(self, topic: str) -> Iterator[dict[str, Any]]:
         state = SummaryState(research_topic=topic)
-        yield {"type": "status", "message": "初始化研究流程（LangGraph 流式管线）"}
+        yield {"type": "status", "message": "初始化调查流程（LangGraph 流式管线）"}
 
         if getattr(self.reporting, '_style', None) == 'weekly':
             state.todo_items = self._make_weekly_tasks(topic)
@@ -174,6 +189,7 @@ class DeepResearchAgent:
             for t in threads:
                 t.join()
 
+        yield {"type": "generating_report", "message": "正在生成最终报告，请稍候..."}
         report = self.reporting.generate_report(state)
         state.structured_report = report
         state.running_summary = report
@@ -197,13 +213,31 @@ class DeepResearchAgent:
         step: int | None = None,
     ) -> Iterator[dict[str, Any]]:
         task.status = "in_progress"
-        search_result, notices, answer_text, backend = dispatch_search(
-            task.query, self.config, state.research_loop_count
-        )
-        task.notices = notices
 
-        if notices and emit_stream:
-            for notice in notices:
+        # ── 微服务模式：遍历所有 query 合并结果 ──
+        queries = task.micro_queries or [task.query]
+        all_results: list[dict] = []
+        all_notices: list[str] = []
+        last_answer: str | None = None
+        last_backend = "duckduckgo"
+
+        for q in queries:
+            if not q or not q.strip():
+                continue
+            search_result, notices, answer_text, backend = dispatch_search(
+                q, self.config, state.research_loop_count
+            )
+            if notices:
+                all_notices.extend(n for n in notices if n)
+            if search_result and search_result.get("results"):
+                all_results.extend(search_result["results"])
+                last_answer = answer_text or last_answer
+                last_backend = backend
+
+        task.notices = all_notices
+
+        if all_notices and emit_stream:
+            for notice in all_notices:
                 if notice:
                     yield {
                         "type": "status",
@@ -212,7 +246,28 @@ class DeepResearchAgent:
                         "step": step,
                     }
 
-        if not search_result or not search_result.get("results"):
+        if not all_results:
+            # ── 搜索无结果 → RAG 回退 ──
+            from services.rag_store import query as rag_query
+            enterprise = ReportingService._extract_enterprise_from_topic(
+                state.research_topic
+            )
+            rag_text = rag_query(task.intent or task.title, "", n_results=3)
+            if rag_text:
+                task.summary = f"[参考文档] {rag_text[:500]}"
+                task.status = "completed"
+                task.sources_summary = "来源：向量库参考文档"
+                if emit_stream:
+                    yield {
+                        "type": "task_status",
+                        "task_id": task.id,
+                        "status": "completed",
+                        "summary": task.summary,
+                        "title": task.title,
+                        "step": step,
+                    }
+                return
+
             task.status = "skipped"
             if emit_stream:
                 yield {
@@ -224,8 +279,13 @@ class DeepResearchAgent:
                 }
             return
 
+        merged_result: dict[str, Any] = {
+            "results": all_results,
+            "backend": last_backend,
+            "answer": last_answer,
+        }
         sources_summary, context = prepare_research_context(
-            search_result, answer_text, self.config
+            merged_result, last_answer, self.config
         )
         task.sources_summary = sources_summary
         with self._state_lock:
@@ -305,7 +365,7 @@ class DeepResearchAgent:
     ) -> dict[str, Any] | None:
         if not self.notes or not report.strip():
             return None
-        title = f"研究报告：{state.research_topic}".strip() or "研究报告"
+        title = f"调查报告：{state.research_topic}".strip() or "调查报告"
         note_id = self.notes.find_report_note_id(state.research_topic)
         if note_id:
             self.notes.update(note_id, report, title=title)

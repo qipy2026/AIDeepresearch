@@ -33,7 +33,7 @@ class ReportingService:
 
     @staticmethod
     def _extract_enterprise_from_topic(topic: str) -> str:
-        """从研究主题中提取企业名。"""
+        """从调查主题中提取企业名。"""
         m = re.search(r'([一-鿿]{2,20}(?:有限公司|有限责任公司|分公司))', topic)
         return m.group(1) if m else topic.strip()
 
@@ -75,27 +75,11 @@ class ReportingService:
         return "无相关内容"
 
     @staticmethod
-    def _rag_match(field_key: str, ref_text: str) -> str | None:
-        """从参考文档中关键词匹配字段。"""
-        mapping = {
-            "legal_person": "法定代表人",
-            "loan_amount": "发放金额",
-            "industry": "所属行业",
-            "bond_status": "债券情况",
-            "bill_status": "票据记录",
-            "reg_capital": "注册资本",
-            "business_scope": "经营范围",
-            "reg_address": "注册地址",
-            "credit_code": "统一社会信用代码",
-        }
-        keyword = mapping.get(field_key)
-        if keyword and keyword in ref_text:
-            for line in ref_text.split("\n"):
-                if keyword in line and ":" in line:
-                    val = line.split(":", 1)[-1].strip()
-                    if val:
-                        return val
-        return None
+    def _rag_match(field_key: str, ref_text: str, enterprise: str = "") -> str | None:
+        """查询 ChromaDB 向量库。不再使用关键词匹配文本文件。"""
+        from services.rag_store import query as rag_query
+        result = rag_query(field_key, enterprise, n_results=1)
+        return result if result else None
 
     def _collect_sources(self, tasks: list) -> str:
         """从所有任务中收集来源链接。"""
@@ -120,8 +104,8 @@ class ReportingService:
         enterprise = self._extract_enterprise_from_topic(topic)
         risk = self._calc_risk_counts_from_tasks(tasks)
         ref_text = self._read_reference_doc(enterprise)
-        industry = self._rag_match("industry", ref_text) or "安保服务"
-        loan_amount = self._rag_match("loan_amount", ref_text) or "1000.0"
+        industry = self._rag_match("industry", ref_text, enterprise) or "安保服务"
+        loan_amount = self._rag_match("loan_amount", ref_text, enterprise) or "1000.0"
 
         ctx = f"""【报告时间】
 报告日期：{today.strftime('%Y-%m-%d')}
@@ -167,7 +151,7 @@ class ReportingService:
             )
             sources = self._collect_sources(state.todo_items)
             prompt = (
-                f"研究主题：{state.research_topic}\n\n"
+                f"调查主题：{state.research_topic}\n\n"
                 f"任务与总结：\n{''.join(tasks_block)}\n"
                 f"\n结构化数据：\n{weekly_ctx}\n"
                 f"\n参考来源：\n{sources}\n"
@@ -178,12 +162,12 @@ class ReportingService:
         else:
             system_prompt = report_writer_instructions.strip()
             prompt = (
-                f"研究主题：{state.research_topic}\n\n"
+                f"调查主题：{state.research_topic}\n\n"
                 f"任务与总结：\n{''.join(tasks_block)}\n"
             )
             if notes_block:
                 prompt += f"\n任务笔记摘录：\n{''.join(notes_block)}\n"
-            prompt += "\n请整合以上信息，撰写结构完整的中文 Markdown 研究报告。"
+            prompt += "\n请整合以上信息，撰写结构完整的中文 Markdown 调查报告。"
 
         response = invoke_llm(self._config, system_prompt, prompt)
         report_text = response.strip()

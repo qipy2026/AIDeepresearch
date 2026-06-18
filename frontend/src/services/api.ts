@@ -33,13 +33,13 @@ export async function runResearchStream(
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
     throw new Error(
-      errorText || `研究请求失败，状态码：${response.status}`
+      errorText || `调查请求失败，状态码：${response.status}`
     );
   }
 
   const body = response.body;
   if (!body) {
-    throw new Error("浏览器不支持流式响应，无法获取研究进度");
+    throw new Error("浏览器不支持流式响应，无法获取调查进度");
   }
 
   const reader = body.getReader();

@@ -8,13 +8,13 @@ def get_current_date():
 
 
 todo_planner_system_prompt = """
-你是一名研究规划专家，请把复杂主题拆解为一组有限、互补的待办任务。
+你是一名调查规划专家，请把复杂主题拆解为一组有限、互补的待办任务。
 - 任务之间应互补，避免重复；
 - 每个任务要有明确意图与可执行的检索方向；
 - 输出须结构化、简明且便于后续协作。
 
 <GOAL>
-1. 结合研究主题梳理 3~5 个最关键的调研任务；
+1. 结合调查主题梳理 3~5 个最关键的调研任务；
 2. 每个任务需明确目标意图，并给出适宜的网络检索查询；
 3. 任务之间要避免重复，整体覆盖用户的问题域；
 4. 在创建或更新任务时，必须调用 `note` 工具同步任务信息（这是唯一会写入笔记的途径）。
@@ -40,7 +40,7 @@ todo_planner_instructions = """
 
 <CONTEXT>
 当前日期：{current_date}
-研究主题：{research_topic}
+调查主题：{research_topic}
 </CONTEXT>
 
 <FORMAT>
@@ -61,7 +61,7 @@ todo_planner_instructions = """
 
 
 task_summarizer_instructions = """
-你是一名研究执行专家，请基于给定的上下文，为特定任务生成要点总结，对内容进行详尽且细致的总结而不是走马观花，需要勇于创新、打破常规思维，并尽可能多维度，从原理、应用、优缺点、工程实践、对比、历史演变等角度进行拓展。
+你是一名调查执行专家，请基于给定的上下文，为特定任务生成要点总结，对内容进行详尽且细致的总结而不是走马观花，需要勇于创新、打破常规思维，并尽可能多维度，从原理、应用、优缺点、工程实践、对比、历史演变等角度进行拓展。
 
 <GOAL>
 1. 针对任务意图梳理 3-5 条关键发现；
@@ -85,10 +85,10 @@ task_summarizer_instructions = """
 
 
 report_writer_instructions = """
-你是一名专业的分析报告撰写者，请根据输入的任务总结与参考信息，生成结构化的研究报告。
+你是一名专业的分析报告撰写者，请根据输入的任务总结与参考信息，生成结构化的调查报告。
 
 <REPORT_TEMPLATE>
-1. **背景概览**：简述研究主题的重要性与上下文。
+1. **背景概览**：简述调查主题的重要性与上下文。
 2. **核心洞见**：提炼 3-5 条最重要的结论，标注文献/任务编号。
 3. **证据与数据**：罗列支持性的事实或指标，可引用任务摘要中的要点。
 4. **风险与挑战**：分析潜在的问题、限制或仍待验证的假设。
@@ -105,7 +105,7 @@ report_writer_instructions = """
 
 <NOTES>
 - 报告生成前，请针对每个 note_id 调用 `[TOOL_CALL:note:{"action":"read","note_id":"<note_id>"}]` 读取任务笔记。
-- 如需在报告层面沉淀结果，可创建新的 `conclusion` 类型笔记，例如：`[TOOL_CALL:note:{"action":"create","title":"研究报告：{研究主题}","note_type":"conclusion","tags":["deep_research","report"],"content":"...报告要点..."}]`。
+- 如需在报告层面沉淀结果，可创建新的 `conclusion` 类型笔记，例如：`[TOOL_CALL:note:{"action":"create","title":"调查报告：{调查主题}","note_type":"conclusion","tags":["deep_research","report"],"content":"...报告要点..."}]`。
 </NOTES>
 """
 

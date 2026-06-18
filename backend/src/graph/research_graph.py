@@ -1,4 +1,4 @@
-"""LangGraph 深度研究工作流：规划 → 串行执行任务 → 撰写报告。"""
+"""LangGraph 贷后管理工作流：规划 → 串行执行任务 → 撰写报告。"""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def run_research_graph(agent: Any, topic: str) -> SummaryStateOutput:
     result = graph.invoke({"topic": topic})
     out = result.get("output")
     if out is None:
-        raise RuntimeError("研究流程未返回结果")
+        raise RuntimeError("调查流程未返回结果")
     return out
 
 

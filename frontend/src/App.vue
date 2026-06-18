@@ -61,7 +61,7 @@
                 >
                   <circle cx="12" cy="12" r="9" stroke-width="3" />
                 </svg>
-                {{ loading ? "研究进行中..." : "开始研究" }}
+                {{ loading ? "调查进行中..." : "开始调查" }}
               </span>
             </button>
             <button
@@ -70,7 +70,7 @@
               class="secondary-btn"
               @click="cancelResearch"
             >
-              取消研究
+              取消调查
             </button>
           </div>
         </form>
@@ -91,7 +91,7 @@
 
     <!-- 全屏状态：左右分栏布局 -->
     <div v-else class="layout layout-fullscreen">
-      <!-- 左侧：研究信息 -->
+      <!-- 左侧：调查信息 -->
       <aside class="sidebar">
         <div class="sidebar-header">
           <button class="back-btn" @click="goBack" :disabled="loading">
@@ -100,12 +100,12 @@
             </svg>
             返回
           </button>
-          <h2>🔍 深度研究助手</h2>
+          <h2>🔍 贷后管理助手</h2>
         </div>
 
         <div class="research-info">
           <div class="info-item">
-            <label>研究主题</label>
+            <label>调查主题</label>
             <p class="topic-display">{{ form.topic }}</p>
           </div>
 
@@ -115,21 +115,18 @@
           </div>
 
           <div class="info-item" v-if="totalTasks > 0">
-            <label>研究进度</label>
+            <label>调查进度</label>
             <div class="progress-bar">
               <div class="progress-fill" :style="{ width: `${(completedTasks / totalTasks) * 100}%` }"></div>
             </div>
             <p class="progress-text">{{ completedTasks }} / {{ totalTasks }} 任务完成</p>
           </div>
 
-          <div class="info-item timeline-sidebar" v-if="progressLogs.length">
-            <div class="timeline-sidebar-header">
-              <label>流程记录</label>
-              <span class="log-count muted">{{ progressLogs.length }} 条</span>
-            </div>
-            <ul class="timeline timeline-compact">
+          <div class="info-item sidebar-timeline" v-if="progressLogs.length">
+            <label>流程记录</label>
+            <ul class="timeline timeline-sidebar">
               <li v-for="(log, index) in progressLogs" :key="`${log}-${index}`">
-                <span class="timeline-node"></span>
+                <span class="tl-dot"></span>
                 <p>{{ log }}</p>
               </li>
             </ul>
@@ -141,12 +138,18 @@
             <svg viewBox="0 0 24 24" width="18" height="18">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
             </svg>
-            开始新研究
+            开始新调查
           </button>
+          <a class="sidebar-link" href="http://localhost:8080/rag/upload" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            上传参考文档
+          </a>
         </div>
       </aside>
 
-      <!-- 右侧：研究结果 -->
+      <!-- 右侧：调查结果 -->
       <section
         class="panel panel-result"
         v-if="todoTasks.length || reportMarkdown || progressLogs.length"
@@ -155,7 +158,7 @@
           <div class="status-main">
             <div class="status-chip" :class="{ active: loading }">
               <span class="dot"></span>
-              {{ loading ? "研究进行中" : "研究流程完成" }}
+              {{ loading ? "调查进行中" : "调查流程完成" }}
             </div>
             <span class="status-meta">
               任务进度：{{ completedTasks }} / {{ totalTasks || todoTasks.length || 1 }}
@@ -165,22 +168,26 @@
 
         <div class="result-main">
           <div
-            v-if="reportMarkdown"
+            v-if="reportMarkdown || generatingReport"
             class="report-block report-block--final"
             :class="{ 'block-highlight': reportHighlight }"
           >
             <div class="report-head collapsible-head" @click="reportCollapsed = !reportCollapsed">
               <span class="report-head-accent" aria-hidden="true"></span>
               <h3>最终报告</h3>
-              <span class="collapse-arrow">{{ reportCollapsed ? '▶' : '▼' }}</span>
+              <span class="fold-arrow">{{ reportCollapsed ? '▶' : '▼' }}</span>
             </div>
-            <div class="report-body" v-show="!reportCollapsed" v-html="reportHtml"></div>
+            <div v-if="generatingReport && !reportMarkdown" class="report-generating">
+              <div class="generating-spinner"></div>
+              <p>报告生成中，请稍候...</p>
+            </div>
+            <div v-else class="report-body" v-show="!reportCollapsed" v-html="reportHtml"></div>
           </div>
 
           <div class="tasks-section" v-if="todoTasks.length">
             <div class="tasks-section-header collapsible-head" @click="tasksCollapsed = !tasksCollapsed">
               <h3 class="tasks-section-title">任务过程</h3>
-              <span class="collapse-arrow">{{ tasksCollapsed ? '▶' : '▼' }}</span>
+              <span class="fold-arrow">{{ tasksCollapsed ? '▶' : '▼' }}</span>
             </div>
             <p class="tasks-section-hint muted">点击卡片查看来源、总结与工具调用详情</p>
             <ul class="task-card-list" v-show="!tasksCollapsed">
@@ -432,6 +439,7 @@ const loading = ref(false);
 const error = ref("");
 const progressLogs = ref<string[]>([]);
 const isExpanded = ref(false);
+const generatingReport = ref(false);
 const reportCollapsed = ref(false);
 const tasksCollapsed = ref(false);
 
@@ -740,7 +748,8 @@ function resetWorkflowState() {
   sourcesHighlight.value = false;
   reportHighlight.value = false;
   toolHighlight.value = false;
-  logsCollapsed.value = false;
+  reportCollapsed.value = false;
+  tasksCollapsed.value = false;
 }
 
 function findTask(taskId: unknown): TodoTaskView | undefined {
@@ -770,7 +779,7 @@ function upsertTaskMetadata(task: TodoTaskView, payload: Record<string, unknown>
 
 const handleSubmit = async () => {
   if (!form.topic.trim()) {
-    error.value = "请输入研究主题";
+    error.value = "请输入调查主题";
     return;
   }
 
@@ -1018,7 +1027,16 @@ const handleSubmit = async () => {
           return;
         }
 
+        if (event.type === "generating_report") {
+          generatingReport.value = true;
+          const msg = typeof event.message === "string" && event.message.trim()
+            ? event.message.trim() : "正在生成最终报告...";
+          progressLogs.value.push(msg);
+          return;
+        }
+
         if (event.type === "final_report") {
+          generatingReport.value = false;
           const report =
             typeof event.report === "string" && event.report.trim()
               ? event.report.trim()
@@ -1033,9 +1051,9 @@ const handleSubmit = async () => {
           const detail =
             typeof event.detail === "string" && event.detail.trim()
               ? event.detail
-              : "研究过程中发生错误";
+              : "调查过程中发生错误";
           error.value = detail;
-          progressLogs.value.push("研究失败，已停止流程");
+          progressLogs.value.push("调查失败，已停止流程");
         }
       },
       { signal: controller.signal }
@@ -1046,7 +1064,7 @@ const handleSubmit = async () => {
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      progressLogs.value.push("已取消当前研究任务");
+      progressLogs.value.push("已取消当前调查任务");
     } else {
       error.value = err instanceof Error ? err.message : "请求失败";
     }
@@ -1062,13 +1080,13 @@ const cancelResearch = () => {
   if (!loading.value || !currentController) {
     return;
   }
-  progressLogs.value.push("正在尝试取消当前研究任务…");
+  progressLogs.value.push("正在尝试取消当前调查任务…");
   currentController.abort();
 };
 
 const goBack = () => {
   if (loading.value) {
-    return; // 研究进行中不允许返回
+    return; // 调查进行中不允许返回
   }
   taskDetailOpen.value = false;
   document.body.style.overflow = "";
@@ -2761,6 +2779,62 @@ select:focus {
   transform: translateY(0);
 }
 
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(148,163,184,.3);
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all .2s;
+}
+.sidebar-link:hover {
+  background: rgba(59,130,246,.08);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.sidebar-link svg { flex-shrink: 0; }
+
+/* 侧边栏流程记录 */
+.sidebar-timeline {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.timeline-sidebar {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+.timeline-sidebar li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.45;
+}
+.tl-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #38bdf8, #7c3aed);
+  margin-top: 0.5em;
+}
+.timeline-sidebar p {
+  margin: 0;
+}
+
 /* 可折叠区域 */
 .collapsible-head {
   cursor: pointer;
@@ -2770,58 +2844,55 @@ select:focus {
   gap: 10px;
 }
 .collapsible-head:hover {
-  opacity: 0.85;
+  opacity: 0.8;
 }
-.collapse-arrow {
+.fold-arrow {
   font-size: 12px;
-  color: #64748b;
+  color: #94a3b8;
   margin-left: auto;
   transition: transform 0.2s;
 }
-
-/* 侧边栏流程记录 */
-.timeline-sidebar {
-  max-height: 240px;
-  overflow-y: auto;
-  margin-top: 8px;
-}
-.timeline-sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.log-count {
-  font-size: 12px;
-}
-.timeline-compact {
-  gap: 8px;
-  padding-left: 8px;
-}
-.timeline-compact li {
-  font-size: 13px;
-  padding-left: 20px;
-}
-.timeline-compact .timeline-node {
-  width: 7px;
-  height: 7px;
-  left: -10px;
-  top: 5px;
-}
-.timeline-compact::before {
-  display: none;
-}
-
-/* 任务过程头部布局 */
 .tasks-section-header {
   display: flex;
   align-items: center;
   cursor: pointer;
   user-select: none;
-  justify-content: space-between;
 }
 .tasks-section-header:hover {
-  opacity: 0.85;
+  opacity: 0.8;
+}
+
+/* 报告生成中 loading */
+.report-generating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 60px 20px;
+  border-radius: 16px;
+  background: linear-gradient(165deg, #f0f9ff, #e0f2fe);
+  border: 2px dashed #93c5fd;
+  margin-top: 12px;
+}
+.generating-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #bfdbfe;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+.report-generating p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e40af;
+  animation: pulse-text 1.8s ease-in-out infinite;
+}
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* 全屏状态下的结果面板 */
