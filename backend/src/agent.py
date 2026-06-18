@@ -41,7 +41,7 @@ class DeepResearchAgent:
 
         self.planner = PlanningService(self.config)
         self.summarizer = SummarizationService(self.config)
-        self.reporting = ReportingService(self.config, self.notes)
+        self.reporting = ReportingService(self.config, self.notes, report_style="weekly")
 
         self._tool_tracker = ToolCallTracker(
             self.config.notes_workspace if self.config.enable_notes else None
@@ -51,9 +51,13 @@ class DeepResearchAgent:
         self._last_search_notices: list[str] = []
 
     def run(self, topic: str) -> SummaryStateOutput:
+        if getattr(self.reporting, '_style', None) == 'weekly':
+            topic = f"{topic} 贷后监管分析：行业动态、核心企业风险、债务企业自身监管、政策法规"
         return run_research_graph(self, topic)
 
     def run_stream(self, topic: str) -> Iterator[dict[str, Any]]:
+        if getattr(self.reporting, '_style', None) == 'weekly':
+            topic = f"{topic} 贷后监管分析：行业动态、核心企业风险、债务企业自身监管、政策法规"
         state = SummaryState(research_topic=topic)
         yield {"type": "status", "message": "初始化研究流程（LangGraph 流式管线）"}
 
