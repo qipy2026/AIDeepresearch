@@ -555,6 +555,171 @@ class THSClient:
         return anomalies
 
 
+    def get_industry_data(
+        self,
+        industry_name: str = "",
+        indicators: str = "",
+    ) -> Dict[str, Any]:
+        """获取行业景气度数据（贷后监管-行业宏观扫描专用）。
+
+        查询行业分类下的核心经济指标:
+        - PMI / 景气指数
+        - 行业营收增速中位数
+        - 行业资产负债率均值
+        - 行业政策动态
+
+        Args:
+            industry_name: 行业名称（如 "安保服务"、"建筑"、"房地产"），
+                          为空时获取全市场宏观概览
+            indicators: 自定义指标，为空使用默认指标集
+
+        Returns:
+            行业数据结构化字典
+        """
+        default_indicators = (
+            "industry_pmi;industry_revenue_growth;"
+            "industry_debt_ratio;industry_profit_margin;"
+            "industry_employee_count;industry_capacity_utilization"
+        )
+        ind = indicators or default_indicators
+
+        try:
+            # EDB 宏观经济指标（全行业基准）
+            macro = self.edb_query(
+                indicators="M001620326;M002822183;M004562391",  # GDP增速;PMI;工业增加值
+                function_para={
+                    "startdate": (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d"),
+                    "enddate": datetime.now().strftime("%Y-%m-%d"),
+                },
+            )
+
+            # 行业专项数据（如果有行业分类）
+            industry_data: Dict[str, Any] = {}
+            if industry_name:
+                try:
+                    industry_data = self.basic_data(
+                        codes=f"industry:{industry_name}",
+                        indicators=ind,
+                        function_para={"data_type": "latest"},
+                    )
+                except THSError:
+                    logger.debug(f"行业 {industry_name} 专项数据查询失败，使用宏观数据")
+
+            # 专题报告（行业研报）
+            try:
+                reports = self.thematic_report(
+                    report_type="industry_outlook",
+                    function_para={"industry": industry_name} if industry_name else {},
+                )
+            except THSError:
+                reports = {}
+
+            # 解析行业风险信号
+            signals = self._parse_industry_signals(macro, industry_data, reports)
+
+            return {
+                "macro": macro,
+                "industry_specific": industry_data,
+                "reports": reports,
+                "signals": signals,
+                "industry_name": industry_name or "全市场",
+                "query_time": datetime.now().isoformat(),
+            }
+        except THSError as e:
+            logger.warning(f"同花顺行业数据查询失败: {e}")
+            return {
+                "macro": {},
+                "industry_specific": {},
+                "reports": {},
+                "signals": [],
+                "industry_name": industry_name or "全市场",
+                "error": str(e),
+                "query_time": datetime.now().isoformat(),
+            }
+
+    def get_macro_data(self) -> Dict[str, Any]:
+        """获取宏观经济概览数据。
+
+        查询: GDP增速、CPI、PMI、M2货币供应、社融规模、
+              工业增加值、固定资产投资、房地产景气指数
+
+        用于贷后监管报告第一章 —— 全市场宏观环境扫描，
+        不限于特定企业或行业。
+        """
+        macro_indicators = (
+            # GDP / 景气
+            "M001620326;"    # GDP同比增速
+            "M002822183;"    # 制造业PMI
+            "M004562391;"    # 工业增加值同比
+            # 价格
+            "M000139284;"    # CPI同比
+            "M000139285;"    # PPI同比
+            # 货币
+            "M000138103;"    # M2同比增速
+            "M006042880;"    # 社会融资规模
+            # 投资/地产
+            "M000027383;"    # 固定资产投资增速
+            "M006298351"     # 国房景气指数
+        )
+        try:
+            data = self.edb_query(
+                indicators=macro_indicators,
+                function_para={
+                    "startdate": (datetime.now() - timedelta(days=180)).strftime("%Y-%m-%d"),
+                    "enddate": datetime.now().strftime("%Y-%m-%d"),
+                },
+            )
+            return {
+                "data": data,
+                "indicators": macro_indicators,
+                "query_time": datetime.now().isoformat(),
+            }
+        except THSError as e:
+            logger.warning(f"同花顺宏观数据查询失败: {e}")
+            return {
+                "data": {},
+                "indicators": macro_indicators,
+                "error": str(e),
+                "query_time": datetime.now().isoformat(),
+            }
+
+    @staticmethod
+    def _parse_industry_signals(
+        macro: Dict[str, Any],
+        industry: Dict[str, Any],
+        reports: Dict[str, Any],
+    ) -> List[Dict[str, str]]:
+        """从行业/宏观数据中提取预警信号。
+
+        Returns:
+            [{"type": "industry_downturn", "severity": "yellow", "detail": "..."}]
+        """
+        signals: List[Dict[str, str]] = []
+        # 通用信号检测：从 EDB 数据中找趋势
+        for source, label in [(macro, "宏观"), (industry, "行业")]:
+            tables = source.get("tables", [])
+            for table in tables:
+                rows = table.get("table", [])
+                if len(rows) >= 3:
+                    # 最近3期数据趋势
+                    recent = rows[-3:]
+                    values = []
+                    for r in recent:
+                        for v in r.values():
+                            try:
+                                values.append(float(v))
+                            except (ValueError, TypeError):
+                                pass
+                    if len(values) >= 3:
+                        if all(values[i] < values[i - 1] for i in range(1, len(values))):
+                            signals.append({
+                                "type": f"{label}_连续下降",
+                                "severity": "orange",
+                                "detail": f"{label}指标连续 3 期下降",
+                            })
+        return signals
+
+
 # ── 便捷工厂函数 ──────────────────────────────────────
 
 

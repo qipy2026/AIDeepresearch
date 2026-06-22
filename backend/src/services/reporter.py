@@ -12,6 +12,7 @@ from core.llm import invoke_llm
 from models import SummaryState
 from prompts import report_writer_instructions, weekly_report_writer_instructions
 from services.notes_store import NotesStore
+from loguru import logger
 from services.text_processing import strip_tool_calls
 from utils import strip_thinking_tokens
 
@@ -45,6 +46,7 @@ class WeeklyData(TypedDict, total=False):
     risk: Dict[str, int]
     headcount_trend: Optional[Dict[str, Any]]
     party_a_signals: Optional[List[Dict[str, Any]]]
+    industry_data: Optional[Dict[str, Any]]
 
 
 # ── ReportingService ────────────────────────────────────
@@ -247,6 +249,53 @@ class ReportingService:
                         sources.append(line.lstrip("* ").strip())
         return "\n".join(f"- {s}" for s in sources) if sources else "无相关内容"
 
+    # ── 行业宏观数据采集 ──────────────────────────────────
+
+    @staticmethod
+    def _fetch_industry_data(industry: str, enterprise: str = "") -> Dict[str, Any]:
+        """从同花顺 iFinD 获取行业宏观数据。
+
+        覆盖所有行业，不限于债务企业或核心监管企业所在行业。
+        API 不可用时优雅降级返回占位数据。
+        """
+        try:
+            from services.ths_client import create_client
+            client = create_client()
+            industry_result = client.get_industry_data(industry_name=industry)
+            macro_result = client.get_macro_data()
+
+            signals = industry_result.get("signals", [])
+            return {
+                "industry": industry,
+                "industry_status": "正常" if industry_result.get("macro") else "暂无数据",
+                "key_indicators": _summarize_industry_indicators(
+                    industry_result, macro_result
+                ),
+                "major_events": _extract_industry_events(industry_result),
+                "policy_direction": "中性",
+                "policy_detail": "暂无最新政策信息",
+                "risk_warning": _summarize_industry_signals(signals),
+                "signals": signals,
+                "source": "同花顺 iFinD",
+                "macro_available": bool(macro_result.get("data")),
+                "industry_available": bool(industry_result.get("industry_specific")),
+            }
+        except Exception as e:
+            logger.warning(f"行业数据获取失败 ({industry}): {e}")
+            return {
+                "industry": industry,
+                "industry_status": "暂无数据",
+                "key_indicators": f"行业数据分析待获取（{industry}行业）",
+                "major_events": [],
+                "policy_direction": "中性",
+                "policy_detail": "暂无最新政策信息",
+                "risk_warning": "未发现明显负面信号",
+                "signals": [],
+                "source": "暂无",
+                "macro_available": False,
+                "industry_available": False,
+            }
+
     # ── 周报结构化数据构建（T3: dict 模式） ─────────────────
 
     def _build_weekly_data(self, topic: str, tasks: list) -> WeeklyData:
@@ -267,11 +316,11 @@ class ReportingService:
         # ── 运营信号 ──
         headcount_trend = self._compute_headcount_trend(enterprise)
 
-        # Party A 运营信号（条件性：Week 1 招标数据可行性调研结果决定数据源）
+        # Party A 运营信号（条件性）
         party_a_signals: Optional[List[Dict[str, Any]]] = None
-        # TODO Week 2: 若招标调研通过 → 接入招标趋势数据
-        # TODO Week 2: 若招标调研不通过 → 降级为企查查工商变更频率
-        # 当前 Week 1: party_a_signals 为 None，模板显示"无相关内容"
+
+        # ── 行业宏观数据（同花顺 iFinD，覆盖所有行业）──
+        industry_data = self._fetch_industry_data(industry, enterprise)
 
         return WeeklyData(
             enterprise=enterprise,
@@ -284,6 +333,7 @@ class ReportingService:
             risk=risk,
             headcount_trend=headcount_trend,
             party_a_signals=party_a_signals,
+            industry_data=industry_data,
         )
 
     @staticmethod
@@ -321,6 +371,30 @@ class ReportingService:
 橙色预警：{risk['orange']} 项
 黄色预警：{risk['yellow']} 项
 合计：{risk['total']} 项
+"""
+
+        # ── 行业宏观数据（同花顺 iFinD，覆盖所有行业）──
+        industry_data = data.get("industry_data")
+        if industry_data:
+            ctx += f"""
+【行业宏观数据】（来源：{industry_data.get('source', '暂无')}）
+行业名称：{industry_data.get('industry', '未知')}
+行业状态：{industry_data.get('industry_status', '暂无数据')}
+关键指标：{industry_data.get('key_indicators', '暂无行业指标数据')}
+政策方向：{industry_data.get('policy_direction', '中性')}
+政策详情：{industry_data.get('policy_detail', '暂无最新政策信息')}
+风险提示：{industry_data.get('risk_warning', '未发现明显负面信号')}
+"""
+            events = industry_data.get("major_events", [])
+            if events:
+                ctx += "本周大事记：\n"
+                for i, ev in enumerate(events[:5], 1):
+                    ctx += f"  {i}. {ev}\n"
+        else:
+            ctx += """
+【行业宏观数据】
+行业状态：暂无数据
+说明：行业宏观分析待获取，将使用默认行业概览
 """
 
         # ── 运营信号：视频巡检人数趋势（T4 模板对应字段） ──
@@ -403,3 +477,68 @@ class ReportingService:
         if self._config.strip_thinking_tokens:
             report_text = strip_thinking_tokens(report_text)
         return strip_tool_calls(report_text).strip() or "报告生成失败，请检查输入。"
+
+
+# ── 行业数据辅助函数 ──────────────────────────────────
+
+
+def _summarize_industry_indicators(
+    industry_result: Dict[str, Any],
+    macro_result: Dict[str, Any],
+) -> str:
+    """从同花顺 API 返回中提取行业关键指标摘要。"""
+    parts: List[str] = []
+
+    macro = macro_result.get("data", {})
+    tables = macro.get("tables", [])
+    for table in tables:
+        rows = table.get("table", [])
+        if rows:
+            last = rows[-1]
+            for k, v in last.items():
+                try:
+                    parts.append(f"{k}: {float(v):.2f}")
+                except (ValueError, TypeError):
+                    parts.append(f"{k}: {v}")
+
+    industry = industry_result.get("industry_specific", {})
+    ind_tables = industry.get("tables", [])
+    for table in ind_tables:
+        rows = table.get("table", [])
+        if rows:
+            for k, v in rows[-1].items():
+                parts.append(f"行业{k}: {v}")
+
+    return "; ".join(parts) if parts else "暂无行业指标数据"
+
+
+def _extract_industry_events(industry_result: Dict[str, Any]) -> List[str]:
+    """提取行业大事记。"""
+    events: List[str] = []
+    reports = industry_result.get("reports", {})
+    tables = reports.get("tables", [])
+    for table in tables:
+        rows = table.get("table", [])
+        for row in rows[:5]:
+            title = row.get("title") or row.get("report_title", "")
+            if title:
+                events.append(str(title))
+    return events
+
+
+def _summarize_industry_signals(signals: List[Dict[str, str]]) -> str:
+    """汇总行业预警信号为风险提示文本。"""
+    if not signals:
+        return "未发现明显负面信号。"
+    red = [s for s in signals if s.get("severity") == "red"]
+    orange = [s for s in signals if s.get("severity") == "orange"]
+    yellow = [s for s in signals if s.get("severity") == "yellow"]
+    parts = []
+    if red:
+        parts.append(f"{len(red)} 项严重信号")
+    if orange:
+        parts.append(f"{len(orange)} 项预警信号")
+    if yellow:
+        parts.append(f"{len(yellow)} 项关注信号")
+    total = len(red) + len(orange) + len(yellow)
+    return f"监测到 {total} 条行业风险信号。" + " ".join(parts) if parts else "未发现明显负面信号。"
