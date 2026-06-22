@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional, TypedDict
 
 from config import Configuration
 from core.llm import invoke_llm
@@ -16,6 +17,37 @@ from utils import strip_thinking_tokens
 
 
 REFS_DIR = Path(__file__).resolve().parent.parent.parent / "references"
+
+# ── 可调优常量 ──────────────────────────────────────────
+# 负面风险关键词，用于文本扫描计数
+NEGATIVE_RISK_KEYWORDS: List[str] = [
+    "风险", "下降", "萎缩", "违约", "处罚", "下滑", "亏损",
+]
+# 视频巡检人数下降阈值（初始 20%，基于 3 倍标准差统计控制，后续根据历史误报率调优）
+HEADCOUNT_TREND_THRESHOLD: float = 0.20
+# 趋势计算所需最少有效数据周数
+MIN_TREND_WEEKS: int = 3
+
+
+# ── 结构化数据模型 ──────────────────────────────────────
+
+
+class WeeklyData(TypedDict, total=False):
+    """贷后周报结构化上下文数据结构。字段缺失时格式化器使用优雅降级。"""
+
+    enterprise: str
+    industry: str
+    loan_amount: str
+    report_date: str
+    report_period_start: str
+    report_period_end: str
+    ref_text: str
+    risk: Dict[str, int]
+    headcount_trend: Optional[Dict[str, Any]]
+    party_a_signals: Optional[List[Dict[str, Any]]]
+
+
+# ── ReportingService ────────────────────────────────────
 
 
 class ReportingService:
@@ -29,22 +61,144 @@ class ReportingService:
         self._notes = notes
         self._style = report_style
 
+    # ── 视频巡检趋势 ───────────────────────────────────────
+
+    @staticmethod
+    def _read_camera_snapshots(enterprise: str, weeks: int = 4) -> List[Dict[str, Any]]:
+        """读取企业指定周数内的摄像头快照人数数据。
+
+        当前为 stub 实现——CameraSnapshot 表尚未在代码层建模。
+        返回空列表使 _compute_headcount_trend 输出"数据不足"，
+        直到真实数据管道（摄像头 → AI → DB）完成迁移。
+        """
+        # TODO: 替换为真实 DB 查询
+        # SELECT snapshot_date, headcount FROM camera_snapshots
+        # WHERE enterprise_name = ? AND snapshot_date >= date('now', f'-{weeks*7} days')
+        # ORDER BY snapshot_date DESC
+        return []
+
+    @staticmethod
+    def _compute_headcount_trend(
+        enterprise: str, weeks: int = 4
+    ) -> Dict[str, Any]:
+        """计算企业视频巡检人数趋势。
+
+        从 CameraSnapshot 读取最近指定周数的人数数据，
+        对比本周均值与前 3 周均值的百分比变化。
+
+        Returns:
+            {
+                "status": "insufficient" | "anomaly" | "stable" | "decline" | "growth",
+                "weeks_data": [...],
+                "current_avg": float | None,
+                "prior_avg": float | None,
+                "delta_pct": float | None,
+                "message": str,
+            }
+        """
+        snapshots = ReportingService._read_camera_snapshots(enterprise, weeks)
+
+        # 数据不足
+        if len(snapshots) < MIN_TREND_WEEKS:
+            return {
+                "status": "insufficient",
+                "weeks_data": snapshots,
+                "current_avg": None,
+                "prior_avg": None,
+                "delta_pct": None,
+                "message": "数据不足，暂无法生成趋势",
+            }
+
+        # 按天聚合人数（去重同日多条快照取均值）
+        daily_counts: Dict[str, List[int]] = {}
+        for s in snapshots:
+            day = s.get("snapshot_date", "")
+            count = s.get("headcount", 0)
+            if day:
+                daily_counts.setdefault(day, []).append(count)
+
+        daily_avgs = sorted(
+            [(d, sum(c) / len(c)) for d, c in daily_counts.items()],
+            key=lambda x: x[0],
+            reverse=True,
+        )
+
+        # 不足最小周数（按天去重后）
+        if len(daily_avgs) < MIN_TREND_WEEKS:
+            return {
+                "status": "insufficient",
+                "weeks_data": daily_avgs,
+                "current_avg": None,
+                "prior_avg": None,
+                "delta_pct": None,
+                "message": "数据不足，暂无法生成趋势",
+            }
+
+        # 本周 = 最近 7 天, 前 3 周 = 第 8-28 天
+        current_week = [c for d, c in daily_avgs[:7]]
+        prior_weeks = [c for d, c in daily_avgs[7:28]]
+
+        current_avg = sum(current_week) / len(current_week) if current_week else 0.0
+        prior_avg = sum(prior_weeks) / len(prior_weeks) if prior_weeks else 0.0
+
+        # 全零数据检测（T8）—— 摄像头可能未配置或故障
+        if current_avg == 0.0 and prior_avg == 0.0:
+            return {
+                "status": "anomaly",
+                "weeks_data": daily_avgs,
+                "current_avg": 0.0,
+                "prior_avg": 0.0,
+                "delta_pct": 0.0,
+                "message": "数据异常：连续 4 周人数为 0，请检查摄像头配置",
+            }
+
+        if prior_avg == 0.0:
+            delta_pct = 0.0
+        else:
+            delta_pct = (current_avg - prior_avg) / prior_avg
+
+        if delta_pct <= -HEADCOUNT_TREND_THRESHOLD:
+            status = "decline"
+            direction = "↓"
+        elif delta_pct >= HEADCOUNT_TREND_THRESHOLD:
+            status = "growth"
+            direction = "↑"
+        else:
+            status = "stable"
+            direction = "→"
+
+        pct_str = f"{abs(delta_pct) * 100:.1f}%"
+        if status == "decline":
+            message = f"{direction} 下降 {pct_str}，触发关注阈值"
+        elif status == "growth":
+            message = f"{direction} 增长 {pct_str}"
+        else:
+            message = f"{direction} 稳定，变化 {pct_str}"
+
+        return {
+            "status": status,
+            "weeks_data": daily_avgs,
+            "current_avg": round(current_avg, 1),
+            "prior_avg": round(prior_avg, 1),
+            "delta_pct": round(delta_pct, 4),
+            "message": message,
+        }
+
     # ── 周报辅助方法 ──────────────────────────────────────────
 
     @staticmethod
     def _extract_enterprise_from_topic(topic: str) -> str:
         """从调查主题中提取企业名。"""
-        m = re.search(r'([一-鿿]{2,20}(?:有限公司|有限责任公司|分公司))', topic)
+        m = re.search(r"([一-鿿]{2,20}(?:有限公司|有限责任公司|分公司))", topic)
         return m.group(1) if m else topic.strip()
 
     @staticmethod
     def _calc_risk_counts_from_tasks(tasks: list) -> dict:
         """遍历所有任务搜索结果，统计负面关键词命中数生成风险计数。"""
-        negative_kw = ["风险", "下降", "萎缩", "违约", "处罚", "下滑", "亏损"]
         total_hits = 0
         for t in tasks:
             text = f"{t.summary or ''} {t.sources_summary or ''}"
-            total_hits += sum(1 for kw in negative_kw if kw in text)
+            total_hits += sum(1 for kw in NEGATIVE_RISK_KEYWORDS if kw in text)
         if total_hits >= 3:
             return {"red": 1, "orange": 0, "yellow": total_hits, "total": total_hits + 1}
         elif total_hits >= 1:
@@ -78,6 +232,7 @@ class ReportingService:
     def _rag_match(field_key: str, ref_text: str, enterprise: str = "") -> str | None:
         """查询 ChromaDB 向量库。不再使用关键词匹配文本文件。"""
         from services.rag_store import query as rag_query
+
         result = rag_query(field_key, enterprise, n_results=1)
         return result if result else None
 
@@ -92,8 +247,10 @@ class ReportingService:
                         sources.append(line.lstrip("* ").strip())
         return "\n".join(f"- {s}" for s in sources) if sources else "无相关内容"
 
-    def _build_weekly_context(self, topic: str, tasks: list) -> str:
-        """构建周报结构化上下文（模拟数据 + 参考文档 RAG）。"""
+    # ── 周报结构化数据构建（T3: dict 模式） ─────────────────
+
+    def _build_weekly_data(self, topic: str, tasks: list) -> WeeklyData:
+        """构建周报结构化数据字典。每个信号是 dict 的一个键，新增信号只需增加一个键值对。"""
         today = date.today()
         p_end = today.isoformat()
         p_start = (
@@ -107,8 +264,48 @@ class ReportingService:
         industry = self._rag_match("industry", ref_text, enterprise) or "安保服务"
         loan_amount = self._rag_match("loan_amount", ref_text, enterprise) or "1000.0"
 
+        # ── 运营信号 ──
+        headcount_trend = self._compute_headcount_trend(enterprise)
+
+        # Party A 运营信号（条件性：Week 1 招标数据可行性调研结果决定数据源）
+        party_a_signals: Optional[List[Dict[str, Any]]] = None
+        # TODO Week 2: 若招标调研通过 → 接入招标趋势数据
+        # TODO Week 2: 若招标调研不通过 → 降级为企查查工商变更频率
+        # 当前 Week 1: party_a_signals 为 None，模板显示"无相关内容"
+
+        return WeeklyData(
+            enterprise=enterprise,
+            industry=industry,
+            loan_amount=loan_amount,
+            report_date=today.strftime("%Y-%m-%d"),
+            report_period_start=p_start,
+            report_period_end=p_end,
+            ref_text=ref_text,
+            risk=risk,
+            headcount_trend=headcount_trend,
+            party_a_signals=party_a_signals,
+        )
+
+    @staticmethod
+    def _format_weekly_context(data: WeeklyData) -> str:
+        """将 WeeklyData dict 格式化为 LLM 可解析的结构化上下文字符串。
+
+        每个字段独立格式化；缺失字段优雅降级而不是崩溃。
+        新增信号字段时只需在此方法中增加一个格式化块。
+        """
+        enterprise = data.get("enterprise", "未知")
+        industry = data.get("industry", "未知")
+        loan_amount = data.get("loan_amount", "未知")
+        report_date = data.get("report_date", date.today().isoformat())
+        p_start = data.get("report_period_start", "")
+        p_end = data.get("report_period_end", "")
+        ref_text = data.get("ref_text", "")
+        risk = data.get("risk", {"red": 0, "orange": 0, "yellow": 0, "total": 0})
+        headcount_trend = data.get("headcount_trend")
+        party_a_signals = data.get("party_a_signals")
+
         ctx = f"""【报告时间】
-报告日期：{today.strftime('%Y-%m-%d')}
+报告日期：{report_date}
 报告周期：{p_start} ~ {p_end}
 
 【企业信息】（来源：参考文档 / 默认值）
@@ -125,6 +322,32 @@ class ReportingService:
 黄色预警：{risk['yellow']} 项
 合计：{risk['total']} 项
 """
+
+        # ── 运营信号：视频巡检人数趋势（T4 模板对应字段） ──
+        if headcount_trend and headcount_trend.get("status") != "insufficient":
+            ctx += f"""
+【视频巡检人数趋势】
+趋势状态：{headcount_trend.get('status', 'unknown')}
+本周日均人数：{headcount_trend.get('current_avg', 'N/A')}
+前3周日均人数：{headcount_trend.get('prior_avg', 'N/A')}
+变化幅度：{headcount_trend.get('delta_pct', 0) * 100:.1f}%
+趋势说明：{headcount_trend.get('message', '')}
+"""
+        else:
+            ctx += """
+【视频巡检人数趋势】
+趋势状态：insufficient
+说明：数据不足，暂无法生成趋势
+"""
+
+        # ── 运营信号：甲方经营信号（T5 模板对应字段） ──
+        if party_a_signals:
+            ctx += "\n【甲方经营信号】\n"
+            for sig in party_a_signals:
+                ctx += f"- {sig.get('name', '')}: {sig.get('value', '')} ({sig.get('status', '')})\n"
+        else:
+            ctx += "\n【甲方经营信号】\n无相关内容\n"
+
         return ctx
 
     # ── 主方法 ───────────────────────────────────────────────
@@ -146,9 +369,10 @@ class ReportingService:
 
         if self._style == "weekly":
             system_prompt = weekly_report_writer_instructions.strip()
-            weekly_ctx = self._build_weekly_context(
+            weekly_data = self._build_weekly_data(
                 state.research_topic, state.todo_items
             )
+            weekly_ctx = self._format_weekly_context(weekly_data)
             sources = self._collect_sources(state.todo_items)
             prompt = (
                 f"调查主题：{state.research_topic}\n\n"
