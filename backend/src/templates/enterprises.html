@@ -9,118 +9,115 @@
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
 .header { background: linear-gradient(135deg, #1e293b, #334155); color: #fff; padding: 16px 28px; display: flex; align-items: center; gap: 12px; }
 .header h1 { font-size: 18px; font-weight: 700; }
-.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-.card { background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
-.card h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1e293b; }
-.field { margin-bottom: 14px; }
-.field label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 4px; }
-.field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; background: #fff; }
-.field input:focus, .field select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
-.field textarea { resize: vertical; min-height: 60px; }
-.field .hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-.row { display: flex; gap: 12px; }
-.row .field { flex: 1; }
-.btn { padding: 10px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: .15s; }
+.container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+/* 项目卡片 */
+.project-card { background: #fff; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.06); overflow: hidden; }
+.project-header { padding: 20px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #f1f5f9; }
+.project-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.project-icon.debtor { background: #fef3c7; }
+.project-body { padding: 16px 24px 20px; }
+.project-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+.project-row + .project-row { border-top: 1px solid #f8fafc; }
+.project-name { font-weight: 600; font-size: 14px; }
+.project-meta { font-size: 12px; color: #64748b; display: flex; gap: 12px; margin-top: 2px; }
+.tag { display: inline-flex; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.tag-debtor { background: #fef3c7; color: #92400e; }
+.tag-party-a { background: #dbeafe; color: #1e40af; }
+.tag-parent { background: #fce7f3; color: #9d174d; }
+.tag-stock { background: #dcfce7; color: #166534; }
+
+/* 甲方行（缩进） */
+.party-row { margin-left: 40px; padding: 8px 14px; background: #f8fafc; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.party-row + .party-row { margin-top: 6px; }
+.party-row .arrow { color: #94a3b8; font-size: 14px; margin-right: 4px; }
+
+/* 表单 */
+.add-card { background: #fff; border-radius: 16px; padding: 20px 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+.add-card h2 { font-size: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.form-field { flex: 1; min-width: 180px; }
+.form-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+.form-field input, .form-field select { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; }
+.form-field input:focus, .form-field select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+.form-field .hint { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+
+.btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: .15s; }
 .btn-primary { background: linear-gradient(135deg,#2563eb,#7c3aed); color: #fff; }
-.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-.btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
-.btn-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-size: 11px; padding: 4px 10px; }
-.ent-list { display: flex; flex-direction: column; gap: 10px; }
-.ent-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
-.ent-row .name { font-weight: 600; font-size: 14px; }
-.ent-row .meta { font-size: 12px; color: #64748b; display: flex; gap: 8px; }
-.ent-row .tag { display: inline-flex; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
-.ent-row .tag-party-a { background: #dbeafe; color: #1e40af; }
-.ent-row .tag-party-b { background: #fef3c7; color: #92400e; }
-.ent-row .tag-parent { background: #fce7f3; color: #9d174d; }
-.msg { padding: 10px 14px; border-radius: 8px; margin-top: 12px; font-size: 13px; display: none; }
+.btn-primary:hover { opacity: 0.9; }
+.btn-sm { padding: 4px 10px; font-size: 11px; border-radius: 6px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; cursor: pointer; }
+.btn-ghost { background: none; border: 1px solid #cbd5e1; color: #64748b; }
+.empty { text-align: center; padding: 60px 20px; color: #94a3b8; }
+.empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+.msg { padding: 8px 14px; border-radius: 8px; font-size: 13px; margin-top: 10px; display: none; }
 .msg.ok { display: block; background: #dcfce7; color: #166534; }
 .msg.err { display: block; background: #fee2e2; color: #991b1b; }
-.empty { text-align: center; padding: 40px; color: #94a3b8; }
+
+a.back { color: #93c5fd; font-size: 13px; text-decoration: none; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <span>🏢</span>
-  <h1>企业管理</h1>
+  <span>🏢</span><h1>企业管理</h1>
   <span style="flex:1"></span>
-  <a href="/warnings" style="color:#93c5fd;font-size:13px;text-decoration:none;">← 预警中心</a>
+  <a class="back" href="/warnings">← 预警中心</a>
 </div>
 
 <div class="container">
-  <div class="grid">
-    <!-- 左侧：表单 -->
-    <div class="card">
-      <h2>➕ 新增企业</h2>
-      <form id="addForm" onsubmit="addEnterprise(event)">
-        <div class="field">
-          <label>角色</label>
+  <!-- 项目列表（卡片式） -->
+  <div id="projectList"></div>
+
+  <!-- 新增 -->
+  <div class="add-card">
+    <h2>➕ 新增企业</h2>
+    <form id="addForm" onsubmit="addEnterprise(event)">
+      <div class="form-row">
+        <div class="form-field">
+          <label>角色 *</label>
           <select id="role" onchange="onRoleChange()">
-            <option value="乙方">乙方 - 债务企业（借款方）</option>
-            <option value="甲方">甲方 - 核心监管企业（客户/付款方）</option>
+            <option value="乙方">乙方 - 债务企业</option>
+            <option value="甲方">甲方 - 核心监管企业</option>
           </select>
         </div>
-        <div class="field">
+        <div class="form-field" style="flex:2">
           <label>企业全称 *</label>
           <input id="name" placeholder="如：四川振海保安服务有限公司" required>
         </div>
-        <div class="field">
+        <div class="form-field">
           <label>所属行业</label>
-          <input id="industry" placeholder="如：安保服务、物业管理、管道运输">
+          <input id="industry" placeholder="安保服务">
         </div>
-        <div class="field" id="loanAmountField">
-          <label>贷款金额（万元）</label>
-          <input id="loanAmount" type="number" placeholder="如：1000" step="0.01">
-        </div>
-        <div class="field">
-          <label>搜索关键词（逗号分隔）</label>
-          <textarea id="keywords" placeholder="如：四川振海, 振海保安"></textarea>
-          <div class="hint">用于 WebSearch 和企查查查询，支持多个关键词</div>
-        </div>
-        <div class="field" id="linkedField" style="display:none">
-          <label>关联的债务企业</label>
-          <input id="debtor" placeholder="如：四川振海保安服务有限公司">
-          <div class="hint">甲方对应的乙方（债务企业）名称</div>
-        </div>
-        <div id="parentFields" style="display:none">
-          <div class="field">
-            <label>母公司名称</label>
-            <input id="parent" placeholder="如：中国铁建、国家管网集团">
-            <div class="hint">甲方无风险信号时自动追溯母公司</div>
-          </div>
-          <div class="row">
-            <div class="field">
-              <label>母公司股票代码</label>
-              <input id="parentStockCode" placeholder="如：601186.SH">
-              <div class="hint">上市公司填股票代码，同花顺可查</div>
-            </div>
-            <div class="field">
-              <label>概念指数代码</label>
-              <input id="conceptCode" placeholder="如：885692.TI">
-              <div class="hint">非上市母公司填行业概念指数</div>
-            </div>
-          </div>
-        </div>
-        <div class="field" id="corePartiesField">
-          <label>关联甲方（核心监管企业）</label>
-          <textarea id="coreParties" placeholder="每行一个企业全称"></textarea>
-          <div class="hint">该债务企业对应的核心监管企业（甲方），每行一个</div>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">新增企业</button>
-      </form>
-      <div id="msg" class="msg"></div>
-    </div>
-
-    <!-- 右侧：列表 -->
-    <div class="card">
-      <h2>📋 当前企业（<span id="entCount">0</span>家）</h2>
-      <div class="ent-list" id="entList">
-        <div class="empty">加载中...</div>
       </div>
-    </div>
+      <div class="form-row">
+        <div class="form-field" id="debtorField" style="display:none">
+          <label>关联的债务企业（乙方）</label>
+          <input id="debtor" placeholder="属于哪个贷款项目">
+        </div>
+        <div class="form-field" id="loanField">
+          <label>贷款金额（万元）</label>
+          <input id="loanAmount" type="number" placeholder="1000" step="0.01">
+        </div>
+        <div class="form-field" id="parentField" style="display:none">
+          <label>母公司</label>
+          <input id="parent" placeholder="如：中国铁建">
+          <div class="hint">有则填，无风险时可追溯</div>
+        </div>
+        <div class="form-field" id="stockField" style="display:none">
+          <label>母公司股票/概念代码</label>
+          <input id="parentStockCode" placeholder="601186.SH 或 885692.TI">
+          <div class="hint">上市公司填股票代码，否则填概念指数</div>
+        </div>
+        <div class="form-field">
+          <label>搜索关键词</label>
+          <input id="keywords" placeholder="四川振海, 振海保安">
+          <div class="hint">逗号分隔，用于舆情搜索</div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">新增</button>
+    </form>
+    <div id="msg" class="msg"></div>
   </div>
 </div>
 
@@ -129,10 +126,10 @@ const API = 'http://127.0.0.1:8080';
 
 function onRoleChange() {
   const isA = document.getElementById('role').value === '甲方';
-  document.getElementById('parentFields').style.display = isA ? 'block' : 'none';
-  document.getElementById('linkedField').style.display = isA ? 'block' : 'none';
-  document.getElementById('loanAmountField').style.display = isA ? 'none' : 'block';
-  document.getElementById('corePartiesField').style.display = isA ? 'none' : 'block';
+  document.getElementById('debtorField').style.display = isA ? '' : 'none';
+  document.getElementById('parentField').style.display = isA ? '' : 'none';
+  document.getElementById('stockField').style.display = isA ? '' : 'none';
+  document.getElementById('loanField').style.display = isA ? 'none' : '';
 }
 
 async function addEnterprise(e) {
@@ -143,68 +140,25 @@ async function addEnterprise(e) {
     industry: document.getElementById('industry').value.trim(),
     loan_amount: document.getElementById('loanAmount').value.trim(),
     keywords: document.getElementById('keywords').value.trim(),
+    debtor: document.getElementById('debtor').value.trim(),
     parent: document.getElementById('parent').value.trim(),
     parent_stock_code: document.getElementById('parentStockCode').value.trim(),
-    concept_code: document.getElementById('conceptCode').value.trim(),
-    debtor: document.getElementById('debtor').value.trim(),
-    core_parties: document.getElementById('coreParties').value.trim().split('\n').filter(s=>s.trim()),
   };
   if (!data.name) { showMsg('请输入企业全称', 'err'); return; }
   try {
     const resp = await fetch(API + '/api/enterprises', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(data)
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
     });
     const r = await resp.json();
-    if (r.status === 'ok') {
-      showMsg(`✅ ${data.name} 已添加`, 'ok');
-      document.getElementById('addForm').reset();
-      onRoleChange();
-      loadEnterprises();
-    } else {
-      showMsg(r.detail || '添加失败', 'err');
-    }
+    if (r.status === 'ok') { showMsg(`✅ ${data.name} 已添加`, 'ok'); document.getElementById('addForm').reset(); onRoleChange(); loadProjects(); }
+    else { showMsg(r.detail || '失败', 'err'); }
   } catch(err) { showMsg('网络错误', 'err'); }
 }
 
 async function deleteEnterprise(name) {
-  if (!confirm(`确定删除 ${name}？`)) return;
-  try {
-    await fetch(API + '/api/enterprises/' + encodeURIComponent(name), { method: 'DELETE' });
-    loadEnterprises();
-  } catch(err) { showMsg('删除失败', 'err'); }
-}
-
-async function loadEnterprises() {
-  try {
-    const resp = await fetch(API + '/api/enterprises');
-    const data = await resp.json();
-    const list = data.enterprises || [];
-    document.getElementById('entCount').textContent = list.length;
-    const html = list.length ? list.map(e => {
-      const debtorInfo = e.debtor ? `<span style="font-size:11px;color:#3b82f6;">← 乙方: ${e.debtor}</span>` : '';
-      const coreInfo = e.core_parties && e.core_parties.length
-        ? `<span style="font-size:11px;color:#3b82f6;">→ 甲方: ${e.core_parties.join(', ')}</span>` : '';
-      return `
-      <div class="ent-row">
-        <div>
-          <div class="name">${e.name}
-            <span class="tag ${e.role==='甲方'?'tag-party-a':'tag-party-b'}">${e.role||'乙方'}</span>
-            ${e.parent ? `<span class="tag tag-parent">母公司: ${e.parent}</span>` : ''}
-          </div>
-          <div class="meta">
-            ${e.industry ? `<span>🏭 ${e.industry}</span>` : ''}
-            ${e.loan_amount ? `<span>💰 ${e.loan_amount}万</span>` : ''}
-            ${e.parent_stock_code ? `<span>📈 ${e.parent_stock_code}</span>` : ''}
-            ${e.concept_code ? `<span>📊 ${e.concept_code}</span>` : ''}
-            ${debtorInfo} ${coreInfo}
-          </div>
-        </div>
-        <button class="btn btn-danger" onclick="deleteEnterprise('${e.name.replace(/'/g,"\\'")}')">删除</button>
-      </div>
-    `}).join('') : '<div class="empty">暂无企业，请添加</div>';
-    document.getElementById('entList').innerHTML = html;
-  } catch(err) { console.error(err); }
+  if (!confirm(`删除 ${name}？`)) return;
+  await fetch(API + '/api/enterprises/' + encodeURIComponent(name), { method: 'DELETE' });
+  loadProjects();
 }
 
 function showMsg(text, type) {
@@ -213,8 +167,83 @@ function showMsg(text, type) {
   setTimeout(() => m.className = 'msg', 3000);
 }
 
+// ── 项目视图（乙方 + 下级甲方）──
+async function loadProjects() {
+  const resp = await fetch(API + '/api/enterprises');
+  const data = await resp.json();
+  const all = data.enterprises || [];
+  const debtors = all.filter(e => e.role === '乙方');
+  const parties = all.filter(e => e.role === '甲方');
+
+  if (!all.length) {
+    document.getElementById('projectList').innerHTML = '<div class="empty"><div class="icon">📋</div><p>暂无企业，请添加</p></div>';
+    return;
+  }
+
+  let html = '';
+  debtors.forEach(d => {
+    const linked = parties.filter(p => p.debtor === d.name);
+    html += `<div class="project-card">
+      <div class="project-header">
+        <div class="project-icon debtor">🏢</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:15px;">${d.name}
+            <span class="tag tag-debtor">乙方·债务企业</span>
+          </div>
+          <div class="project-meta">
+            ${d.industry ? `<span>🏭 ${d.industry}</span>` : ''}
+            ${d.loan_amount ? `<span>💰 ${d.loan_amount}万元</span>` : ''}
+            <span>甲方 ${linked.length} 家</span>
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="deleteEnterprise('${d.name.replace(/'/g,"\\'")}')">删除</button>
+      </div>
+      <div class="project-body">
+        ${linked.length ? linked.map(p => `
+          <div class="party-row">
+            <div>
+              <span class="arrow">└</span>
+              <span class="project-name">${p.name}</span>
+              <span class="tag tag-party-a">甲方</span>
+              ${p.parent ? `<span class="tag tag-parent">母公司 ${p.parent}</span>` : ''}
+              ${p.parent_stock_code ? `<span class="tag tag-stock">${p.parent_stock_code}</span>` : ''}
+              <div class="project-meta" style="margin-left:18px;">🏭 ${p.industry||'未填'}</div>
+            </div>
+            <button class="btn btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
+          </div>
+        `).join('') : '<div class="party-row" style="color:#94a3b8;">暂无关联甲方，请添加</div>'}
+        ${d.core_parties && d.core_parties.length ? '' : ''}
+      </div>
+    </div>`;
+  });
+
+  // 未关联的甲方
+  const unlinked = parties.filter(p => !p.debtor);
+  if (unlinked.length) {
+    html += `<div class="project-card" style="opacity:0.7;">
+      <div class="project-header">
+        <div style="font-weight:700;font-size:15px;color:#64748b;">📋 未关联的甲方（${unlinked.length}家）</div>
+      </div>
+      <div class="project-body">
+        ${unlinked.map(p => `
+          <div class="party-row">
+            <div>
+              <span class="project-name">${p.name}</span>
+              <span class="tag tag-party-a">甲方</span>
+              ${p.parent ? `<span class="tag tag-parent">母公司 ${p.parent}</span>` : ''}
+            </div>
+            <button class="btn btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('projectList').innerHTML = html;
+}
+
 onRoleChange();
-loadEnterprises();
+loadProjects();
 </script>
 </body>
 </html>
