@@ -24,14 +24,14 @@ a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
 .project-card:nth-child(7) { border-left-color:#ec4899; }
 .project-card:nth-child(8) { border-left-color:#6366f1; }
 
-.project-head { padding:18px 22px; display:flex; align-items:center; gap:14px; cursor:pointer; }
+.project-head { padding:18px 22px; display:flex; align-items:center; gap:14px; cursor:pointer; user-select:none; }
 .project-head:hover { background:#fafbfc; }
+.project-body { padding:0 22px 16px 22px; border-top:1px solid #f1f5f9; display:none; }
+.project-card.open .project-body { display:block; }
 .project-head .num { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; color:#fff; }
 .project-head .info { flex:1; }
 .project-head .info .name { font-weight:700; font-size:15px; }
 .project-head .info .meta { font-size:12px; color:#64748b; display:flex; gap:12px; margin-top:3px; }
-.project-body { padding:0 22px 16px 22px; border-top:1px solid #f1f5f9; }
-
 /* 甲方行 */
 .party-row { margin-left:36px; padding:10px 14px; background:#f8fafc; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .party-row + .party-row { margin-top:6px; }
@@ -78,11 +78,15 @@ a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
 </div>
 
 <div class="container">
-  <!-- 项目列表 -->
-  <div class="projects-grid" id="projectList"></div>
+  <!-- 快捷操作 -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+    <button class="btn btn-primary" onclick="toggleAddForm()" id="addBtn">➕ 新建项目</button>
+    <button class="btn btn-outline" onclick="toggleAll()" style="font-size:12px;">展开/折叠全部</button>
+    <span style="font-size:12px;color:#94a3b8;margin-left:8px;" id="totalInfo"></span>
+  </div>
 
-  <!-- 新建项目（一次性录入乙方+多个甲方） -->
-  <div class="add-card">
+  <!-- 新建项目（默认折叠） -->
+  <div class="add-card" id="addCard" style="display:none;">
     <h2>➕ 新建贷款项目</h2>
 
     <div class="form-section">
@@ -177,12 +181,14 @@ async function submitProject() {
     } catch(e) {}
   }
   showMsg(`✅ 项目创建完成：${ok}家企业`, 'ok');
+  document.getElementById('addCard').style.display = 'none';
   _pendingParties = []; renderPartyPreview();
   document.getElementById('debtorName').value = '';
   document.getElementById('debtorIndustry').value = '';
   document.getElementById('debtorAmount').value = '';
   document.getElementById('debtorKW').value = '';
-  loadProjects();
+  document.getElementById('totalInfo').textContent = `共 ${debtors.length} 个项目，${all.length} 家企业`;
+}
 }
 
 async function deleteEnterprise(name) { if(confirm(`删除 ${name}？`)){await fetch(API+'/api/enterprises/'+encodeURIComponent(name),{method:'DELETE'});loadProjects();}}
@@ -203,7 +209,7 @@ async function loadProjects() {
   document.getElementById('projectList').innerHTML = debtors.map((d,i) => {
     const linked = parties.filter(p=>p.debtor===d.name);
     return `<div class="project-card">
-      <div class="project-head">
+      <div class="project-head" onclick="this.closest('.project-card').classList.toggle('open')">
         <div class="num" style="background:${COLORS[i%COLORS.length]}">${i+1}</div>
         <div class="info">
           <div class="name">${d.name} <span class="tag tag-debtor">乙方</span></div>
@@ -229,6 +235,16 @@ async function loadProjects() {
       </div>
     </div>`;
   }).join('');
+}
+
+function toggleAddForm() {
+  const card = document.getElementById('addCard');
+  const isHidden = card.style.display === 'none';
+  card.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) card.scrollIntoView({behavior:'smooth'});
+}
+function toggleAll() {
+  document.querySelectorAll('.project-card').forEach(c => c.classList.toggle('open'));
 }
 
 loadProjects();
