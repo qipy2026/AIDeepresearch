@@ -520,7 +520,8 @@ def create_app() -> FastAPI:
 
     _scheduler = BackgroundScheduler()
 
-    def _collect_source(name: str, text: str, db, cls, ent_name: str, source: str):
+    def _collect_source(name: str, text: str, db, cls, ent_name: str, source: str,
+                        title_override: str = "", detail_override: str = ""):
         """统一采集-提取-分类-存储。"""
         if not text or not text.strip():
             return
@@ -528,14 +529,15 @@ def create_app() -> FastAPI:
         ex = extract(source, text)
         classifiable = ex.get("readable", ex.get("summary", text))
         c = cls.classify(classifiable, ent_name)
-        # 所有数据源结果都存储，即使分类为 none（供人工复核）
         sev = c["severity"] if c["severity"] != "none" else "normal"
+        title = title_override or ex.get("title") or c.get("title") or classifiable[:100]
+        detail = detail_override or ex.get("summary") or ex.get("readable") or classifiable[:500]
         db.insert(
             enterprise=ent_name, source=source,
             severity=sev,
             category=c.get("category", ""),
-            title=ex.get("title", c.get("title", classifiable[:100])),
-            detail=ex.get("summary", ex.get("readable", classifiable[:500])),
+            title=title,
+            detail=detail,
             suggested_action=c.get("suggested_action", ""),
             raw_data=text,
             )
@@ -578,40 +580,26 @@ def create_app() -> FastAPI:
                         has_risk = data.get("有记录因子数", 0) > 0
                     except: pass
 
-                # 2. 同花顺：母公司股票 + 行业概念指数
+                # 2. 同花顺全量采集：行情+异常+财务+问财+概念
                 try:
-                    from iFinDPy import THS_iFinDLogin, THS_RQ, THS_iFinDLogout
-                    THS_iFinDLogin(cfg.ths_username, cfg.ths_password)
-                    # 2a. 上市公司母公司 → 股票行情
-                    stock = ent.get("parent_stock_code", "")
-                    if stock:
-                        data = THS_RQ(stock, "latest;changeRatio;pb", "")
-                        if data and data.errorcode == 0:
-                            row = data.data.iloc[0]
-                            chg = round(float(row['changeRatio']), 2)
-                            pb = round(float(row['pb']), 2)
-                            price = round(float(row['latest']), 2)
-                            direction = "📉下跌" if chg < -2 else ("📈上涨" if chg > 2 else "➡️持平")
-                            ths_text = (
-                                f"{direction} {ent['parent']}({stock}) 最新价¥{price} "
-                                f"涨跌{chg}% PB{pb}"
-                            )
-                            _collect_source("ths_stock", ths_text,
-                                db, cls, f"{ent['parent']}（母公司·同花顺）", "ths_stock")
-                    # 2b. 概念指数
-                    concept = ent.get("concept_code", "")
-                    if concept:
-                        data = THS_RQ(concept, "latest;changeRatio", "")
-                        if data and data.errorcode == 0:
-                            row = data.data.iloc[0]
-                            chg = round(float(row['changeRatio']), 2)
-                            direction = "📉" if chg < -2 else ("📈" if chg > 2 else "➡️")
-                            _collect_source("ths_stock",
-                                f"{direction} {ent.get('industry','')}概念 指数{round(float(row['latest']),1)} 涨跌{chg}%",
-                                db, cls, f"{ent['name']}（概念·同花顺）", "ths_stock")
-                    THS_iFinDLogout()
+                    from services.ths_collector import collect_all
+                    signals = collect_all(
+                        cfg.ths_username, cfg.ths_password,
+                        stock_code=ent.get("parent_stock_code", "") or ent.get("stock_code", ""),
+                        enterprise=ent.get("parent", "") or ent["name"],
+                        industry=ent.get("industry", ""),
+                        concept_code=ent.get("concept_code", ""),
+                    )
+                    for sig in signals:
+                        _collect_source(sig["source"],
+                            sig.get("raw", sig.get("detail", "")),
+                            db, cls,
+                            sig.get("label", ent["name"]),
+                            sig.get("source", "ths_stock"),
+                            title_override=sig.get("title", ""),
+                            detail_override=sig.get("detail", ""))
                 except Exception as e:
-                    logger.warning(f"THS failed for {ent['name']}: {e}")
+                    logger.warning(f"THS collect failed for {ent['name']}: {e}")
 
                 # 3. 甲方无信号 → 追溯母公司企查查
                 if role == "甲方" and ent.get("parent"):
