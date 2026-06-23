@@ -240,7 +240,7 @@ function renderWarnings(warnings) {
           <span class="sev-label">${sevLabel}</span>
           ${newBadge}
           <span>🕐 ${timeStr}</span>
-          <span>📡 ${{qichacha:'企查查',ths_stock:'同花顺',ths_macro:'同花顺宏观',piaojiaosuo:'票交所',web_search:'Web搜索'}[w.source] || w.source}</span>
+          <span>📡 ${{qichacha:'企查查',ths_stock:'同花顺',ths_macro:'同花顺宏观',ths_anomaly:'同花顺异常',ths_iwencai:'同花顺问财',piaojiaosuo:'票交所',web_search:'Web搜索'}[w.source] || w.source}</span>
           ${w.enterprise.includes('甲方') ? '<span class="tag tag-blue">甲方</span>' : ''}
           ${w.enterprise.includes('乙方') ? '<span class="tag tag-blue">乙方</span>' : ''}
           ${w.enterprise.includes('母公司') ? '<span class="tag tag-orange">母公司追溯</span>' : ''}

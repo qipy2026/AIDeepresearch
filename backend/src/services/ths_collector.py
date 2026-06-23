@@ -101,6 +101,30 @@ def collect_all(ths_username: str, ths_password: str,
         except Exception:
             pass
 
+    # ── 5. EDB 宏观经济（全局只查一次，通过 stock_code 判断是否首家上市公司）──
+    if stock_code:
+        try:
+            from iFinDPy import THS_EDB
+            macro_indicators = {
+                "M002822183": "PMI",
+                "M004562391": "工业增加值同比",
+                "M000027383": "固投增速",
+            }
+            for ind, name in macro_indicators.items():
+                data = THS_EDB(ind, "", "2026-01-01", "2026-06-30")
+                if data and data.errorcode == 0 and len(data.data) > 0:
+                    row = data.data.iloc[-1]
+                    val = row.get("value", "N/A")
+                    results.append({
+                        "source": "ths_macro",
+                        "label": f"宏观经济（同花顺·EDB）",
+                        "title": f"📊 {name}: {val}",
+                        "detail": f"指标{ind} 最新值{val} (时间{row.get('time','')})",
+                        "raw": str(row.to_dict()),
+                    })
+        except Exception:
+            pass
+
     try:
         THS_iFinDLogout()
     except Exception:
