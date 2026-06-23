@@ -435,11 +435,16 @@ def create_app() -> FastAPI:
                 suggested_action=c.get("suggested_action", ""),
                 raw_data=text,
             )
-            # 红色预警 → 写入待推送标记（供 Dispatcher 使用）
-            if c["severity"] == "red":
-                logger.warning(
-                    "🔴 RED ALERT: {} | {} | {}",
-                    ent_name, c.get("title", ""), c.get("suggested_action", "")
+            # 橙色/红色 → 飞书推送
+            if c["severity"] in ("red", "orange"):
+                from services.warning_dispatcher import push_alert
+                push_alert(
+                    enterprise=ent_name,
+                    severity=c["severity"],
+                    title=ex.get("title", c.get("title", "")),
+                    detail=ex.get("summary", ex.get("readable", "")),
+                    source=source,
+                    suggested_action=c.get("suggested_action", ""),
                 )
 
     def _warning_collect_cycle():
