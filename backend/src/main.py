@@ -312,6 +312,14 @@ def create_app() -> FastAPI:
         WarningDB().mark_false(warning_id, "operator")
         return {"status": "ok"}
 
+    @app.put("/api/warnings/{warning_id}/unack")
+    def unack_warning(warning_id: int, request: Request):
+        if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
+            raise HTTPException(401, "Invalid API key")
+        from warning_db import WarningDB
+        WarningDB().reset_status(warning_id)
+        return {"status": "ok"}
+
     # ── 预警调度器 ─────────────────────────────────────────
     from apscheduler.schedulers.background import BackgroundScheduler
     from config import WarningConfig
@@ -319,20 +327,30 @@ def create_app() -> FastAPI:
     _scheduler = BackgroundScheduler()
 
     def _collect_source(name: str, text: str, db, cls, ent_name: str, source: str):
-        """统一采集-分类-存储。"""
+        """统一采集-提取-分类-存储。"""
         if not text or not text.strip():
             return
-        c = cls.classify(text, ent_name)
+        from services.warning_extractor import extract
+        ex = extract(source, text)
+        # 用提取后的可读文本做分类，而非原始JSON
+        classifiable = ex.get("readable", ex.get("summary", text))
+        c = cls.classify(classifiable, ent_name)
         if c["severity"] != "none":
             db.insert(
                 enterprise=ent_name, source=source,
                 severity=c["severity"],
                 category=c.get("category", ""),
-                title=c.get("title", text[:100]),
-                detail=c.get("detail", text[:500]),
+                title=ex.get("title", c.get("title", classifiable[:100])),
+                detail=ex.get("abstract", ex.get("readable", classifiable[:500])),
                 suggested_action=c.get("suggested_action", ""),
                 raw_data=text[:2000],
             )
+            # 红色预警 → 写入待推送标记（供 Dispatcher 使用）
+            if c["severity"] == "red":
+                logger.warning(
+                    "🔴 RED ALERT: {} | {} | {}",
+                    ent_name, c.get("title", ""), c.get("suggested_action", "")
+                )
 
     def _warning_collect_cycle():
         """预警采集→分类→存储完整周期。"""

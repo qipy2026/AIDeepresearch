@@ -130,6 +130,15 @@ class WarningDB:
         )
         self._get_conn().commit()
 
+    def reset_status(self, warning_id: int):
+        """撤销确认/误报，回到 new 状态。"""
+        self._get_conn().execute(
+            """UPDATE warning_log
+               SET status='new', acked_by='', acked_at=''
+               WHERE id=?""", (warning_id,),
+        )
+        self._get_conn().commit()
+
     def stats(self) -> Dict[str, Any]:
         conn = self._get_conn()
         sev = conn.execute(

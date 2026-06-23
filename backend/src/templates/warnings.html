@@ -120,26 +120,34 @@ function renderWarnings(warnings) {
     list.innerHTML = '<div class="empty"><div class="icon">✅</div><p>暂无预警，系统运行正常</p></div>';
     return;
   }
-  list.innerHTML = warnings.map(w => `
+  list.innerHTML = warnings.map(w => {
+    const titleText = parseRawForTitle(w.raw_data) || w.title || '';
+    const detailText = parseDetail(w.detail);
+    const statusHTML = w.status === 'acked'
+      ? '<span style="color:#16a34a">✅ 已确认</span>'
+      : w.status === 'false_positive'
+      ? '<span style="color:#ea580c">⚠️ 误报</span>'
+      : '<span style="color:#3b82f6">🆕 新预警</span>';
+    const actionsHTML = w.status === 'new'
+      ? `<div class="warning-actions"><button class="ack" onclick="ackWarning(${w.id})">✅ 确认</button><button class="false-btn" onclick="falseWarning(${w.id})">❌ 误报</button></div>`
+      : (w.status === 'acked' || w.status === 'false_positive')
+      ? `<div class="warning-actions"><button class="ack" onclick="unackWarning(${w.id})" style="border-color:#94a3b8;color:#64748b;">↩ 撤销</button></div>`
+      : '';
+    return `
     <div class="warning-card ${w.severity}" id="w-${w.id}">
       <div class="sev-icon">${w.severity === 'red' ? '🔴' : w.severity === 'orange' ? '🟠' : '🟡'}</div>
       <div class="warning-content">
-        <div class="warning-title">${w.enterprise} — ${truncate(w.title, 60)}</div>
-        <div class="warning-detail">${truncate(w.detail, 200)}</div>
+        <div class="warning-title">${w.enterprise} — ${truncate(titleText || detailText, 80)}</div>
+        <div class="warning-detail">${truncate(detailText, 250)}</div>
         <div class="warning-meta">
           <span>📡 ${w.source}</span>
           <span>🕐 ${w.created_at || ''}</span>
-          ${w.status === 'acked' ? '<span style="color:#16a34a">✅ 已确认</span>' : w.status === 'false_positive' ? '<span style="color:#ea580c">⚠️ 误报</span>' : '<span style="color:#3b82f6">🆕 新预警</span>'}
+          ${statusHTML}
         </div>
       </div>
-      ${w.status === 'new' ? `
-      <div class="warning-actions">
-        <button class="ack" onclick="ackWarning(${w.id})">✅ 确认</button>
-        <button class="false-btn" onclick="falseWarning(${w.id})">❌ 误报</button>
-      </div>
-      ` : ''}
+      ${actionsHTML}
     </div>
-  `).join('');
+  `}).join('');
 
   // Populate enterprise filter
   const seen = new Set();
@@ -166,15 +174,44 @@ async function falseWarning(id) {
   } catch (err) { console.error(err); }
 }
 
-function truncate(text, max) {
-  if (!text) return '';
-  // Try to extract meaningful parts from JSON
-  let clean = text;
+async function unackWarning(id) {
+  try {
+    await fetch(`${API}/${id}/unack`, { method: 'PUT', headers: { 'X-API-Key': 'warning-dev-key-2026' } });
+    document.getElementById(`w-${id}`)?.classList.add('pulse');
+    setTimeout(loadWarnings, 500);
+  } catch (err) { console.error(err); }
+}
+
+function parseDetail(text) {
+  if (!text) return '暂无详情';
   try {
     const obj = JSON.parse(text);
-    clean = obj['摘要'] || obj['title'] || obj['企业名称'] || text;
+    // 企查查格式
+    if (obj['摘要']) return obj['摘要'];
+    if (obj['风险因子扫描']) {
+      const active = obj['风险因子扫描'].filter(f => f['条目数'] > 0).map(f => `${f['风险因子']}(${f['条目数']})`);
+      return active.length ? active.join('、') : '无异常';
+    }
+    return text;
+  } catch {
+    // Already human-readable
+    return text.length > 300 ? text.slice(0, 300) + '…' : text;
+  }
+}
+
+function parseRawForTitle(rawData) {
+  if (!rawData) return '';
+  try {
+    const obj = JSON.parse(rawData);
+    if (obj['企业名称']) return obj['企业名称'];
   } catch {}
-  return clean.length > max ? clean.slice(0, max) + '…' : clean;
+  return '';
+}
+
+function truncate(text, max) {
+  if (!text) return '';
+  // First try parsed detail
+  return parseDetail(text).slice(0, max);
 }
 
 // Init
