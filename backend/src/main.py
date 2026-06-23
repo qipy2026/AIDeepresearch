@@ -270,12 +270,17 @@ def create_app() -> FastAPI:
 
     @app.get("/api/enterprises")
     def list_enterprises_api():
-        with open(Path(__file__).parent.parent / "config" / "enterprises.yaml", "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+        import yaml as _yaml
+        from pathlib import Path as _Path
+        _p = _Path(__file__).parent.parent / "config" / "enterprises.yaml"
+        with open(_p, "r", encoding="utf-8") as f:
+            data = _yaml.safe_load(f)
         return {"enterprises": data.get("enterprises", [])}
 
     @app.post("/api/enterprises")
     async def add_enterprise_api(request: Request):
+        import yaml as _yaml
+        from pathlib import Path as _Path
         body = await request.json()
         ent = {
             "name": body.get("name", ""),
@@ -290,22 +295,24 @@ def create_app() -> FastAPI:
         }
         if not ent["name"]:
             raise HTTPException(400, "企业名称不能为空")
-        config_path = Path(__file__).parent.parent / "config" / "enterprises.yaml"
-        with open(config_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+        _p = _Path(__file__).parent.parent / "config" / "enterprises.yaml"
+        with open(_p, "r", encoding="utf-8") as f:
+            data = _yaml.safe_load(f)
         data["enterprises"].append(ent)
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+        with open(_p, "w", encoding="utf-8") as f:
+            _yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
         return {"status": "ok", "enterprise": ent["name"]}
 
     @app.delete("/api/enterprises/{name:path}")
     def delete_enterprise_api(name: str):
-        config_path = Path(__file__).parent.parent / "config" / "enterprises.yaml"
-        with open(config_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+        import yaml as _yaml
+        from pathlib import Path as _Path
+        _p = _Path(__file__).parent.parent / "config" / "enterprises.yaml"
+        with open(_p, "r", encoding="utf-8") as f:
+            data = _yaml.safe_load(f)
         data["enterprises"] = [e for e in data.get("enterprises", []) if e["name"] != name]
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+        with open(_p, "w", encoding="utf-8") as f:
+            _yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
         return {"status": "ok", "enterprise": name}
 
     # ── 预警中心 API ─────────────────────────────────────

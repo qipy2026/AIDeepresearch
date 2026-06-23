@@ -20,6 +20,8 @@ def _get_collection() -> chromadb.Collection:
     if _collection is None:
         db_dir = os.getenv("CHROMA_DB_DIR", str(Path(__file__).resolve().parent.parent.parent / "chroma_db"))
         _client = chromadb.PersistentClient(path=db_dir)
+        # 使用国内 HuggingFace 镜像
+        os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
         ef = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name="all-MiniLM-L6-v2"
         )
