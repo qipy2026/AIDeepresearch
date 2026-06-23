@@ -22,7 +22,7 @@ def _send_markdown(chat_id: str, markdown: str, as_identity: str = "bot") -> boo
              "--chat-id", chat_id,
              "--markdown", markdown,
              "--format", "json"],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True, text=True, encoding="utf-8", timeout=15,
         )
         if result.returncode == 0:
             logger.info(f"飞书推送成功 → {chat_id}")

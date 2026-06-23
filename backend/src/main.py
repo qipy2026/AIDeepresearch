@@ -418,7 +418,7 @@ def create_app() -> FastAPI:
         try:
             cmd = [_lark, "im", "+messages-send", "--as", "bot",
                    "--chat-id", chat_id, "--markdown", markdown, "--format", "json"]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=15)
             if result.returncode == 0:
                 logger.info(f"飞书推送成功 → {chat_id}")
                 return {"status": "ok", "chat_id": chat_id}
@@ -442,7 +442,7 @@ def create_app() -> FastAPI:
             result = subprocess.run(
                 [_lark, "im", "+chat-list", "--as", "bot",
                  "--page-size", "50", "--format", "json"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, text=True, encoding="utf-8", timeout=10,
             )
             stdout_preview = (result.stdout or "")[:500]
             if result.returncode == 0 and result.stdout:
