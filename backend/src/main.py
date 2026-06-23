@@ -320,6 +320,49 @@ def create_app() -> FastAPI:
         WarningDB().reset_status(warning_id)
         return {"status": "ok"}
 
+    @app.get("/api/warnings/{warning_id}/detail")
+    def get_warning_detail(warning_id: int):
+        """钻取风险因子明细——调用企查查明细工具获取具体文书/案件内容。"""
+        from warning_db import WarningDB
+        import json as _json
+        row = WarningDB().get(warning_id)
+        if not row:
+            raise HTTPException(404, "Warning not found")
+        raw = row.get("raw_data", "")
+        try:
+            data = _json.loads(raw)
+        except (_json.JSONDecodeError, TypeError):
+            return {"warning_id": warning_id, "enterprise": row["enterprise"],
+                    "detail": raw[:2000], "source": "raw_text"}
+
+        # 解析企查查风险扫描结果，提取有记录的风险因子
+        scans = data.get("风险因子扫描", [])
+        factors_with_data = [
+            {"name": s.get("风险因子", ""), "count": s.get("条目数", 0),
+             "tool": s.get("明细工具", "")}
+            for s in scans if s.get("条目数", 0) > 0
+        ]
+
+        # 调用每个有记录的风险因子的明细工具
+        details = []
+        from services.qichacha_mcp import call_tool
+        for f in factors_with_data[:5]:  # 最多查 5 个因子，避免超时
+            try:
+                result = call_tool("risk", f["tool"],
+                                   {"searchKey": row["enterprise"]})
+                if result:
+                    text = ""
+                    for item in result.get("content", []):
+                        text += item.get("text", "")[:3000]
+                    details.append({"factor": f["name"], "count": f["count"],
+                                    "content": text[:5000] if text else "暂无明细"})
+            except Exception as e:
+                details.append({"factor": f["name"], "count": f["count"],
+                                "error": str(e)})
+
+        return {"warning_id": warning_id, "enterprise": row["enterprise"],
+                "factors": factors_with_data, "details": details}
+
     @app.post("/api/warnings/collect")
     def trigger_collect(request: Request):
         if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:

@@ -77,6 +77,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="warning-list" id="warningList"></div>
 </div>
 
+<div id="detailModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.5);align-items:center;justify-content:center;padding:24px;" onclick="if(event.target===this)closeDetail()">
+  <div style="background:#fff;border-radius:16px;max-width:800px;width:100%;max-height:80vh;overflow-y:auto;padding:24px;box-shadow:0 24px 64px rgba(0,0,0,.25);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;">📋 风险明细</h3>
+      <button onclick="closeDetail()" style="padding:6px 14px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;">关闭</button>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
 <script>
 const API = 'http://127.0.0.1:8080/api/warnings';
 
@@ -128,11 +138,11 @@ function renderWarnings(warnings) {
       : w.status === 'false_positive'
       ? '<span style="color:#ea580c">⚠️ 误报</span>'
       : '<span style="color:#3b82f6">🆕 新预警</span>';
-    const actionsHTML = w.status === 'new'
-      ? `<div class="warning-actions"><button class="ack" onclick="ackWarning(${w.id})">✅ 确认</button><button class="false-btn" onclick="falseWarning(${w.id})">❌ 误报</button></div>`
+    const actionsHTML = (w.status === 'new'
+      ? `<div class="warning-actions"><button class="ack" onclick="ackWarning(${w.id})">✅ 确认</button><button class="false-btn" onclick="falseWarning(${w.id})">❌ 误报</button><button class="ack" onclick="showDetail(${w.id})" style="border-color:#3b82f6;color:#1d4ed8;">📋 明细</button></div>`
       : (w.status === 'acked' || w.status === 'false_positive')
-      ? `<div class="warning-actions"><button class="ack" onclick="unackWarning(${w.id})" style="border-color:#94a3b8;color:#64748b;">↩ 撤销</button></div>`
-      : '';
+      ? `<div class="warning-actions"><button class="ack" onclick="unackWarning(${w.id})" style="border-color:#94a3b8;color:#64748b;">↩ 撤销</button><button class="ack" onclick="showDetail(${w.id})" style="border-color:#3b82f6;color:#1d4ed8;">📋 明细</button></div>`
+      : `<div class="warning-actions"><button class="ack" onclick="showDetail(${w.id})" style="border-color:#3b82f6;color:#1d4ed8;">📋 明细</button></div>`);
     return `
     <div class="warning-card ${w.severity}" id="w-${w.id}">
       <div class="sev-icon">${w.severity === 'red' ? '🔴' : w.severity === 'orange' ? '🟠' : '🟡'}</div>
@@ -180,6 +190,36 @@ async function unackWarning(id) {
     document.getElementById(`w-${id}`)?.classList.add('pulse');
     setTimeout(loadWarnings, 500);
   } catch (err) { console.error(err); }
+}
+
+async function showDetail(id) {
+  const modal = document.getElementById('detailModal');
+  const body = document.getElementById('detailBody');
+  body.innerHTML = '<div style="text-align:center;padding:40px;"><div class="generating-spinner"></div><p>查询明细中...</p></div>';
+  modal.style.display = 'flex';
+  try {
+    const resp = await fetch(`${API}/${id}/detail`);
+    const data = await resp.json();
+    if (data.details && data.details.length) {
+      body.innerHTML = data.details.map(d => `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px;">
+          <h4 style="margin:0 0 8px;color:#1e293b;">${d.factor} (${d.count}条)</h4>
+          <pre style="white-space:pre-wrap;font-size:12px;line-height:1.6;color:#334155;max-height:300px;overflow-y:auto;background:#fff;padding:10px;border-radius:6px;">${d.content || d.error || '暂无'}</pre>
+        </div>
+      `).join('');
+    } else if (data.factors) {
+      body.innerHTML = `<p style="color:#64748b;">风险因子列表 (有记录):</p>` +
+        data.factors.map(f => `<div style="padding:8px 12px;background:#fff;border-radius:8px;margin:4px 0;border:1px solid #e2e8f0;">${f.name}: <b>${f.count}条</b> (工具: ${f.tool})</div>`).join('');
+    } else {
+      body.innerHTML = '<p style="color:#64748b;">该预警无法获取明细数据</p>';
+    }
+  } catch (err) {
+    body.innerHTML = `<p style="color:#dc2626;">查询失败: ${err.message}</p>`;
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').style.display = 'none';
 }
 
 function parseDetail(text) {
