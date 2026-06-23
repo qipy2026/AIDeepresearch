@@ -61,6 +61,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .factor-link:hover { background:#3b82f6;color:#fff;border-color:#3b82f6; }
 .new-badge { display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#dc2626;color:#fff;animation:pulse 2s infinite; }
 .card-skeleton { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:14px;height:100px; }
+.penalty-card { background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;overflow:hidden; }
+.penalty-header { background:#f1f5f9;padding:10px 14px;font-size:13px;font-weight:600;color:#1e293b;border-bottom:1px solid #e2e8f0; }
+.penalty-body { padding:10px 14px; }
+.penalty-row { display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #f8fafc; }
+.penalty-row span:first-child { color:#64748b;min-width:60px; }
+.penalty-row span:last-child { color:#1e293b;font-weight:500;text-align:right; }
+.penalty-amount { color:#dc2626 !important;font-weight:700 !important; }
 </style>
 </head>
 <body>
@@ -323,21 +330,72 @@ function closeDetail() {
   document.getElementById('detailModal').style.display = 'none';
 }
 
+function formatFactorContent(content, factor) {
+  if (!content) return '';
+  // 尝试解析 JSON 并格式化为可读卡片
+  try {
+    const data = JSON.parse(content);
+    // 行政处罚
+    if (data['行政处罚信息']) {
+      return data['行政处罚信息'].map((p, i) => `
+        <div class="penalty-card">
+          <div class="penalty-header">📋 处罚 ${i+1}: ${p['决定书文号'] || ''}</div>
+          <div class="penalty-body">
+            <div class="penalty-row"><span>处罚结果</span><span class="penalty-amount">${p['处罚结果'] || ''}</span></div>
+            <div class="penalty-row"><span>处罚金额</span><span>${p['处罚金额'] ? '¥' + Number(p['处罚金额']).toLocaleString() : '--'}</span></div>
+            <div class="penalty-row"><span>处罚单位</span><span>${p['处罚单位'] || ''}</span></div>
+            <div class="penalty-row"><span>处罚日期</span><span>${p['处罚日期'] || ''}</span></div>
+          </div>
+        </div>
+      `).join('');
+    }
+    // 裁判文书
+    if (data['裁判文书信息'] || data['裁判文书']) {
+      const items = data['裁判文书信息'] || data['裁判文书'] || [];
+      return (Array.isArray(items) ? items : [items]).map((d, i) => `
+        <div class="penalty-card">
+          <div class="penalty-header">⚖️ 文书 ${i+1}: ${d['案号'] || d['标题'] || ''}</div>
+          <div class="penalty-body">
+            ${d['案由'] ? `<div class="penalty-row"><span>案由</span><span>${d['案由']}</span></div>` : ''}
+            ${d['当事人'] ? `<div class="penalty-row"><span>当事人</span><span>${d['当事人']}</span></div>` : ''}
+            ${d['裁判日期'] ? `<div class="penalty-row"><span>日期</span><span>${d['裁判日期']}</span></div>` : ''}
+            ${d['法院'] || d['法院名称'] ? `<div class="penalty-row"><span>法院</span><span>${d['法院'] || d['法院名称']}</span></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+    // 立案信息
+    if (data['立案信息']) {
+      return data['立案信息'].map((d, i) => `
+        <div class="penalty-card">
+          <div class="penalty-header">📝 立案 ${i+1}: ${d['案号'] || ''}</div>
+          <div class="penalty-body">
+            ${d['案由'] ? `<div class="penalty-row"><span>案由</span><span>${d['案由']}</span></div>` : ''}
+            ${d['当事人'] ? `<div class="penalty-row"><span>当事人</span><span>${d['当事人']}</span></div>` : ''}
+            ${d['立案日期'] ? `<div class="penalty-row"><span>日期</span><span>${d['立案日期']}</span></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch(e) {}
+  // fallback: plain text
+  return `<pre style="white-space:pre-wrap;font-size:13px;line-height:1.6;color:#334155;background:#f8fafc;padding:12px;border-radius:8px;">${content}</pre>`;
+}
+
 async function showFactorDetail(enterprise, factor, tool, count) {
   const modal = document.getElementById('detailModal');
   const body = document.getElementById('detailBody');
   body.innerHTML = `<div style="text-align:center;padding:20px;">查询 ${factor}(${count}) 中...</div>`;
   modal.style.display = 'flex';
-  document.querySelector('#detailModal h3').textContent = `📋 ${factor} — ${enterprise}`;
+  document.querySelector('#detailModal h3').textContent = `${factor} — ${enterprise}`;
   try {
     const params = new URLSearchParams({enterprise, tool, factor});
     const resp = await fetch('http://127.0.0.1:8080/api/warnings/factor?' + params);
     const data = await resp.json();
     body.innerHTML = `
-      <p style="font-size:13px;color:#64748b;margin:0 0 8px;">调用工具: <code>${data.tool}</code> | ${data.factor}: <b>${count}条</b></p>
-      ${data.error ? `<p style="color:#dc2626;">错误: ${data.error}</p>` : ''}
-      ${data.content ? `<pre style="white-space:pre-wrap;font-size:12px;line-height:1.6;color:#334155;max-height:400px;overflow-y:auto;background:#f8fafc;padding:12px;border-radius:8px;">${data.content}</pre>` : ''}
-      ${data.raw ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;color:#64748b;">📡 原始返回</summary><pre style="white-space:pre-wrap;font-size:11px;color:#94a3b8;max-height:200px;overflow-y:auto;">${data.raw}</pre></details>` : ''}
+      <p style="font-size:13px;color:#64748b;margin:0 0 12px;">${data.factor}: <b>${count}条</b> · 数据源: ${data.tool}</p>
+      ${data.error ? `<p style="color:#dc2626;">${data.error}</p>` : ''}
+      ${data.content ? formatFactorContent(data.content, data.factor) : '<p style="color:#64748b;">无数据</p>'}
     `;
   } catch(e) {
     body.innerHTML = `<p style="color:#dc2626;">查询失败: ${e.message}</p>`;
