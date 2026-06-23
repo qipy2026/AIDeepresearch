@@ -144,7 +144,7 @@ function renderWarnings(warnings) {
     const sevLabel = {red:'🔴 红色预警', orange:'🟠 橙色预警', yellow:'🟡 黄色预警'}[w.severity] || w.severity;
     const statusHTML = w.status === 'false_positive'
       ? '<span class="tag tag-orange">已标记误报</span>'
-      : '<span class="tag tag-blue">待审核</span>';
+      : '';
     const sevSelect = `<select onchange="setSeverity(${w.id}, this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #cbd5e1;font-size:12px;cursor:pointer;" onclick="event.stopPropagation()">
       <option value="red" ${w.severity==='red'?'selected':''}>🔴 红色</option>
       <option value="orange" ${w.severity==='orange'?'selected':''}>🟠 橙色</option>
