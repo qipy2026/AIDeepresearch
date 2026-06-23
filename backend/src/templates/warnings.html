@@ -30,6 +30,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .warning-card.red { border-left: 5px solid #ef4444; }
 .warning-card.orange { border-left: 5px solid #f97316; }
 .warning-card.yellow { border-left: 5px solid #eab308; }
+.warning-card.normal { border-left: 5px solid #22c55e; background:#f0fdf4; }
 .sev-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
 .warning-content { flex: 1; min-width: 0; }
 .warning-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
@@ -194,15 +195,24 @@ function renderWarnings(warnings) {
         `<span class="factor-link" onclick="event.stopPropagation();showFactorDetail('${w.enterprise}','${s['风险因子']}','${s['明细工具']}',${s['条目数']})" title="点击查看${s['风险因子']}详情">${s['风险因子']}(${s['条目数']})</span>`
       ).join(' ');
     } catch(e) {}
-    const sevLabel = {red:'🔴 红色预警', orange:'🟠 橙色预警', yellow:'🟡 黄色预警'}[w.severity] || w.severity;
+    // 检测是否为无风险企业（key_facts = 无异常）
+    let isNormal = false;
+    try {
+      const rd = JSON.parse(w.raw_data || '{}');
+      const scans = rd['风险因子扫描'] || [];
+      isNormal = !scans.some(s => s['条目数'] > 0);
+    } catch(e) {}
+    // 无风险企业用绿色 normal 样式
+    const cardSeverity = isNormal ? 'normal' : w.severity;
+    const sevIcon = isNormal ? '✅' : (w.severity === 'red' ? '🔴' : w.severity === 'orange' ? '🟠' : '🟡');
+    const sevLabel = isNormal ? '🟢 正常' : {red:'🔴 红色预警', orange:'🟠 橙色预警', yellow:'🟡 黄色预警'}[w.severity] || w.severity;
     // 相对时间
     const created = new Date(w.created_at + 'Z' || w.created_at);
     const minutesAgo = Math.floor((Date.now() - created) / 60000);
     const timeStr = minutesAgo < 1 ? '刚刚' : minutesAgo < 60 ? `${minutesAgo}分钟前` :
                     minutesAgo < 1440 ? `${Math.floor(minutesAgo/60)}小时前` :
                     `${Math.floor(minutesAgo/1440)}天前`;
-    // 新预警标记（15分钟内）
-    const isNew = minutesAgo < 15;
+    const isNew = minutesAgo < 15 && !isNormal;
     const newBadge = isNew ? '<span class="new-badge">NEW</span>' : '';
     const statusHTML = w.status === 'false_positive'
       ? '<span class="tag tag-orange">已标记误报</span>'
@@ -212,18 +222,19 @@ function renderWarnings(warnings) {
       <option value="orange" ${w.severity==='orange'?'selected':''}>🟠 橙色</option>
       <option value="yellow" ${w.severity==='yellow'?'selected':''}>🟡 黄色</option>
     </select>`;
-    const pushBtn = (w.severity === 'red' || w.severity === 'orange')
+    const pushBtn = (w.severity === 'red' || w.severity === 'orange') && !isNormal
       ? `<button class="push-btn" onclick="showPush(${w.id},'${w.enterprise}','${w.severity}','${escapeHtml(w.title||'')}','${escapeHtml(w.detail||'')}')">📤 推送</button>`
       : '';
+    const sevDropdown = isNormal ? '' : sevSelect;
     const actionsHTML = w.status === 'false_positive'
       ? `<div class="warning-actions"><button onclick="unfalseWarning(${w.id})" style="padding:6px 12px;border-radius:8px;border:1px solid #94a3b8;font-size:12px;cursor:pointer;background:#fff;color:#64748b;">↩ 撤销误报</button><button class="detail-btn" onclick="showDetail(${w.id})">明细</button></div>`
-      : `<div class="warning-actions"><button class="false-btn" onclick="falseWarning(${w.id})">标记误报</button>${sevSelect}${pushBtn}<button class="detail-btn" onclick="showDetail(${w.id})">明细</button></div>`;
+      : `<div class="warning-actions"><button class="false-btn" onclick="falseWarning(${w.id})">标记误报</button>${sevDropdown}${pushBtn}<button class="detail-btn" onclick="showDetail(${w.id})">明细</button></div>`;
     return `
-    <div class="warning-card ${w.severity}" id="w-${w.id}">
-      <div class="sev-icon">${w.severity === 'red' ? '🔴' : w.severity === 'orange' ? '🟠' : '🟡'}</div>
+    <div class="warning-card ${cardSeverity}" id="w-${w.id}">
+      <div class="sev-icon">${sevIcon}</div>
       <div class="warning-content">
         <div class="warning-title">${riskTitle}</div>
-        <div class="warning-detail">${clickableFactors || riskSummary}</div>
+        <div class="warning-detail">${isNormal ? '<span style="color:#16a34a;">✅ 未发现风险信号，企业运营正常</span>' : (clickableFactors || riskSummary)}</div>
         <div class="warning-meta">
           <span class="sev-label">${sevLabel}</span>
           ${newBadge}
