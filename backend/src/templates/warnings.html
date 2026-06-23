@@ -313,10 +313,9 @@ function showPush(id, enterprise, severity, title, detail) {
   const sevText = severity === 'red' ? '红色预警' : '橙色预警';
   document.getElementById('pushText').value = `${sevEmoji} **${sevText}**: ${enterprise}\n\n**${title}**\n${detail || ''}\n\n📡 数据源: 企查查\n\n---\n⚠️ 请及时处理`;
   document.getElementById('pushChatId').style.display = 'none';
-  document.getElementById('pushChatSelect').value = '';
+  document.getElementById('pushChatId').value = localStorage.getItem('last_feishu_chat_id') || '';
   loadChats();
   document.getElementById('pushModal').style.display = 'flex';
-  // 监听选择器变化
   document.getElementById('pushChatSelect').onchange = function() {
     const custom = document.getElementById('pushChatId');
     if (this.value === '__custom__') { custom.style.display = 'block'; custom.focus(); }
@@ -329,6 +328,7 @@ async function sendPush() {
   let chatId = document.getElementById('pushChatSelect').value;
   if (!chatId || chatId === '__custom__') chatId = document.getElementById('pushChatId').value.trim();
   if (!chatId) { alert('请选择或输入发送目标'); return; }
+  localStorage.setItem('last_feishu_chat_id', chatId);
   const btn = document.getElementById('pushSendBtn');
   btn.textContent = '发送中...'; btn.disabled = true;
   try {
@@ -338,8 +338,8 @@ async function sendPush() {
       body: JSON.stringify({markdown: document.getElementById('pushText').value, chat_id: chatId})
     });
     const data = await resp.json();
-    if (data.status === 'ok') { closePush(); alert('推送成功！'); }
-    else { alert('推送失败: ' + (data.detail || JSON.stringify(data))); }
+    if (data.status === 'ok') { closePush(); }
+    else { alert('推送失败:\n' + (data.detail || JSON.stringify(data))); }
   } catch(e) { alert('推送异常: '+e.message); }
   btn.textContent = '发送'; btn.disabled = false;
 }

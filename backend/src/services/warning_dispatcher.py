@@ -7,7 +7,10 @@ from typing import Any, Dict, List
 
 from loguru import logger
 
-_LARK_CLI = os.getenv("LARK_CLI_PATH", "lark-cli")
+_LARK_CLI = os.getenv("LARK_CLI_PATH", "")
+if not _LARK_CLI:
+    import shutil
+    _LARK_CLI = shutil.which("lark-cli") or "lark-cli"
 
 
 def _send_markdown(chat_id: str, markdown: str, as_identity: str = "bot") -> bool:
