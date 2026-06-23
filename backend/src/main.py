@@ -588,17 +588,26 @@ def create_app() -> FastAPI:
                         data = THS_RQ(stock, "latest;changeRatio;pb", "")
                         if data and data.errorcode == 0:
                             row = data.data.iloc[0]
-                            _collect_source("ths_stock",
-                                f"母公司{ent['parent']}({stock}): 最新价{row['latest']}, 涨跌{row['changeRatio']}%, PB{row['pb']}",
+                            chg = round(float(row['changeRatio']), 2)
+                            pb = round(float(row['pb']), 2)
+                            price = round(float(row['latest']), 2)
+                            direction = "📉下跌" if chg < -2 else ("📈上涨" if chg > 2 else "➡️持平")
+                            ths_text = (
+                                f"{direction} {ent['parent']}({stock}) 最新价¥{price} "
+                                f"涨跌{chg}% PB{pb}"
+                            )
+                            _collect_source("ths_stock", ths_text,
                                 db, cls, f"{ent['parent']}（母公司·同花顺）", "ths_stock")
-                    # 2b. 概念指数（非上市企业如国家管网→地下管网概念）
+                    # 2b. 概念指数
                     concept = ent.get("concept_code", "")
                     if concept:
                         data = THS_RQ(concept, "latest;changeRatio", "")
                         if data and data.errorcode == 0:
                             row = data.data.iloc[0]
+                            chg = round(float(row['changeRatio']), 2)
+                            direction = "📉" if chg < -2 else ("📈" if chg > 2 else "➡️")
                             _collect_source("ths_stock",
-                                f"{ent.get('industry','')}概念({concept}): 最新{row['latest']}, 涨跌{row['changeRatio']}%",
+                                f"{direction} {ent.get('industry','')}概念 指数{round(float(row['latest']),1)} 涨跌{chg}%",
                                 db, cls, f"{ent['name']}（概念·同花顺）", "ths_stock")
                     THS_iFinDLogout()
                 except Exception as e:
