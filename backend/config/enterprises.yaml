@@ -1,0 +1,33 @@
+# 监管企业注册表
+# 预警模块和报告模块共享此列表
+
+enterprises:
+  - name: 四川振海保安服务有限公司
+    stock_code: ""           # 未上市
+    bond_code: ""            # 待确认
+    industry: 安保服务
+    loan_amount: 1000.0
+    parent_enterprises: []   # 核心企业（甲方）
+    keywords:
+      - 四川振海
+      - 振海保安
+
+  - name: 国家管网集团西南管道有限责任公司重庆输油气分公司
+    stock_code: ""           # 未上市
+    concept_code: "885692.TI"  # 地下管网概念
+    industry: 管道运输
+    parent_enterprises:
+      - 国家管网集团
+    keywords:
+      - 国家管网
+      - 西南管道
+
+  - name: 中铁建物业管理有限公司成都分公司
+    stock_code: "601186.SH"  # 母公司中国铁建上市
+    concept_code: ""
+    industry: 物业管理
+    parent_enterprises:
+      - 中国铁建
+    keywords:
+      - 中铁建物业
+      - 中国铁建

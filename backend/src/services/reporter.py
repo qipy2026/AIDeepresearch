@@ -20,10 +20,22 @@ from utils import strip_thinking_tokens
 REFS_DIR = Path(__file__).resolve().parent.parent.parent / "references"
 
 # ── 可调优常量 ──────────────────────────────────────────
+
+
+def _load_keywords() -> List[str]:
+    """从 keywords.yaml 加载负面风险关键词（三组词组合并）。"""
+    import yaml
+
+    _p = Path(__file__).resolve().parent.parent.parent / "config" / "keywords.yaml"
+    if _p.exists():
+        with open(_p, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return data.get("fatal", []) + data.get("severe", []) + data.get("watch", [])
+    return ["风险", "下降", "萎缩", "违约", "处罚", "下滑", "亏损"]
+
+
 # 负面风险关键词，用于文本扫描计数
-NEGATIVE_RISK_KEYWORDS: List[str] = [
-    "风险", "下降", "萎缩", "违约", "处罚", "下滑", "亏损",
-]
+NEGATIVE_RISK_KEYWORDS: List[str] = _load_keywords()
 # 视频巡检人数下降阈值（初始 20%，基于 3 倍标准差统计控制，后续根据历史误报率调优）
 HEADCOUNT_TREND_THRESHOLD: float = 0.20
 # 趋势计算所需最少有效数据周数

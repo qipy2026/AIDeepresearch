@@ -190,3 +190,41 @@ class Configuration(BaseModel):
 
         return self.llm_model_id or self.local_llm
 
+
+class WarningConfig(BaseModel):
+    """实时预警模块配置。"""
+
+    cron_interval: int = Field(default=300, description="采集间隔（秒）")
+    source_timeout: int = Field(default=30, description="单源超时（秒）")
+    keywords_path: str = Field(default="./config/keywords.yaml")
+    red_max_delay: int = Field(default=300, description="红色最大延迟（秒）")
+    daily_push_time: str = Field(default="18:00", description="日汇总推送时间")
+    enabled_sources: str = Field(default="all", description="启用的数据源，逗号分隔")
+    llm_timeout: int = Field(default=15, description="预警专用LLM超时（秒）")
+    qichacha_token: str = Field(default="", description="企查查MCP Token")
+    dm_username: str = Field(default="", description="DM查债通用户名")
+    dm_password: str = Field(default="", description="DM查债通密码")
+    ths_username: str = Field(default="", description="同花顺用户名")
+    ths_password: str = Field(default="", description="同花顺密码")
+    feishu_bot_token: str = Field(default="", description="飞书Bot Token")
+    warning_api_key: str = Field(default="", description="预警API认证Key")
+
+    @classmethod
+    def from_env(cls) -> "WarningConfig":
+        return cls(
+            cron_interval=int(os.getenv("WARNING_CRON_INTERVAL", "300")),
+            source_timeout=int(os.getenv("WARNING_SOURCE_TIMEOUT", "30")),
+            keywords_path=os.getenv("WARNING_KEYWORDS_PATH", "./config/keywords.yaml"),
+            red_max_delay=int(os.getenv("WARNING_RED_MAX_DELAY", "300")),
+            daily_push_time=os.getenv("WARNING_DAILY_PUSH_TIME", "18:00"),
+            enabled_sources=os.getenv("WARNING_ENABLED_SOURCES", "all"),
+            llm_timeout=int(os.getenv("WARNING_LLM_TIMEOUT", "15")),
+            qichacha_token=os.getenv("QICHACHA_MCP_TOKEN", ""),
+            dm_username=os.getenv("DM_USERNAME", ""),
+            dm_password=os.getenv("DM_PASSWORD", ""),
+            ths_username=os.getenv("THS_USERNAME", "dhsybl002"),
+            ths_password=os.getenv("THS_PASSWORD", "5TSc27g4"),
+            feishu_bot_token=os.getenv("FEISHU_BOT_TOKEN", ""),
+            warning_api_key=os.getenv("WARNING_API_KEY", ""),
+        )
+
