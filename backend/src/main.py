@@ -432,27 +432,30 @@ def create_app() -> FastAPI:
 
     @app.get("/api/feishu/chats")
     def list_feishu_chats():
-        """获取飞书可用群聊列表。bot 无法列举群，返回提示。"""
-        import subprocess, shutil
+        """获取飞书可用群聊列表。"""
+        import subprocess
+        import shutil
         _lark = shutil.which("lark-cli") or "lark-cli"
         chats = []
-        # 尝试 bot 身份获取
+        stdout_preview = ""
         try:
             result = subprocess.run(
                 [_lark, "im", "+chat-list", "--as", "bot",
                  "--page-size", "50", "--format", "json"],
                 capture_output=True, text=True, timeout=10,
             )
-            data = json.loads(result.stdout)
-            items = data.get("items", data.get("data", {}).get("items", [])) or []
-            for item in items:
-                chats.append({
-                    "chat_id": item.get("chat_id", ""),
-                    "name": item.get("name", "") or item.get("chat_id", ""),
-                })
-        except Exception:
-            pass
-        # bot 无法列举 → 返回默认 chat_id 和手动输入提示
+            stdout_preview = (result.stdout or "")[:500]
+            if result.returncode == 0 and result.stdout:
+                data = json.loads(result.stdout)
+                # lark-cli 返回格式: {"ok":true, "data":{"chats":[...]}} 或 {"ok":true, "chats":[...]}
+                raw = data.get("chats") or (data.get("data") or {}).get("chats") or []
+                for item in raw:
+                    chats.append({
+                        "chat_id": item.get("chat_id", ""),
+                        "name": item.get("name", "") or item.get("chat_id", ""),
+                    })
+        except Exception as e:
+            logger.warning(f"Feishu chat list failed: {e}, stdout: {stdout_preview}")
         default_chat = _os.getenv("WARNING_FEISHU_CHAT_ID", "")
         if default_chat and not any(c["chat_id"] == default_chat for c in chats):
             chats.insert(0, {"chat_id": default_chat, "name": f"默认群 ({default_chat[:16]}...)"})
