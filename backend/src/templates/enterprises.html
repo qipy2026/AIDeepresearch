@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>企业管理 - 贷后监管</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
+.header { background: linear-gradient(135deg, #1e293b, #334155); color: #fff; padding: 16px 28px; display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 18px; font-weight: 700; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+.card { background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+.card h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1e293b; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+.field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; background: #fff; }
+.field input:focus, .field select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+.field textarea { resize: vertical; min-height: 60px; }
+.field .hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.row { display: flex; gap: 12px; }
+.row .field { flex: 1; }
+.btn { padding: 10px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: .15s; }
+.btn-primary { background: linear-gradient(135deg,#2563eb,#7c3aed); color: #fff; }
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+.btn-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-size: 11px; padding: 4px 10px; }
+.ent-list { display: flex; flex-direction: column; gap: 10px; }
+.ent-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
+.ent-row .name { font-weight: 600; font-size: 14px; }
+.ent-row .meta { font-size: 12px; color: #64748b; display: flex; gap: 8px; }
+.ent-row .tag { display: inline-flex; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+.ent-row .tag-party-a { background: #dbeafe; color: #1e40af; }
+.ent-row .tag-party-b { background: #fef3c7; color: #92400e; }
+.ent-row .tag-parent { background: #fce7f3; color: #9d174d; }
+.msg { padding: 10px 14px; border-radius: 8px; margin-top: 12px; font-size: 13px; display: none; }
+.msg.ok { display: block; background: #dcfce7; color: #166534; }
+.msg.err { display: block; background: #fee2e2; color: #991b1b; }
+.empty { text-align: center; padding: 40px; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span>🏢</span>
+  <h1>企业管理</h1>
+  <span style="flex:1"></span>
+  <a href="/warnings" style="color:#93c5fd;font-size:13px;text-decoration:none;">← 预警中心</a>
+</div>
+
+<div class="container">
+  <div class="grid">
+    <!-- 左侧：表单 -->
+    <div class="card">
+      <h2>➕ 新增企业</h2>
+      <form id="addForm" onsubmit="addEnterprise(event)">
+        <div class="field">
+          <label>角色</label>
+          <select id="role" onchange="onRoleChange()">
+            <option value="乙方">乙方 - 债务企业（借款方）</option>
+            <option value="甲方">甲方 - 核心监管企业（客户/付款方）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>企业全称 *</label>
+          <input id="name" placeholder="如：四川振海保安服务有限公司" required>
+        </div>
+        <div class="field">
+          <label>所属行业</label>
+          <input id="industry" placeholder="如：安保服务、物业管理、管道运输">
+        </div>
+        <div class="field" id="loanAmountField">
+          <label>贷款金额（万元）</label>
+          <input id="loanAmount" type="number" placeholder="如：1000" step="0.01">
+        </div>
+        <div class="field">
+          <label>搜索关键词（逗号分隔）</label>
+          <textarea id="keywords" placeholder="如：四川振海, 振海保安"></textarea>
+          <div class="hint">用于 WebSearch 和企查查查询，支持多个关键词</div>
+        </div>
+        <div id="parentFields" style="display:none">
+          <div class="field">
+            <label>母公司名称</label>
+            <input id="parent" placeholder="如：中国铁建、国家管网集团">
+            <div class="hint">甲方无风险信号时自动追溯母公司</div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>母公司股票代码</label>
+              <input id="parentStockCode" placeholder="如：601186.SH">
+              <div class="hint">上市公司填股票代码，同花顺可查</div>
+            </div>
+            <div class="field">
+              <label>概念指数代码</label>
+              <input id="conceptCode" placeholder="如：885692.TI">
+              <div class="hint">非上市母公司填行业概念指数</div>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">新增企业</button>
+      </form>
+      <div id="msg" class="msg"></div>
+    </div>
+
+    <!-- 右侧：列表 -->
+    <div class="card">
+      <h2>📋 当前企业（<span id="entCount">0</span>家）</h2>
+      <div class="ent-list" id="entList">
+        <div class="empty">加载中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8080';
+
+function onRoleChange() {
+  document.getElementById('parentFields').style.display =
+    document.getElementById('role').value === '甲方' ? 'block' : 'none';
+  document.getElementById('loanAmountField').style.display =
+    document.getElementById('role').value === '乙方' ? 'block' : 'none';
+}
+
+async function addEnterprise(e) {
+  e.preventDefault();
+  const data = {
+    name: document.getElementById('name').value.trim(),
+    role: document.getElementById('role').value,
+    industry: document.getElementById('industry').value.trim(),
+    loan_amount: document.getElementById('loanAmount').value.trim(),
+    keywords: document.getElementById('keywords').value.trim(),
+    parent: document.getElementById('parent').value.trim(),
+    parent_stock_code: document.getElementById('parentStockCode').value.trim(),
+    concept_code: document.getElementById('conceptCode').value.trim(),
+  };
+  if (!data.name) { showMsg('请输入企业全称', 'err'); return; }
+  try {
+    const resp = await fetch(API + '/api/enterprises', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    const r = await resp.json();
+    if (r.status === 'ok') {
+      showMsg(`✅ ${data.name} 已添加`, 'ok');
+      document.getElementById('addForm').reset();
+      onRoleChange();
+      loadEnterprises();
+    } else {
+      showMsg(r.detail || '添加失败', 'err');
+    }
+  } catch(err) { showMsg('网络错误', 'err'); }
+}
+
+async function deleteEnterprise(name) {
+  if (!confirm(`确定删除 ${name}？`)) return;
+  try {
+    await fetch(API + '/api/enterprises/' + encodeURIComponent(name), { method: 'DELETE' });
+    loadEnterprises();
+  } catch(err) { showMsg('删除失败', 'err'); }
+}
+
+async function loadEnterprises() {
+  try {
+    const resp = await fetch(API + '/api/enterprises');
+    const data = await resp.json();
+    const list = data.enterprises || [];
+    document.getElementById('entCount').textContent = list.length;
+    const html = list.length ? list.map(e => `
+      <div class="ent-row">
+        <div>
+          <div class="name">${e.name}
+            <span class="tag ${e.role==='甲方'?'tag-party-a':'tag-party-b'}">${e.role||'乙方'}</span>
+            ${e.parent ? `<span class="tag tag-parent">母公司: ${e.parent}</span>` : ''}
+          </div>
+          <div class="meta">
+            ${e.industry ? `<span>🏭 ${e.industry}</span>` : ''}
+            ${e.loan_amount ? `<span>💰 ${e.loan_amount}万</span>` : ''}
+            ${e.parent_stock_code ? `<span>📈 ${e.parent_stock_code}</span>` : ''}
+            ${e.concept_code ? `<span>📊 ${e.concept_code}</span>` : ''}
+          </div>
+        </div>
+        <button class="btn btn-danger" onclick="deleteEnterprise('${e.name.replace(/'/g,"\\'")}')">删除</button>
+      </div>
+    `).join('') : '<div class="empty">暂无企业，请添加</div>';
+    document.getElementById('entList').innerHTML = html;
+  } catch(err) { console.error(err); }
+}
+
+function showMsg(text, type) {
+  const m = document.getElementById('msg');
+  m.textContent = text; m.className = 'msg ' + type;
+  setTimeout(() => m.className = 'msg', 3000);
+}
+
+onRoleChange();
+loadEnterprises();
+</script>
+</body>
+</html>
