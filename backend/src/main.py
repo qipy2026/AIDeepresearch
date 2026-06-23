@@ -402,29 +402,46 @@ def create_app() -> FastAPI:
 
     @app.post("/api/warnings/{warning_id}/push")
     async def push_warning(warning_id: int, request: Request):
-        """手动推送预警到飞书。chat_id 由前端选择传入。"""
+        """飞书交互卡片推送——支持点击跳转详情。"""
         if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
             raise HTTPException(401, "Invalid API key")
-        import json as _json
-        import subprocess
         body = await request.json()
-        markdown = body.get("markdown", "")
         chat_id = body.get("chat_id", "") or _os.getenv("WARNING_FEISHU_CHAT_ID", "")
         if not chat_id:
             raise HTTPException(400, "未指定 chat_id，且未配置 WARNING_FEISHU_CHAT_ID")
-        # 直接调 lark-cli
-        import shutil
+        # 构建飞书交互卡片
+        sev = body.get("severity", "orange")
+        card = {
+            "config": {"wide_screen_mode": True},
+            "header": {
+                "title": {"tag": "plain_text",
+                          "content": f"{'🔴' if sev=='red' else '🟠'} {'红色' if sev=='red' else '橙色'}预警: {body.get('enterprise','')}"},
+                "template": "red" if sev == "red" else "orange",
+            },
+            "elements": [
+                {"tag": "div", "text": {"tag": "lark_md", "content": f"**风险摘要**\n{body.get('summary','')}"}},
+                {"tag": "div", "text": {"tag": "lark_md", "content": f"**建议措施**\n{body.get('action','')}"}},
+                {"tag": "hr"},
+                {"tag": "action", "actions": [
+                    {"tag": "button", "text": {"tag": "plain_text", "content": "📋 查看详情"},
+                     "type": "primary", "url": body.get("detail_url", "http://127.0.0.1:8080/warnings")},
+                ]},
+                {"tag": "note", "elements": [
+                    {"tag": "plain_text", "content": "📡 企查查自动监测 · 贷后监管系统"},
+                ]},
+            ],
+        }
+        import subprocess, shutil, json as _json
         _lark = shutil.which("lark-cli") or "lark-cli"
         try:
-            cmd = [_lark, "im", "+messages-send", "--as", "bot",
-                   "--chat-id", chat_id, "--markdown", markdown, "--format", "json"]
+            cmd = [_lark, "im", "+messages-send", "--as", "bot", "--chat-id", chat_id,
+                   "--content", _json.dumps(card, ensure_ascii=False),
+                   "--msg-type", "interactive", "--format", "json"]
             result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=15)
             if result.returncode == 0:
                 logger.info(f"飞书推送成功 → {chat_id}")
                 return {"status": "ok", "chat_id": chat_id}
-            err = result.stderr or result.stdout
-            logger.warning(f"飞书推送失败: {err[:300]}")
-            return {"status": "failed", "detail": err[:300]}
+            return {"status": "failed", "detail": (result.stderr or result.stdout)[:300]}
         except subprocess.TimeoutExpired:
             return {"status": "failed", "detail": "推送超时"}
         except Exception as e:

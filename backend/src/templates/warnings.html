@@ -111,8 +111,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <button onclick="loadChats()" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-size:12px;" title="刷新群聊列表">🔄</button>
     </div>
     <input id="pushChatId" placeholder="或直接输入 chat_id (oc_xxx)" style="display:none;width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;margin-bottom:12px;" oninput="document.getElementById('pushChatSelect').value=this.value?'__custom__':''">
-    <label style="font-size:13px;font-weight:600;color:#1e293b;display:block;margin-bottom:6px;">推送内容（可编辑）：</label>
-    <textarea id="pushText" style="width:100%;height:180px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;line-height:1.6;resize:vertical;font-family:inherit;"></textarea>
+    <label style="font-size:13px;font-weight:600;color:#1e293b;display:block;margin-bottom:6px;">风险摘要：</label>
+    <textarea id="pushSummary" style="width:100%;height:100px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;line-height:1.6;resize:vertical;font-family:inherit;margin-bottom:12px;"></textarea>
+    <label style="font-size:13px;font-weight:600;color:#1e293b;display:block;margin-bottom:6px;">建议措施：</label>
+    <textarea id="pushAction" style="width:100%;height:60px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;line-height:1.6;resize:vertical;font-family:inherit;"></textarea>
     <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
       <button onclick="closePush()" style="padding:8px 18px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;">取消</button>
       <button id="pushSendBtn" onclick="sendPush()" style="padding:8px 24px;border-radius:8px;border:none;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-weight:600;cursor:pointer;">发送</button>
@@ -307,26 +309,15 @@ async function loadChats() {
     sel.innerHTML += '<option value="__custom__">✏️ 手动输入 chat_id...</option>';
   } catch(e) { sel.innerHTML = '<option value="">加载失败，请手动输入</option><option value="__custom__">✏️ 手动输入</option>'; }
 }
+let _pushData = null;
 function showPush(id, enterprise, severity, title, detail) {
-  _pushId = id;
-  const sevEmoji = severity === 'red' ? '🔴' : '🟠';
-  const sevText = severity === 'red' ? '红色预警' : '橙色预警';
-  const now = new Date().toLocaleString('zh-CN');
-  // 从detail提取关键信号（去掉"已全量扫描"等系统用语）
+  _pushData = { id, enterprise, severity };
   const cleanDetail = (detail || '').replace(/已全量扫描.*?。/, '').replace(/各因子明细请调用其.*/g, '').trim();
-  document.getElementById('pushText').value =
-`${sevEmoji} **${sevText}: ${enterprise}**
-
-**风险摘要**
-${cleanDetail || title || '详见预警中心'}
-
-**建议措施**
-${severity === 'red' ? '🚨 请立即核实，必要时启动风险应对流程' : '📋 请关注并在24小时内完成评估'}
-
----
-📡 数据源: 企查查自动监测
-🕐 推送时间: ${now}
-📎 详情: http://127.0.0.1:8080/warnings`;
+  // 预填卡片内容（用户可编辑摘要和措施）
+  document.getElementById('pushSummary').value = cleanDetail || title || '';
+  document.getElementById('pushAction').value = severity === 'red'
+    ? '🚨 请立即核实，必要时启动风险应对流程'
+    : '📋 请关注并在24小时内完成评估';
   document.getElementById('pushChatId').style.display = 'none';
   document.getElementById('pushChatId').value = localStorage.getItem('last_feishu_chat_id') || '';
   loadChats();
@@ -336,6 +327,33 @@ ${severity === 'red' ? '🚨 请立即核实，必要时启动风险应对流程
     if (this.value === '__custom__') { custom.style.display = 'block'; custom.focus(); }
     else { custom.style.display = 'none'; }
   };
+}
+async function sendPush() {
+  if (!_pushData) return;
+  let chatId = document.getElementById('pushChatSelect').value;
+  if (!chatId || chatId === '__custom__') chatId = document.getElementById('pushChatId').value.trim();
+  if (!chatId) { alert('请选择或输入发送目标'); return; }
+  localStorage.setItem('last_feishu_chat_id', chatId);
+  const btn = document.getElementById('pushSendBtn');
+  btn.textContent = '发送中...'; btn.disabled = true;
+  try {
+    const resp = await fetch(`${API}/${_pushData.id}/push`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-API-Key':'warning-dev-key-2026'},
+      body: JSON.stringify({
+        chat_id: chatId,
+        enterprise: _pushData.enterprise,
+        severity: _pushData.severity,
+        summary: document.getElementById('pushSummary').value,
+        action: document.getElementById('pushAction').value,
+        detail_url: 'http://127.0.0.1:8080/warnings'
+      })
+    });
+    const data = await resp.json();
+    if (data.status === 'ok') closePush();
+    else alert('推送失败: ' + (data.detail || ''));
+  } catch(e) { alert('推送异常: '+e.message); }
+  btn.textContent = '发送'; btn.disabled = false;
 }
 function closePush() { document.getElementById('pushModal').style.display = 'none'; _pushId = null; }
 async function sendPush() {
