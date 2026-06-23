@@ -320,6 +320,16 @@ def create_app() -> FastAPI:
         WarningDB().reset_status(warning_id)
         return {"status": "ok"}
 
+    @app.post("/api/warnings/collect")
+    def trigger_collect(request: Request):
+        if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
+            raise HTTPException(401, "Invalid API key")
+        from warning_db import WarningDB
+        before = len(WarningDB().list_warnings(limit=1000))
+        _warning_collect_cycle()
+        after = len(WarningDB().list_warnings(limit=1000))
+        return {"status": "ok", "before": before, "after": after, "new": after - before}
+
     # ── 预警调度器 ─────────────────────────────────────────
     from apscheduler.schedulers.background import BackgroundScheduler
     from config import WarningConfig
