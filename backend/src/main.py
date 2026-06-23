@@ -302,7 +302,7 @@ def create_app() -> FastAPI:
         if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
             raise HTTPException(401, "Invalid API key")
         import json as _json
-        body = _json.loads((await request.body()).decode())
+        body = await request.json()
         sev = body.get("severity", "")
         if sev not in ("red", "orange", "yellow"):
             raise HTTPException(400, f"Invalid severity: {sev}")
@@ -407,7 +407,7 @@ def create_app() -> FastAPI:
             raise HTTPException(401, "Invalid API key")
         import json as _json
         import subprocess
-        body = _json.loads((await request.body()).decode())
+        body = await request.json()
         markdown = body.get("markdown", "")
         chat_id = body.get("chat_id", "") or _os.getenv("WARNING_FEISHU_CHAT_ID", "")
         if not chat_id:
