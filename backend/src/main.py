@@ -557,30 +557,62 @@ def create_app() -> FastAPI:
         with open(_ep, "r", encoding="utf-8") as _f:
             _ents = _yaml.safe_load(_f).get("enterprises", [])
 
-        # 企查查采集 + 母公司连带检查
+        # 采集：乙方企查查，甲方+母公司企查查+同花顺
         try:
             from services.qichacha_mcp import call_tool
-            seen = set()
+            import json as _json
+            seen_parents = set()
             for ent in _ents:
-                # 1. 查询子公司
+                role = ent.get("role", "乙方")
+                # 1. 企查查查询企业自身
                 r = call_tool("risk", "get_company_risk_scan", {"searchKey": ent["name"]})
+                has_risk = False
                 if r:
+                    label = f"{ent['name']}（{role}）"
                     for item in r.get("content", []):
                         _collect_source("qichacha", item.get("text", ""),
-                                        db, cls, ent["name"], "qichacha")
-                # 2. 查询母公司（连带风险信号）
-                for parent in ent.get("parent_enterprises", []):
-                    if parent in seen:
-                        continue
-                    seen.add(parent)
-                    r2 = call_tool("risk", "get_company_risk_scan", {"searchKey": parent})
-                    if r2:
-                        for item in r2.get("content", []):
-                            # 母公司风险归属到子公司名下
-                            _collect_source("qichacha", item.get("text", ""),
-                                            db, cls, f"{parent}(母公司)", "qichacha")
+                                        db, cls, label, "qichacha")
+                    try:
+                        data = _json.loads(r.get("content",[{}])[0].get("text","{}"))
+                        has_risk = data.get("有记录因子数", 0) > 0
+                    except: pass
+
+                # 2. 甲方母公司：同花顺金融数据（上市公司）
+                if role == "甲方" and ent.get("parent_stock_code"):
+                    stock = ent["parent_stock_code"]
+                    if stock:
+                        try:
+                            from iFinDPy import THS_iFinDLogin, THS_RQ, THS_iFinDLogout
+                            THS_iFinDLogin(cfg.ths_username, cfg.ths_password)
+                            data = THS_RQ(stock, "latest;changeRatio;pe;pb;totalMarketCap", "")
+                            if data and data.errorcode == 0:
+                                row = data.data.iloc[0]
+                                ths_text = (
+                                    f"母公司{ent['parent']}({stock})行情: "
+                                    f"最新价{row['latest']}, 涨跌幅{row['changeRatio']}%, "
+                                    f"PE{row['pb']}, 总市值{row['totalMarketCap']}"
+                                )
+                                _collect_source("ths_stock", ths_text, db, cls,
+                                                f"{ent['parent']}（母公司·同花顺）", "ths_stock")
+                            THS_iFinDLogout()
+                        except Exception as e:
+                            logger.debug(f"THS parent query failed for {stock}: {e}")
+
+                # 3. 甲方无信号 → 追溯母公司企查查
+                if role == "甲方" and ent.get("parent"):
+                    parent_name = ent["parent"]
+                    if parent_name not in seen_parents and not has_risk:
+                        seen_parents.add(parent_name)
+                        r2 = call_tool("risk", "get_company_risk_scan",
+                                       {"searchKey": parent_name})
+                        if r2:
+                            for item in r2.get("content", []):
+                                _collect_source("qichacha", item.get("text", ""),
+                                                db, cls,
+                                                f"{parent_name}（{ent['name']}的母公司）",
+                                                "qichacha")
         except Exception as e:
-            logger.warning(f"[collector] Qichacha failed: {e}")
+            logger.warning(f"[collector] Qichacha/THS failed: {e}")
 
         # 票交所 RAG 查询
         try:
