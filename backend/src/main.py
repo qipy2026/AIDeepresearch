@@ -528,15 +528,16 @@ def create_app() -> FastAPI:
         ex = extract(source, text)
         classifiable = ex.get("readable", ex.get("summary", text))
         c = cls.classify(classifiable, ent_name)
-        if c["severity"] != "none":
-            db.insert(
-                enterprise=ent_name, source=source,
-                severity=c["severity"],
-                category=c.get("category", ""),
-                title=ex.get("title", c.get("title", classifiable[:100])),
-                detail=ex.get("summary", ex.get("readable", classifiable[:500])),
-                suggested_action=c.get("suggested_action", ""),
-                raw_data=text,
+        # 所有数据源结果都存储，即使分类为 none（供人工复核）
+        sev = c["severity"] if c["severity"] != "none" else "normal"
+        db.insert(
+            enterprise=ent_name, source=source,
+            severity=sev,
+            category=c.get("category", ""),
+            title=ex.get("title", c.get("title", classifiable[:100])),
+            detail=ex.get("summary", ex.get("readable", classifiable[:500])),
+            suggested_action=c.get("suggested_action", ""),
+            raw_data=text,
             )
             # 不再自动推送——由用户在预警中心点击"推送"手动发送
 

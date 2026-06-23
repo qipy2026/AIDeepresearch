@@ -166,7 +166,7 @@ async function loadStats() {
       <div class="stat-card red"><div class="num">${bySev.red || 0}</div><div class="label">🔴 红色预警</div></div>
       <div class="stat-card orange"><div class="num">${bySev.orange || 0}</div><div class="label">🟠 橙色预警</div></div>
       <div class="stat-card yellow"><div class="num">${bySev.yellow || 0}</div><div class="label">🟡 黄色预警</div></div>
-      <div class="stat-card"><div class="num">${total}</div><div class="label">合计预警</div></div>
+      <div class="stat-card"><div class="num">${bySev.normal || 0}</div><div class="label">🟢 正常</div></div>
     `;
     document.getElementById('totalBadge').textContent = total ? `${total}条` : '暂无';
   } catch (err) { console.error(err); }
@@ -174,7 +174,7 @@ async function loadStats() {
 
 function renderWarnings(warnings) {
   // 排序: 红色 → 橙色 → 黄色，同级按时间倒序
-  const order = {red:0, orange:1, yellow:2};
+  const order = {red:0, orange:1, yellow:2, normal:3};
   warnings.sort((a,b) => order[a.severity]-order[b.severity] || (b.created_at||'').localeCompare(a.created_at||''));
   const list = document.getElementById('warningList');
   if (!warnings.length) {
@@ -196,13 +196,14 @@ function renderWarnings(warnings) {
       ).join(' ');
     } catch(e) {}
     // 检测是否为无风险企业（key_facts = 无异常）
-    let isNormal = false;
-    try {
-      const rd = JSON.parse(w.raw_data || '{}');
-      const scans = rd['风险因子扫描'] || [];
-      isNormal = !scans.some(s => s['条目数'] > 0);
-    } catch(e) {}
-    // 无风险企业用绿色 normal 样式
+    let isNormal = w.severity === 'normal';
+    if (!isNormal) {
+      try {
+        const rd = JSON.parse(w.raw_data || '{}');
+        const scans = rd['风险因子扫描'] || [];
+        isNormal = !scans.some(s => s['条目数'] > 0);
+      } catch(e) {}
+    }
     const cardSeverity = isNormal ? 'normal' : w.severity;
     const sevIcon = isNormal ? '✅' : (w.severity === 'red' ? '🔴' : w.severity === 'orange' ? '🟠' : '🟡');
     const sevLabel = isNormal ? '🟢 正常' : {red:'🔴 红色预警', orange:'🟠 橙色预警', yellow:'🟡 黄色预警'}[w.severity] || w.severity;
@@ -234,7 +235,7 @@ function renderWarnings(warnings) {
       <div class="sev-icon">${sevIcon}</div>
       <div class="warning-content">
         <div class="warning-title">${riskTitle}</div>
-        <div class="warning-detail">${isNormal ? '<span style="color:#16a34a;">✅ 未发现风险信号，企业运营正常</span>' : (clickableFactors || riskSummary)}</div>
+        <div class="warning-detail">${isNormal ? (riskSummary || '<span style="color:#16a34a;">✅ 数据正常</span>') : (clickableFactors || riskSummary)}</div>
         <div class="warning-meta">
           <span class="sev-label">${sevLabel}</span>
           ${newBadge}
