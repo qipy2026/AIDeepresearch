@@ -16,7 +16,7 @@ if sys.platform == "win32":
 
 from typing import Any, Dict, Iterator, Optional
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from loguru import logger
@@ -262,10 +262,6 @@ def create_app() -> FastAPI:
 
     _API_KEY = _os.getenv("WARNING_API_KEY", "")
 
-    def _check_auth(request):
-        if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
-            raise HTTPException(401, "Invalid API key")
-
     @app.get("/api/warnings")
     def list_warnings(
         enterprise: str = "",
@@ -281,6 +277,11 @@ def create_app() -> FastAPI:
             )
         }
 
+    @app.get("/api/warnings/stats")
+    def warning_stats():
+        from warning_db import WarningDB
+        return WarningDB().stats()
+
     @app.get("/api/warnings/{warning_id}")
     def get_warning(warning_id: int):
         from warning_db import WarningDB
@@ -290,21 +291,20 @@ def create_app() -> FastAPI:
         return row
 
     @app.put("/api/warnings/{warning_id}/ack")
-    def ack_warning(warning_id: int):
+    def ack_warning(warning_id: int, request: Request):
+        if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
+            raise HTTPException(401, "Invalid API key")
         from warning_db import WarningDB
         WarningDB().ack(warning_id, "operator")
         return {"status": "ok"}
 
     @app.put("/api/warnings/{warning_id}/false")
-    def false_warning(warning_id: int):
+    def false_warning(warning_id: int, request: Request):
+        if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
+            raise HTTPException(401, "Invalid API key")
         from warning_db import WarningDB
         WarningDB().mark_false(warning_id, "operator")
         return {"status": "ok"}
-
-    @app.get("/api/warnings/stats")
-    def warning_stats():
-        from warning_db import WarningDB
-        return WarningDB().stats()
 
     # ── 预警调度器 ─────────────────────────────────────────
     from apscheduler.schedulers.background import BackgroundScheduler
