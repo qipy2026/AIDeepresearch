@@ -330,55 +330,58 @@ function closeDetail() {
   document.getElementById('detailModal').style.display = 'none';
 }
 
+function formatParty(p) {
+  // 当事人可能是字符串或对象 {原告:[], 被告:[]} 或 {上诉人:[], 被上诉人:[]}
+  if (!p) return '';
+  if (typeof p === 'string') return p;
+  const parts = [];
+  for (const [role, names] of Object.entries(p)) {
+    if (Array.isArray(names) && names.length) parts.push(`${role}: ${names.join('、')}`);
+  }
+  return parts.join(' | ') || JSON.stringify(p);
+}
+
 function formatFactorContent(content, factor) {
   if (!content) return '';
-  // 尝试解析 JSON 并格式化为可读卡片
   try {
     const data = JSON.parse(content);
-    // 行政处罚
-    if (data['行政处罚信息']) {
-      return data['行政处罚信息'].map((p, i) => `
-        <div class="penalty-card">
-          <div class="penalty-header">📋 处罚 ${i+1}: ${p['决定书文号'] || ''}</div>
-          <div class="penalty-body">
-            <div class="penalty-row"><span>处罚结果</span><span class="penalty-amount">${p['处罚结果'] || ''}</span></div>
-            <div class="penalty-row"><span>处罚金额</span><span>${p['处罚金额'] ? '¥' + Number(p['处罚金额']).toLocaleString() : '--'}</span></div>
-            <div class="penalty-row"><span>处罚单位</span><span>${p['处罚单位'] || ''}</span></div>
-            <div class="penalty-row"><span>处罚日期</span><span>${p['处罚日期'] || ''}</span></div>
-          </div>
-        </div>
-      `).join('');
+    // 找到数据数组（各种可能的 key 名）
+    const listKeys = ['行政处罚信息', '裁判文书', '裁判文书信息', '立案信息', '开庭公告信息', '开庭公告', '法院公告'];
+    let items = [], listKey = '';
+    for (const k of listKeys) {
+      if (Array.isArray(data[k]) && data[k].length > 0) { items = data[k]; listKey = k; break; }
     }
-    // 裁判文书
-    if (data['裁判文书信息'] || data['裁判文书']) {
-      const items = data['裁判文书信息'] || data['裁判文书'] || [];
-      return (Array.isArray(items) ? items : [items]).map((d, i) => `
-        <div class="penalty-card">
-          <div class="penalty-header">⚖️ 文书 ${i+1}: ${d['案号'] || d['标题'] || ''}</div>
-          <div class="penalty-body">
-            ${d['案由'] ? `<div class="penalty-row"><span>案由</span><span>${d['案由']}</span></div>` : ''}
-            ${d['当事人'] ? `<div class="penalty-row"><span>当事人</span><span>${d['当事人']}</span></div>` : ''}
-            ${d['裁判日期'] ? `<div class="penalty-row"><span>日期</span><span>${d['裁判日期']}</span></div>` : ''}
-            ${d['法院'] || d['法院名称'] ? `<div class="penalty-row"><span>法院</span><span>${d['法院'] || d['法院名称']}</span></div>` : ''}
-          </div>
-        </div>
-      `).join('');
+    if (!items.length) {
+      // 无列表，显示摘要文本
+      const summary = data['摘要'] || data['检索结果'] || '';
+      return summary ? `<div class="penalty-card"><div class="penalty-body" style="text-align:center;color:#64748b;padding:20px;">${summary}</div></div>` : '';
     }
-    // 立案信息
-    if (data['立案信息']) {
-      return data['立案信息'].map((d, i) => `
-        <div class="penalty-card">
-          <div class="penalty-header">📝 立案 ${i+1}: ${d['案号'] || ''}</div>
-          <div class="penalty-body">
-            ${d['案由'] ? `<div class="penalty-row"><span>案由</span><span>${d['案由']}</span></div>` : ''}
-            ${d['当事人'] ? `<div class="penalty-row"><span>当事人</span><span>${d['当事人']}</span></div>` : ''}
-            ${d['立案日期'] ? `<div class="penalty-row"><span>日期</span><span>${d['立案日期']}</span></div>` : ''}
-          </div>
+
+    // 公共字段提取
+    const getField = (d, names) => { for (const n of names) if (d[n]) return d[n]; return ''; };
+    const getDate = (d) => getField(d, ['裁判日期', '立案日期', '处罚日期', '开庭时间', '开庭日期', '发布日期']);
+    const getCourt = (d) => getField(d, ['法院', '法院名称', '处罚单位']);
+    const getCaseNo = (d) => getField(d, ['案号', '决定书文号']);
+    const getReason = (d) => getField(d, ['案由', '处罚结果']);
+
+    const emoji = {行政处罚信息:'📋',裁判文书:'⚖️',裁判文书信息:'⚖️',立案信息:'📝',开庭公告信息:'📅',开庭公告:'📅',法院公告:'📢'};
+    const em = emoji[listKey] || '📄';
+
+    return items.map((d, i) => `
+      <div class="penalty-card">
+        <div class="penalty-header">${em} ${factor} ${i+1}: ${getCaseNo(d) || ''}</div>
+        <div class="penalty-body">
+          ${getReason(d) ? `<div class="penalty-row"><span>${listKey.includes('处罚')?'处罚结果':'案由'}</span><span class="${listKey.includes('处罚')?'penalty-amount':''}">${getReason(d)}</span></div>` : ''}
+          ${d['当事人'] || d['当事人信息'] ? `<div class="penalty-row"><span>当事人</span><span>${formatParty(d['当事人'] || d['当事人信息'])}</span></div>` : ''}
+          ${getCourt(d) ? `<div class="penalty-row"><span>${listKey.includes('处罚')?'处罚单位':'法院'}</span><span>${getCourt(d)}</span></div>` : ''}
+          ${getDate(d) ? `<div class="penalty-row"><span>日期</span><span>${getDate(d)}</span></div>` : ''}
+          ${d['处罚金额'] ? `<div class="penalty-row"><span>处罚金额</span><span class="penalty-amount">¥${Number(d['处罚金额']).toLocaleString()}</span></div>` : ''}
+          ${d['裁判结果'] ? `<div class="penalty-row"><span>裁判结果</span><span>${d['裁判结果']}</span></div>` : ''}
+          ${d['审理法官'] ? `<div class="penalty-row"><span>审理法官</span><span>${d['审理法官']}</span></div>` : ''}
         </div>
-      `).join('');
-    }
+      </div>
+    `).join('');
   } catch(e) {}
-  // fallback: plain text
   return `<pre style="white-space:pre-wrap;font-size:13px;line-height:1.6;color:#334155;background:#f8fafc;padding:12px;border-radius:8px;">${content}</pre>`;
 }
 
