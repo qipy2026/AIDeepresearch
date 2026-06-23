@@ -310,7 +310,7 @@ async function showDetail(id) {
             <span style="font-weight:normal;font-size:12px;color:#3b82f6;">调用: <code>${d.tool_called || 'N/A'}</code></span>
           </h4>
           ${d.error ? `<p style="color:#dc2626;font-size:12px;">错误: ${d.error}</p>` : ''}
-          ${d.content ? `<pre style="white-space:pre-wrap;font-size:12px;line-height:1.6;color:#334155;max-height:300px;overflow-y:auto;background:#fff;padding:10px;border-radius:6px;">${d.content}</pre>` : ''}
+          ${d.content ? formatFactorContent(d.content, d.factor) : ''}
           ${d.raw_response ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;color:#64748b;">📡 原始返回</summary><pre style="white-space:pre-wrap;font-size:11px;color:#94a3b8;max-height:200px;overflow-y:auto;">${d.raw_response}</pre></details>` : ''}
         </div>
       `).join('');
@@ -489,19 +489,21 @@ function escapeHtml(str) {
 }
 
 function parseDetail(text) {
-  if (!text) return '暂无详情';
+  if (!text) return '';
   try {
     const obj = JSON.parse(text);
-    // 企查查格式
-    if (obj['摘要']) return obj['摘要'];
+    // 企查查摘要：去掉系统提示语
+    let s = (obj['摘要'] || '').replace(/各因子明细请调用其「明细工具」/g, '').replace(/。\s*$/,'').trim();
+    if (s) return s;
     if (obj['风险因子扫描']) {
       const active = obj['风险因子扫描'].filter(f => f['条目数'] > 0).map(f => `${f['风险因子']}(${f['条目数']})`);
-      return active.length ? active.join('、') : '无异常';
+      return active.length ? active.join('、') : '未发现风险信号';
     }
     return text;
   } catch {
-    // Already human-readable
-    return text.length > 300 ? text.slice(0, 300) + '…' : text;
+    // 非 JSON，去掉系统风格前缀
+    let s = text.replace(/已全量扫描.*?。/g, '').replace(/各因子明细请调用其.*/g, '').trim();
+    return s || text;
   }
 }
 
