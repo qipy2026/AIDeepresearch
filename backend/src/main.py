@@ -424,7 +424,7 @@ def create_app() -> FastAPI:
                 severity=c["severity"],
                 category=c.get("category", ""),
                 title=ex.get("title", c.get("title", classifiable[:100])),
-                detail=ex.get("abstract", ex.get("readable", classifiable[:500])),
+                detail=ex.get("summary", ex.get("readable", classifiable[:500])),
                 suggested_action=c.get("suggested_action", ""),
                 raw_data=text,
             )
