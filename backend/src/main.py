@@ -584,19 +584,19 @@ def create_app() -> FastAPI:
                         try:
                             from iFinDPy import THS_iFinDLogin, THS_RQ, THS_iFinDLogout
                             THS_iFinDLogin(cfg.ths_username, cfg.ths_password)
-                            data = THS_RQ(stock, "latest;changeRatio;pe;pb", "")
+                            data = THS_RQ(stock, "latest;changeRatio;pb", "")
                             if data and data.errorcode == 0:
                                 row = data.data.iloc[0]
                                 ths_text = (
                                     f"母公司{ent['parent']}({stock})行情: "
                                     f"最新价{row['latest']}, 涨跌幅{row['changeRatio']}%, "
-                                    f"PE{row['pe']}, PB{row['pb']}"
+                                    f"PB{row['pb']}"
                                 )
                                 _collect_source("ths_stock", ths_text, db, cls,
                                                 f"{ent['parent']}（母公司·同花顺）", "ths_stock")
                             THS_iFinDLogout()
                         except Exception as e:
-                            logger.debug(f"THS parent query failed for {stock}: {e}")
+                            logger.warning(f"THS parent query failed for {stock}: {e}")
 
                 # 3. 甲方无信号 → 追溯母公司企查查
                 if role == "甲方" and ent.get("parent"):
