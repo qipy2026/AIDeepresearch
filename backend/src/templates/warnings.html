@@ -311,7 +311,22 @@ function showPush(id, enterprise, severity, title, detail) {
   _pushId = id;
   const sevEmoji = severity === 'red' ? '🔴' : '🟠';
   const sevText = severity === 'red' ? '红色预警' : '橙色预警';
-  document.getElementById('pushText').value = `${sevEmoji} **${sevText}**: ${enterprise}\n\n**${title}**\n${detail || ''}\n\n📡 数据源: 企查查\n\n---\n⚠️ 请及时处理`;
+  const now = new Date().toLocaleString('zh-CN');
+  // 从detail提取关键信号（去掉"已全量扫描"等系统用语）
+  const cleanDetail = (detail || '').replace(/已全量扫描.*?。/, '').replace(/各因子明细请调用其.*/g, '').trim();
+  document.getElementById('pushText').value =
+`${sevEmoji} **${sevText}: ${enterprise}**
+
+**风险摘要**
+${cleanDetail || title || '详见预警中心'}
+
+**建议措施**
+${severity === 'red' ? '🚨 请立即核实，必要时启动风险应对流程' : '📋 请关注并在24小时内完成评估'}
+
+---
+📡 数据源: 企查查自动监测
+🕐 推送时间: ${now}
+📎 详情: http://127.0.0.1:8080/warnings`;
   document.getElementById('pushChatId').style.display = 'none';
   document.getElementById('pushChatId').value = localStorage.getItem('last_feishu_chat_id') || '';
   loadChats();
