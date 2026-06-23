@@ -405,7 +405,6 @@ async function showFactorDetail(enterprise, factor, tool, count) {
   }
 }
 
-let _pushId = null;
 async function loadChats() {
   const sel = document.getElementById('pushChatSelect');
   sel.innerHTML = '<option value="">加载中...</option>';
@@ -465,27 +464,7 @@ async function sendPush() {
   } catch(e) { alert('推送异常: '+e.message); }
   btn.textContent = '发送'; btn.disabled = false;
 }
-function closePush() { document.getElementById('pushModal').style.display = 'none'; _pushId = null; }
-async function sendPush() {
-  if (!_pushId) return;
-  let chatId = document.getElementById('pushChatSelect').value;
-  if (!chatId || chatId === '__custom__') chatId = document.getElementById('pushChatId').value.trim();
-  if (!chatId) { alert('请选择或输入发送目标'); return; }
-  localStorage.setItem('last_feishu_chat_id', chatId);
-  const btn = document.getElementById('pushSendBtn');
-  btn.textContent = '发送中...'; btn.disabled = true;
-  try {
-    const resp = await fetch(`${API}/${_pushId}/push`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-API-Key':'warning-dev-key-2026'},
-      body: JSON.stringify({markdown: document.getElementById('pushText').value, chat_id: chatId})
-    });
-    const data = await resp.json();
-    if (data.status === 'ok') { closePush(); }
-    else { alert('推送失败:\n' + (data.detail || JSON.stringify(data))); }
-  } catch(e) { alert('推送异常: '+e.message); }
-  btn.textContent = '发送'; btn.disabled = false;
-}
+function closePush() { document.getElementById('pushModal').style.display = 'none'; _pushData = null; }
 
 function escapeHtml(str) {
   return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
