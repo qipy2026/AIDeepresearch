@@ -402,18 +402,39 @@ def create_app() -> FastAPI:
 
     @app.post("/api/warnings/{warning_id}/push")
     async def push_warning(warning_id: int, request: Request):
-        """手动推送预警到飞书（用户可编辑内容后发送）。"""
+        """手动推送预警到飞书。chat_id 由前端选择传入。"""
         if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
             raise HTTPException(401, "Invalid API key")
         import json as _json
         body = _json.loads((await request.body()).decode())
         markdown = body.get("markdown", "")
-        chat_id = _os.getenv("WARNING_FEISHU_CHAT_ID", "")
+        chat_id = body.get("chat_id", "") or _os.getenv("WARNING_FEISHU_CHAT_ID", "")
         if not chat_id:
-            raise HTTPException(400, "未配置 WARNING_FEISHU_CHAT_ID")
+            raise HTTPException(400, "未指定 chat_id，且未配置 WARNING_FEISHU_CHAT_ID")
         from services.warning_dispatcher import _send_markdown
         ok = _send_markdown(chat_id, markdown)
         return {"status": "ok" if ok else "failed"}
+
+    @app.get("/api/feishu/chats")
+    def list_feishu_chats():
+        """获取飞书可用群聊列表（供推送选择）。"""
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["lark-cli", "im", "+chat-list", "--as", "bot",
+                 "--page-size", "50", "--format", "json"],
+                capture_output=True, text=True, timeout=10,
+            )
+            data = json.loads(result.stdout)
+            chats = []
+            for item in data.get("items", data.get("data", {}).get("items", [])):
+                chats.append({
+                    "chat_id": item.get("chat_id", ""),
+                    "name": item.get("name", "") or item.get("description", "") or item.get("chat_id", ""),
+                })
+            return {"chats": chats}
+        except Exception as e:
+            return {"chats": [], "error": str(e), "hint": "请配置 WARNING_FEISHU_CHAT_ID 或手动输入 oc_xxx"}
 
     @app.post("/api/warnings/collect")
     def trigger_collect(request: Request):
