@@ -257,6 +257,119 @@ def create_app() -> FastAPI:
         delete_enterprise(name)
         return {"status": "ok", "enterprise": name}
 
+    # ── 预警中心 API ─────────────────────────────────────
+    import os as _os
+
+    _API_KEY = _os.getenv("WARNING_API_KEY", "")
+
+    def _check_auth(request):
+        if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
+            raise HTTPException(401, "Invalid API key")
+
+    @app.get("/api/warnings")
+    def list_warnings(
+        enterprise: str = "",
+        severity: str = "",
+        status: str = "",
+        limit: int = 50,
+        offset: int = 0,
+    ):
+        from warning_db import WarningDB
+        return {
+            "warnings": WarningDB().list_warnings(
+                enterprise, severity, status, limit, offset
+            )
+        }
+
+    @app.get("/api/warnings/{warning_id}")
+    def get_warning(warning_id: int):
+        from warning_db import WarningDB
+        row = WarningDB().get(warning_id)
+        if not row:
+            raise HTTPException(404, "Warning not found")
+        return row
+
+    @app.put("/api/warnings/{warning_id}/ack")
+    def ack_warning(warning_id: int):
+        from warning_db import WarningDB
+        WarningDB().ack(warning_id, "operator")
+        return {"status": "ok"}
+
+    @app.put("/api/warnings/{warning_id}/false")
+    def false_warning(warning_id: int):
+        from warning_db import WarningDB
+        WarningDB().mark_false(warning_id, "operator")
+        return {"status": "ok"}
+
+    @app.get("/api/warnings/stats")
+    def warning_stats():
+        from warning_db import WarningDB
+        return WarningDB().stats()
+
+    # ── 预警调度器 ─────────────────────────────────────────
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from config import WarningConfig
+
+    _scheduler = BackgroundScheduler()
+
+    def _warning_collect_cycle():
+        """预警采集→分类→存储完整周期。"""
+        import asyncio
+        from services.warning_classifier import ClassifierService
+        from warning_db import WarningDB
+
+        cfg = WarningConfig.from_env()
+        if not cfg.enabled_sources or cfg.enabled_sources == "none":
+            return
+        db = WarningDB()
+        db.init()
+        cls = ClassifierService(cfg.keywords_path)
+
+        # 企查查采集
+        try:
+            from services.qichacha_mcp import call_tool
+            import yaml as _yaml
+            from pathlib import Path as _Path
+            _ep = _Path(__file__).resolve().parent.parent / "config" / "enterprises.yaml"
+            with open(_ep, "r", encoding="utf-8") as _f:
+                _ents = _yaml.safe_load(_f).get("enterprises", [])
+            for ent in _ents:
+                r = call_tool("risk", "get_company_risk_scan", {"searchKey": ent["name"]})
+                if r:
+                    for item in r.get("content", []):
+                        text = item.get("text", "")
+                        if text:
+                            c = cls.classify(text, ent["name"])
+                            if c["severity"] != "none":
+                                db.insert(
+                                    enterprise=ent["name"],
+                                    source="qichacha",
+                                    severity=c["severity"],
+                                    category=c.get("category", ""),
+                                    title=c.get("title", text[:100]),
+                                    detail=c.get("detail", text[:500]),
+                                    suggested_action=c.get("suggested_action", ""),
+                                    raw_data=text[:2000],
+                                )
+        except Exception as e:
+            logger.warning(f"Warning collect failed: {e}")
+
+    _scheduler.add_job(
+        _warning_collect_cycle,
+        "interval",
+        seconds=int(_os.getenv("WARNING_CRON_INTERVAL", "300")),
+        id="warning_collect",
+    )
+
+    @app.on_event("startup")
+    def _start_warning_scheduler():
+        from warning_db import WarningDB
+        WarningDB().init()
+        cfg = WarningConfig.from_env()
+        if cfg.enabled_sources and cfg.enabled_sources != "none":
+            _scheduler.start()
+            logger.info("Warning scheduler started (interval={}s)", cfg.cron_interval)
+
     return app
 
 
