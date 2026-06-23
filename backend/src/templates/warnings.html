@@ -59,6 +59,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .push-btn:hover { background:#ede9fe; }
 .factor-link { display:inline-block;padding:3px 10px;margin:2px 3px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;transition:.15s; }
 .factor-link:hover { background:#3b82f6;color:#fff;border-color:#3b82f6; }
+.new-badge { display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#dc2626;color:#fff;animation:pulse 2s infinite; }
+.card-skeleton { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:14px;height:100px; }
 </style>
 </head>
 <body>
@@ -68,7 +70,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <h1>预警中心</h1>
   <span id="totalBadge" class="badge red">0</span>
   <span style="flex:1"></span>
-  <span class="auto-refresh" id="refreshInfo">自动刷新: 60s</span>
+  <span class="auto-refresh" id="refreshInfo">60s后刷新</span>
+  <button onclick="loadWarnings();loadStats();" style="margin-left:8px;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;cursor:pointer;font-size:11px;">🔄 立即刷新</button>
 </div>
 
 <div class="container">
@@ -162,6 +165,9 @@ async function loadStats() {
 }
 
 function renderWarnings(warnings) {
+  // 排序: 红色 → 橙色 → 黄色，同级按时间倒序
+  const order = {red:0, orange:1, yellow:2};
+  warnings.sort((a,b) => order[a.severity]-order[b.severity] || (b.created_at||'').localeCompare(a.created_at||''));
   const list = document.getElementById('warningList');
   if (!warnings.length) {
     list.innerHTML = '<div class="empty"><div class="icon">✅</div><p>暂无预警，系统运行正常</p></div>';
@@ -182,6 +188,15 @@ function renderWarnings(warnings) {
       ).join(' ');
     } catch(e) {}
     const sevLabel = {red:'🔴 红色预警', orange:'🟠 橙色预警', yellow:'🟡 黄色预警'}[w.severity] || w.severity;
+    // 相对时间
+    const created = new Date(w.created_at + 'Z' || w.created_at);
+    const minutesAgo = Math.floor((Date.now() - created) / 60000);
+    const timeStr = minutesAgo < 1 ? '刚刚' : minutesAgo < 60 ? `${minutesAgo}分钟前` :
+                    minutesAgo < 1440 ? `${Math.floor(minutesAgo/60)}小时前` :
+                    `${Math.floor(minutesAgo/1440)}天前`;
+    // 新预警标记（15分钟内）
+    const isNew = minutesAgo < 15;
+    const newBadge = isNew ? '<span class="new-badge">NEW</span>' : '';
     const statusHTML = w.status === 'false_positive'
       ? '<span class="tag tag-orange">已标记误报</span>'
       : '';
@@ -204,8 +219,9 @@ function renderWarnings(warnings) {
         <div class="warning-detail">${clickableFactors || riskSummary}</div>
         <div class="warning-meta">
           <span class="sev-label">${sevLabel}</span>
+          ${newBadge}
+          <span>🕐 ${timeStr}</span>
           <span>📡 ${w.source}</span>
-          <span>🕐 ${(w.created_at||'').slice(0,16)}</span>
           ${statusHTML}
         </div>
       </div>
@@ -449,7 +465,12 @@ function truncate(text, max) {
 // Init
 loadStats();
 loadWarnings();
-setInterval(() => { loadStats(); loadWarnings(); }, 60000);
+let countdown = 60;
+setInterval(() => {
+  countdown--;
+  if (countdown <= 0) { loadStats(); loadWarnings(); countdown = 60; }
+  document.getElementById('refreshInfo').textContent = countdown + 's后刷新';
+}, 1000);
 </script>
 </body>
 </html>
