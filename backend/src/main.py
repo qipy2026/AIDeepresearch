@@ -288,6 +288,32 @@ def create_app() -> FastAPI:
         from warning_db import WarningDB
         return WarningDB().stats()
 
+    @app.get("/api/warnings/factor")
+    def query_factor(enterprise: str = "", tool: str = "", factor: str = ""):
+        """快速查询单个风险因子明细。"""
+        if not enterprise or not tool:
+            raise HTTPException(400, "缺少 enterprise 或 tool 参数")
+        from services.qichacha_mcp import call_tool
+        import json as _json
+        try:
+            result = call_tool("risk", tool, {"searchKey": enterprise})
+            if result:
+                texts = []
+                for item in result.get("content", []):
+                    t = item.get("text", "")
+                    if t and t.strip():
+                        texts.append(t[:3000])
+                return {
+                    "enterprise": enterprise, "factor": factor, "tool": tool,
+                    "content": "\n---\n".join(texts) if texts else "工具返回了空内容",
+                    "raw": _json.dumps(result, ensure_ascii=False)[:2000] if not texts else "",
+                }
+            return {"enterprise": enterprise, "factor": factor, "tool": tool,
+                    "content": "", "error": "call_tool 返回 None"}
+        except Exception as e:
+            return {"enterprise": enterprise, "factor": factor, "tool": tool,
+                    "content": "", "error": str(e)}
+
     @app.get("/api/warnings/{warning_id}")
     def get_warning(warning_id: int):
         from warning_db import WarningDB
