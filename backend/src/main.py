@@ -632,7 +632,7 @@ def create_app() -> FastAPI:
                 kw = ent.get("keywords", [ent["name"]])
                 query = f'"{kw[0]}" 风险 OR 违约 OR 诉讼 OR 处罚 OR 事故'
                 try:
-                    results, _ = dispatch_search(query, max_results=3)
+                    results, _ = dispatch_search(query, Configuration.from_env(), 1)
                     if results:
                         text = "\n".join(
                             f"{r.get('title','')}: {r.get('snippet',r.get('body',''))}"[:300]
