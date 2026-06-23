@@ -400,6 +400,21 @@ def create_app() -> FastAPI:
             "details": details,
         }
 
+    @app.post("/api/warnings/{warning_id}/push")
+    async def push_warning(warning_id: int, request: Request):
+        """手动推送预警到飞书（用户可编辑内容后发送）。"""
+        if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
+            raise HTTPException(401, "Invalid API key")
+        import json as _json
+        body = _json.loads((await request.body()).decode())
+        markdown = body.get("markdown", "")
+        chat_id = _os.getenv("WARNING_FEISHU_CHAT_ID", "")
+        if not chat_id:
+            raise HTTPException(400, "未配置 WARNING_FEISHU_CHAT_ID")
+        from services.warning_dispatcher import _send_markdown
+        ok = _send_markdown(chat_id, markdown)
+        return {"status": "ok" if ok else "failed"}
+
     @app.post("/api/warnings/collect")
     def trigger_collect(request: Request):
         if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
@@ -435,17 +450,7 @@ def create_app() -> FastAPI:
                 suggested_action=c.get("suggested_action", ""),
                 raw_data=text,
             )
-            # 橙色/红色 → 飞书推送
-            if c["severity"] in ("red", "orange"):
-                from services.warning_dispatcher import push_alert
-                push_alert(
-                    enterprise=ent_name,
-                    severity=c["severity"],
-                    title=ex.get("title", c.get("title", "")),
-                    detail=ex.get("summary", ex.get("readable", "")),
-                    source=source,
-                    suggested_action=c.get("suggested_action", ""),
-                )
+            # 不再自动推送——由用户在预警中心点击"推送"手动发送
 
     def _warning_collect_cycle():
         """预警采集→分类→存储完整周期。"""
