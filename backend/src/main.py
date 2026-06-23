@@ -296,13 +296,19 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "Warning not found")
         return row
 
-    @app.put("/api/warnings/{warning_id}/ack")
-    def ack_warning(warning_id: int, request: Request):
+    @app.put("/api/warnings/{warning_id}/severity")
+    async def set_warning_severity(warning_id: int, request: Request):
+        """人工覆盖预警级别（红色可上调，黄色/橙色人工判断）。"""
         if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
             raise HTTPException(401, "Invalid API key")
+        import json as _json
+        body = _json.loads((await request.body()).decode())
+        sev = body.get("severity", "")
+        if sev not in ("red", "orange", "yellow"):
+            raise HTTPException(400, f"Invalid severity: {sev}")
         from warning_db import WarningDB
-        WarningDB().ack(warning_id, "operator")
-        return {"status": "ok"}
+        WarningDB().set_severity(warning_id, sev)
+        return {"status": "ok", "severity": sev}
 
     @app.put("/api/warnings/{warning_id}/false")
     def false_warning(warning_id: int, request: Request):
@@ -312,8 +318,9 @@ def create_app() -> FastAPI:
         WarningDB().mark_false(warning_id, "operator")
         return {"status": "ok"}
 
-    @app.put("/api/warnings/{warning_id}/unack")
-    def unack_warning(warning_id: int, request: Request):
+    @app.put("/api/warnings/{warning_id}/unfalse")
+    def unfalse_warning(warning_id: int, request: Request):
+        """撤销误报标记。"""
         if _API_KEY and request.headers.get("X-API-Key") != _API_KEY:
             raise HTTPException(401, "Invalid API key")
         from warning_db import WarningDB
