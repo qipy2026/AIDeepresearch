@@ -625,6 +625,38 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning(f"[collector] Piaojiaosuo RAG failed: {e}")
 
+        # Web Search 舆情查询
+        try:
+            from services.web_search import web_search
+            for ent in _ents:
+                kw = ent.get("keywords", [ent["name"]])
+                query = f'"{kw[0]}" 风险 OR 违约 OR 诉讼 OR 处罚 OR 事故'
+                results = web_search(query)
+                if results:
+                    text = "\n".join(
+                        f"{r.get('title','')}: {r.get('snippet','')}"[:300]
+                        for r in (results if isinstance(results, list) else [results])[:3]
+                    )
+                    if text.strip():
+                        _collect_source("web_search", text, db, cls,
+                                        ent["name"], "web_search")
+        except Exception as e:
+            logger.warning(f"[collector] WebSearch failed: {e}")
+
+        # 同花顺 EDB 宏观数据（只查询一次，全局共享）
+        try:
+            from iFinDPy import THS_iFinDLogin, THS_EDB, THS_iFinDLogout
+            THS_iFinDLogin(cfg.ths_username, cfg.ths_password)
+            macro = THS_EDB("M001620326", "", "2026-01-01", "2026-06-30")
+            if macro and macro.errorcode == 0 and macro.data is not None:
+                gdp_row = macro.data.iloc[-1]
+                macro_text = f"GDP最新值: {gdp_row.get('value', 'N/A')} (时间: {gdp_row.get('time', 'N/A')})"
+                _collect_source("ths_macro", macro_text, db, cls,
+                                "宏观经济", "ths_macro")
+            THS_iFinDLogout()
+        except Exception as e:
+            logger.debug(f"[collector] THS macro failed: {e}")
+
     _scheduler.add_job(
         _warning_collect_cycle,
         "interval",
