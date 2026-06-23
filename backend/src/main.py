@@ -258,6 +258,11 @@ def create_app() -> FastAPI:
         delete_enterprise(name)
         return {"status": "ok", "enterprise": name}
 
+    @app.get("/warnings", response_class=HTMLResponse)
+    def warning_page():
+        html_path = Path(__file__).parent / "templates" / "warnings.html"
+        return html_path.read_text(encoding="utf-8")
+
     # ── 预警中心 API ─────────────────────────────────────
     import os as _os
 
@@ -313,11 +318,28 @@ def create_app() -> FastAPI:
 
     _scheduler = BackgroundScheduler()
 
+    def _collect_source(name: str, text: str, db, cls, ent_name: str, source: str):
+        """统一采集-分类-存储。"""
+        if not text or not text.strip():
+            return
+        c = cls.classify(text, ent_name)
+        if c["severity"] != "none":
+            db.insert(
+                enterprise=ent_name, source=source,
+                severity=c["severity"],
+                category=c.get("category", ""),
+                title=c.get("title", text[:100]),
+                detail=c.get("detail", text[:500]),
+                suggested_action=c.get("suggested_action", ""),
+                raw_data=text[:2000],
+            )
+
     def _warning_collect_cycle():
         """预警采集→分类→存储完整周期。"""
-        import asyncio
         from services.warning_classifier import ClassifierService
         from warning_db import WarningDB
+        import yaml as _yaml
+        from pathlib import Path as _Path
 
         cfg = WarningConfig.from_env()
         if not cfg.enabled_sources or cfg.enabled_sources == "none":
@@ -325,35 +347,32 @@ def create_app() -> FastAPI:
         db = WarningDB()
         db.init()
         cls = ClassifierService(cfg.keywords_path)
+        _ep = _Path(__file__).resolve().parent.parent / "config" / "enterprises.yaml"
+        with open(_ep, "r", encoding="utf-8") as _f:
+            _ents = _yaml.safe_load(_f).get("enterprises", [])
 
         # 企查查采集
         try:
             from services.qichacha_mcp import call_tool
-            import yaml as _yaml
-            from pathlib import Path as _Path
-            _ep = _Path(__file__).resolve().parent.parent / "config" / "enterprises.yaml"
-            with open(_ep, "r", encoding="utf-8") as _f:
-                _ents = _yaml.safe_load(_f).get("enterprises", [])
             for ent in _ents:
                 r = call_tool("risk", "get_company_risk_scan", {"searchKey": ent["name"]})
                 if r:
                     for item in r.get("content", []):
-                        text = item.get("text", "")
-                        if text:
-                            c = cls.classify(text, ent["name"])
-                            if c["severity"] != "none":
-                                db.insert(
-                                    enterprise=ent["name"],
-                                    source="qichacha",
-                                    severity=c["severity"],
-                                    category=c.get("category", ""),
-                                    title=c.get("title", text[:100]),
-                                    detail=c.get("detail", text[:500]),
-                                    suggested_action=c.get("suggested_action", ""),
-                                    raw_data=text[:2000],
-                                )
+                        _collect_source("qichacha", item.get("text", ""),
+                                        db, cls, ent["name"], "qichacha")
         except Exception as e:
-            logger.warning(f"Warning collect failed: {e}")
+            logger.warning(f"[collector] Qichacha failed: {e}")
+
+        # 票交所 RAG 查询
+        try:
+            from services.rag_store import query as rag_query
+            for ent in _ents:
+                for kw in ["商票", "承兑", "逾期", "拒付", "票据"]:
+                    result = rag_query(kw, ent["name"], n_results=1)
+                    if result:
+                        _collect_source("rag", result, db, cls, ent["name"], "piaojiaosuo")
+        except Exception as e:
+            logger.warning(f"[collector] Piaojiaosuo RAG failed: {e}")
 
     _scheduler.add_job(
         _warning_collect_cycle,

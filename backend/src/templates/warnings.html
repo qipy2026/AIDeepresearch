@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>预警中心 - 贷后监管</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
+.header { background: linear-gradient(135deg, #1e293b, #334155); color: #fff; padding: 16px 28px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+.header h1 { font-size: 18px; font-weight: 700; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+.badge.red { background: #fecaca; color: #991b1b; }
+.badge.orange { background: #fed7aa; color: #9a3412; }
+.badge.yellow { background: #fef08a; color: #854d0e; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.filters select, .filters input { padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 13px; background: #fff; }
+.filters label { font-size: 13px; color: #64748b; font-weight: 600; }
+.stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat-card { flex: 1; min-width: 120px; padding: 16px 20px; border-radius: 14px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.06); text-align: center; }
+.stat-card .num { font-size: 28px; font-weight: 800; }
+.stat-card .label { font-size: 12px; color: #64748b; margin-top: 4px; }
+.stat-card.red { border-left: 4px solid #ef4444; }
+.stat-card.orange { border-left: 4px solid #f97316; }
+.stat-card.yellow { border-left: 4px solid #eab308; }
+.warning-list { display: flex; flex-direction: column; gap: 12px; }
+.warning-card { background: #fff; border-radius: 14px; padding: 18px 22px; box-shadow: 0 2px 12px rgba(0,0,0,.06); display: flex; gap: 16px; align-items: flex-start; transition: box-shadow .2s; }
+.warning-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+.warning-card.red { border-left: 5px solid #ef4444; }
+.warning-card.orange { border-left: 5px solid #f97316; }
+.warning-card.yellow { border-left: 5px solid #eab308; }
+.sev-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.warning-content { flex: 1; min-width: 0; }
+.warning-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.warning-detail { font-size: 13px; color: #475569; line-height: 1.55; max-height: 60px; overflow: hidden; }
+.warning-meta { display: flex; gap: 16px; align-items: center; margin-top: 8px; flex-wrap: wrap; font-size: 12px; color: #94a3b8; }
+.warning-meta span { display: flex; align-items: center; gap: 4px; }
+.warning-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.warning-actions button { padding: 6px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px; cursor: pointer; background: #fff; transition: .15s; }
+.warning-actions button.ack { border-color: #22c55e; color: #166534; }
+.warning-actions button.ack:hover { background: #f0fdf4; }
+.warning-actions button.false-btn { border-color: #f97316; color: #9a3412; }
+.warning-actions button.false-btn:hover { background: #fff7ed; }
+.status-acked { opacity: 0.6; }
+.empty { text-align: center; padding: 60px 20px; color: #94a3b8; }
+.empty .icon { font-size: 48px; margin-bottom: 12px; }
+.auto-refresh { font-size: 12px; color: #64748b; }
+.pulse { animation: pulse 1s; }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.6 } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span>🚨</span>
+  <h1>预警中心</h1>
+  <span id="totalBadge" class="badge red">0</span>
+  <span style="flex:1"></span>
+  <span class="auto-refresh" id="refreshInfo">自动刷新: 60s</span>
+</div>
+
+<div class="container">
+  <div class="stats-row" id="statsRow"></div>
+
+  <div class="filters">
+    <label>企业:</label>
+    <select id="filterEnterprise"><option value="">全部</option></select>
+    <label>级别:</label>
+    <select id="filterSeverity">
+      <option value="">全部</option><option value="red">🔴 红色</option>
+      <option value="orange">🟠 橙色</option><option value="yellow">🟡 黄色</option>
+    </select>
+    <button onclick="loadWarnings()" style="padding:8px 16px;border-radius:10px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer;font-weight:600;">刷新</button>
+  </div>
+
+  <div class="warning-list" id="warningList"></div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8080/api/warnings';
+
+async function loadWarnings() {
+  const ent = document.getElementById('filterEnterprise').value;
+  const sev = document.getElementById('filterSeverity').value;
+  let url = `${API}?limit=200`;
+  if (ent) url += `&enterprise=${encodeURIComponent(ent)}`;
+  if (sev) url += `&severity=${encodeURIComponent(sev)}`;
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    renderWarnings(data.warnings || []);
+    document.getElementById('refreshInfo').textContent = `最后更新: ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadStats() {
+  try {
+    const resp = await fetch(`${API}/stats`);
+    const data = await resp.json();
+    const bySev = data.by_severity || {};
+    const total = Object.values(bySev).reduce((a,b) => a+b, 0);
+    const statsRow = document.getElementById('statsRow');
+    statsRow.innerHTML = `
+      <div class="stat-card red"><div class="num">${bySev.red || 0}</div><div class="label">🔴 红色预警</div></div>
+      <div class="stat-card orange"><div class="num">${bySev.orange || 0}</div><div class="label">🟠 橙色预警</div></div>
+      <div class="stat-card yellow"><div class="num">${bySev.yellow || 0}</div><div class="label">🟡 黄色预警</div></div>
+      <div class="stat-card"><div class="num">${total}</div><div class="label">合计预警</div></div>
+    `;
+    document.getElementById('totalBadge').textContent = total ? `${total}条` : '暂无';
+  } catch (err) { console.error(err); }
+}
+
+function renderWarnings(warnings) {
+  const list = document.getElementById('warningList');
+  if (!warnings.length) {
+    list.innerHTML = '<div class="empty"><div class="icon">✅</div><p>暂无预警，系统运行正常</p></div>';
+    return;
+  }
+  list.innerHTML = warnings.map(w => `
+    <div class="warning-card ${w.severity}" id="w-${w.id}">
+      <div class="sev-icon">${w.severity === 'red' ? '🔴' : w.severity === 'orange' ? '🟠' : '🟡'}</div>
+      <div class="warning-content">
+        <div class="warning-title">${w.enterprise} — ${truncate(w.title, 60)}</div>
+        <div class="warning-detail">${truncate(w.detail, 200)}</div>
+        <div class="warning-meta">
+          <span>📡 ${w.source}</span>
+          <span>🕐 ${w.created_at || ''}</span>
+          ${w.status === 'acked' ? '<span style="color:#16a34a">✅ 已确认</span>' : w.status === 'false_positive' ? '<span style="color:#ea580c">⚠️ 误报</span>' : '<span style="color:#3b82f6">🆕 新预警</span>'}
+        </div>
+      </div>
+      ${w.status === 'new' ? `
+      <div class="warning-actions">
+        <button class="ack" onclick="ackWarning(${w.id})">✅ 确认</button>
+        <button class="false-btn" onclick="falseWarning(${w.id})">❌ 误报</button>
+      </div>
+      ` : ''}
+    </div>
+  `).join('');
+
+  // Populate enterprise filter
+  const seen = new Set();
+  const sel = document.getElementById('filterEnterprise');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部</option>';
+  warnings.forEach(w => { if (!seen.has(w.enterprise)) { seen.add(w.enterprise); sel.innerHTML += `<option value="${w.enterprise}">${w.enterprise}</option>`; }});
+  sel.value = cur;
+}
+
+async function ackWarning(id) {
+  try {
+    await fetch(`${API}/${id}/ack`, { method: 'PUT', headers: { 'X-API-Key': 'warning-dev-key-2026' } });
+    document.getElementById(`w-${id}`)?.classList.add('status-acked', 'pulse');
+    setTimeout(loadWarnings, 500);
+  } catch (err) { console.error(err); }
+}
+
+async function falseWarning(id) {
+  try {
+    await fetch(`${API}/${id}/false`, { method: 'PUT', headers: { 'X-API-Key': 'warning-dev-key-2026' } });
+    document.getElementById(`w-${id}`)?.classList.add('pulse');
+    setTimeout(loadWarnings, 500);
+  } catch (err) { console.error(err); }
+}
+
+function truncate(text, max) {
+  if (!text) return '';
+  // Try to extract meaningful parts from JSON
+  let clean = text;
+  try {
+    const obj = JSON.parse(text);
+    clean = obj['摘要'] || obj['title'] || obj['企业名称'] || text;
+  } catch {}
+  return clean.length > max ? clean.slice(0, max) + '…' : clean;
+}
+
+// Init
+loadStats();
+loadWarnings();
+setInterval(() => { loadStats(); loadWarnings(); }, 60000);
+</script>
+</body>
+</html>
