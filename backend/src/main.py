@@ -557,15 +557,28 @@ def create_app() -> FastAPI:
         with open(_ep, "r", encoding="utf-8") as _f:
             _ents = _yaml.safe_load(_f).get("enterprises", [])
 
-        # 企查查采集
+        # 企查查采集 + 母公司连带检查
         try:
             from services.qichacha_mcp import call_tool
+            seen = set()
             for ent in _ents:
+                # 1. 查询子公司
                 r = call_tool("risk", "get_company_risk_scan", {"searchKey": ent["name"]})
                 if r:
                     for item in r.get("content", []):
                         _collect_source("qichacha", item.get("text", ""),
                                         db, cls, ent["name"], "qichacha")
+                # 2. 查询母公司（连带风险信号）
+                for parent in ent.get("parent_enterprises", []):
+                    if parent in seen:
+                        continue
+                    seen.add(parent)
+                    r2 = call_tool("risk", "get_company_risk_scan", {"searchKey": parent})
+                    if r2:
+                        for item in r2.get("content", []):
+                            # 母公司风险归属到子公司名下
+                            _collect_source("qichacha", item.get("text", ""),
+                                            db, cls, f"{parent}(母公司)", "qichacha")
         except Exception as e:
             logger.warning(f"[collector] Qichacha failed: {e}")
 
