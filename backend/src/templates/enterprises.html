@@ -80,6 +80,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <textarea id="keywords" placeholder="如：四川振海, 振海保安"></textarea>
           <div class="hint">用于 WebSearch 和企查查查询，支持多个关键词</div>
         </div>
+        <div class="field" id="linkedField" style="display:none">
+          <label>关联的债务企业</label>
+          <input id="debtor" placeholder="如：四川振海保安服务有限公司">
+          <div class="hint">甲方对应的乙方（债务企业）名称</div>
+        </div>
         <div id="parentFields" style="display:none">
           <div class="field">
             <label>母公司名称</label>
@@ -98,6 +103,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
               <div class="hint">非上市母公司填行业概念指数</div>
             </div>
           </div>
+        </div>
+        <div class="field" id="corePartiesField">
+          <label>关联甲方（核心监管企业）</label>
+          <textarea id="coreParties" placeholder="每行一个企业全称"></textarea>
+          <div class="hint">该债务企业对应的核心监管企业（甲方），每行一个</div>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;">新增企业</button>
       </form>
@@ -118,10 +128,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 const API = 'http://127.0.0.1:8080';
 
 function onRoleChange() {
-  document.getElementById('parentFields').style.display =
-    document.getElementById('role').value === '甲方' ? 'block' : 'none';
-  document.getElementById('loanAmountField').style.display =
-    document.getElementById('role').value === '乙方' ? 'block' : 'none';
+  const isA = document.getElementById('role').value === '甲方';
+  document.getElementById('parentFields').style.display = isA ? 'block' : 'none';
+  document.getElementById('linkedField').style.display = isA ? 'block' : 'none';
+  document.getElementById('loanAmountField').style.display = isA ? 'none' : 'block';
+  document.getElementById('corePartiesField').style.display = isA ? 'none' : 'block';
 }
 
 async function addEnterprise(e) {
@@ -135,6 +146,8 @@ async function addEnterprise(e) {
     parent: document.getElementById('parent').value.trim(),
     parent_stock_code: document.getElementById('parentStockCode').value.trim(),
     concept_code: document.getElementById('conceptCode').value.trim(),
+    debtor: document.getElementById('debtor').value.trim(),
+    core_parties: document.getElementById('coreParties').value.trim().split('\n').filter(s=>s.trim()),
   };
   if (!data.name) { showMsg('请输入企业全称', 'err'); return; }
   try {
@@ -168,7 +181,11 @@ async function loadEnterprises() {
     const data = await resp.json();
     const list = data.enterprises || [];
     document.getElementById('entCount').textContent = list.length;
-    const html = list.length ? list.map(e => `
+    const html = list.length ? list.map(e => {
+      const debtorInfo = e.debtor ? `<span style="font-size:11px;color:#3b82f6;">← 乙方: ${e.debtor}</span>` : '';
+      const coreInfo = e.core_parties && e.core_parties.length
+        ? `<span style="font-size:11px;color:#3b82f6;">→ 甲方: ${e.core_parties.join(', ')}</span>` : '';
+      return `
       <div class="ent-row">
         <div>
           <div class="name">${e.name}
@@ -180,11 +197,12 @@ async function loadEnterprises() {
             ${e.loan_amount ? `<span>💰 ${e.loan_amount}万</span>` : ''}
             ${e.parent_stock_code ? `<span>📈 ${e.parent_stock_code}</span>` : ''}
             ${e.concept_code ? `<span>📊 ${e.concept_code}</span>` : ''}
+            ${debtorInfo} ${coreInfo}
           </div>
         </div>
         <button class="btn btn-danger" onclick="deleteEnterprise('${e.name.replace(/'/g,"\\'")}')">删除</button>
       </div>
-    `).join('') : '<div class="empty">暂无企业，请添加</div>';
+    `}).join('') : '<div class="empty">暂无企业，请添加</div>';
     document.getElementById('entList').innerHTML = html;
   } catch(err) { console.error(err); }
 }

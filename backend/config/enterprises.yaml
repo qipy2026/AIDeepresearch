@@ -1,6 +1,7 @@
 # 监管企业注册表
 # role: 乙方=债务企业(借款方)  甲方=核心监管企业(债务人的主要客户/付款方)
-# parent: 甲方的母公司（甲方查无风险信号时向上追溯）
+# 关联: 甲方的 debtor 字段指向乙方名称，乙方的 core_parties 列出关联甲方
+# parent: 甲方的母公司（无信号时向上追溯）
 
 enterprises:
   # ── 乙方（债务企业）──
@@ -9,6 +10,9 @@ enterprises:
     stock_code: ""
     industry: 安保服务
     loan_amount: 1000.0
+    core_parties:                         # 关联的核心监管企业（甲方）
+      - 国家管网集团西南管道有限责任公司重庆输油气分公司
+      - 中铁建物业管理有限公司成都分公司
     keywords:
       - 四川振海
       - 振海保安
@@ -16,10 +20,11 @@ enterprises:
   # ── 甲方（核心监管企业）──
   - name: 国家管网集团西南管道有限责任公司重庆输油气分公司
     role: 甲方
+    debtor: 四川振海保安服务有限公司      # 对应的债务企业
     stock_code: ""
     concept_code: "885692.TI"
     industry: 管道运输
-    parent: 国家管网集团          # 甲方无信号时追溯母公司
+    parent: 国家管网集团
     parent_stock_code: ""
     keywords:
       - 国家管网
@@ -27,9 +32,10 @@ enterprises:
 
   - name: 中铁建物业管理有限公司成都分公司
     role: 甲方
-    stock_code: "601186.SH"        # 母公司中国铁建上市
+    debtor: 四川振海保安服务有限公司      # 对应的债务企业
+    stock_code: "601186.SH"
     industry: 物业管理
-    parent: 中国铁建               # 母公司上市，同花顺可查
+    parent: 中国铁建
     parent_stock_code: "601186.SH"
     keywords:
       - 中铁建物业

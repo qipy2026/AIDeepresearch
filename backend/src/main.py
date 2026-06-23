@@ -291,6 +291,8 @@ def create_app() -> FastAPI:
             "parent": body.get("parent", ""),
             "parent_stock_code": body.get("parent_stock_code", ""),
             "concept_code": body.get("concept_code", ""),
+            "debtor": body.get("debtor", ""),
+            "core_parties": body.get("core_parties", []),
             "keywords": [k.strip() for k in body.get("keywords", "").split(",") if k.strip()],
         }
         if not ent["name"]:
