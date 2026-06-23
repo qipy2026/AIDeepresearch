@@ -187,8 +187,6 @@ async function submitProject() {
   document.getElementById('debtorIndustry').value = '';
   document.getElementById('debtorAmount').value = '';
   document.getElementById('debtorKW').value = '';
-  document.getElementById('totalInfo').textContent = `共 ${debtors.length} 个项目，${all.length} 家企业`;
-}
 }
 
 async function deleteEnterprise(name) { if(confirm(`删除 ${name}？`)){await fetch(API+'/api/enterprises/'+encodeURIComponent(name),{method:'DELETE'});loadProjects();}}
@@ -235,6 +233,7 @@ async function loadProjects() {
       </div>
     </div>`;
   }).join('');
+  document.getElementById('totalInfo').textContent = '共 '+debtors.length+' 个项目，'+all.length+' 家企业';
 }
 
 function toggleAddForm() {
