@@ -526,6 +526,9 @@ def create_app() -> FastAPI:
             return
         from services.warning_extractor import extract
         ex = extract(source, text)
+        # 无实际风险因子 → 不生成预警
+        if ex.get("key_facts") == "无异常":
+            return
         # 用提取后的可读文本做分类，而非原始JSON
         classifiable = ex.get("readable", ex.get("summary", text))
         c = cls.classify(classifiable, ent_name)
