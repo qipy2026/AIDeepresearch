@@ -200,19 +200,49 @@ async function showDetail(id) {
   try {
     const resp = await fetch(`${API}/${id}/detail`);
     const data = await resp.json();
-    if (data.details && data.details.length) {
-      body.innerHTML = data.details.map(d => `
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px;">
-          <h4 style="margin:0 0 8px;color:#1e293b;">${d.factor} (${d.count}条)</h4>
-          <pre style="white-space:pre-wrap;font-size:12px;line-height:1.6;color:#334155;max-height:300px;overflow-y:auto;background:#fff;padding:10px;border-radius:6px;">${d.content || d.error || '暂无'}</pre>
+    let html = '';
+
+    // 企业 + 数据源
+    html += `<p style="margin:0 0 12px;"><b>${data.enterprise}</b> | 数据源: ${data.source} | 预警ID: ${data.warning_id}</p>`;
+
+    // 解析错误
+    if (data.parse_error) {
+      html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;margin-bottom:12px;">
+        <b style="color:#dc2626;">⚠️ raw_data JSON 解析失败:</b> ${data.parse_error}</div>`;
+    }
+
+    // 风险因子列表（含工具名）
+    if (data.factors && data.factors.length) {
+      html += `<h4 style="margin:12px 0 8px;">风险因子 (有记录)</h4>`;
+      html += data.factors.map(f => `
+        <div style="padding:8px 12px;background:#fff;border-radius:8px;margin:4px 0;border:1px solid #e2e8f0;">
+          ${f.name}: <b>${f.count}条</b>
+          ${f.tool ? `<span style="color:#3b82f6;font-size:12px;">→ 调用了 <code>${f.tool}</code></span>` : ''}
+          ${f.raw_preview ? `<pre style="white-space:pre-wrap;font-size:11px;color:#64748b;margin:4px 0 0;">${f.raw_preview}</pre>` : ''}
         </div>
       `).join('');
-    } else if (data.factors) {
-      body.innerHTML = `<p style="color:#64748b;">风险因子列表 (有记录):</p>` +
-        data.factors.map(f => `<div style="padding:8px 12px;background:#fff;border-radius:8px;margin:4px 0;border:1px solid #e2e8f0;">${f.name}: <b>${f.count}条</b> (工具: ${f.tool})</div>`).join('');
-    } else {
-      body.innerHTML = '<p style="color:#64748b;">该预警无法获取明细数据</p>';
     }
+
+    // 明细结果
+    if (data.details && data.details.length) {
+      html += `<h4 style="margin:12px 0 8px;">明细查询结果</h4>`;
+      html += data.details.map(d => `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px;">
+          <h4 style="margin:0 0 4px;color:#1e293b;">${d.factor} (${d.count}条)
+            <span style="font-weight:normal;font-size:12px;color:#3b82f6;">调用: <code>${d.tool_called || 'N/A'}</code></span>
+          </h4>
+          ${d.error ? `<p style="color:#dc2626;font-size:12px;">错误: ${d.error}</p>` : ''}
+          ${d.content ? `<pre style="white-space:pre-wrap;font-size:12px;line-height:1.6;color:#334155;max-height:300px;overflow-y:auto;background:#fff;padding:10px;border-radius:6px;">${d.content}</pre>` : ''}
+          ${d.raw_response ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;color:#64748b;">📡 原始返回</summary><pre style="white-space:pre-wrap;font-size:11px;color:#94a3b8;max-height:200px;overflow-y:auto;">${d.raw_response}</pre></details>` : ''}
+        </div>
+      `).join('');
+    }
+
+    if (!data.factors?.length && !data.details?.length) {
+      html += '<p style="color:#64748b;">无可用数据</p>';
+    }
+
+    body.innerHTML = html;
   } catch (err) {
     body.innerHTML = `<p style="color:#dc2626;">查询失败: ${err.message}</p>`;
   }

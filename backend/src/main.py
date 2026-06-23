@@ -329,39 +329,69 @@ def create_app() -> FastAPI:
         if not row:
             raise HTTPException(404, "Warning not found")
         raw = row.get("raw_data", "")
+        enterprise = row["enterprise"]
+
+        # 解析企查查风险扫描结果
+        factors = []
+        details = []
+        parse_error = None
         try:
             data = _json.loads(raw)
-        except (_json.JSONDecodeError, TypeError):
-            return {"warning_id": warning_id, "enterprise": row["enterprise"],
-                    "detail": raw[:2000], "source": "raw_text"}
-
-        # 解析企查查风险扫描结果，提取有记录的风险因子
-        scans = data.get("风险因子扫描", [])
-        factors_with_data = [
-            {"name": s.get("风险因子", ""), "count": s.get("条目数", 0),
-             "tool": s.get("明细工具", "")}
-            for s in scans if s.get("条目数", 0) > 0
-        ]
+            scans = data.get("风险因子扫描", [])
+            factors = [
+                {"name": s.get("风险因子", ""), "count": s.get("条目数", 0),
+                 "tool": s.get("明细工具", "")}
+                for s in scans if s.get("条目数", 0) > 0
+            ]
+        except (_json.JSONDecodeError, TypeError) as e:
+            parse_error = str(e)
+            # JSON 解析失败时，展示原始数据供排查
+            factors = [{"name": "原始数据（JSON解析失败）", "count": 0,
+                        "tool": "", "raw_preview": raw[:1000]}]
 
         # 调用每个有记录的风险因子的明细工具
-        details = []
-        from services.qichacha_mcp import call_tool
-        for f in factors_with_data[:5]:  # 最多查 5 个因子，避免超时
-            try:
-                result = call_tool("risk", f["tool"],
-                                   {"searchKey": row["enterprise"]})
-                if result:
-                    text = ""
-                    for item in result.get("content", []):
-                        text += item.get("text", "")[:3000]
-                    details.append({"factor": f["name"], "count": f["count"],
-                                    "content": text[:5000] if text else "暂无明细"})
-            except Exception as e:
-                details.append({"factor": f["name"], "count": f["count"],
-                                "error": str(e)})
+        if factors and not parse_error:
+            from services.qichacha_mcp import call_tool
+            for f in factors[:5]:
+                try:
+                    result = call_tool("risk", f["tool"],
+                                       {"searchKey": enterprise})
+                    if result:
+                        texts = []
+                        for item in result.get("content", []):
+                            t = item.get("text", "")
+                            if t and t.strip():
+                                texts.append(t[:3000])
+                        details.append({
+                            "factor": f["name"],
+                            "count": f["count"],
+                            "tool_called": f["tool"],
+                            "content": "\n---\n".join(texts) if texts else "工具返回了空内容",
+                            "raw_response": _json.dumps(result, ensure_ascii=False)[:2000] if not texts else "",
+                        })
+                    else:
+                        details.append({
+                            "factor": f["name"], "count": f["count"],
+                            "tool_called": f["tool"],
+                            "content": "",
+                            "error": "call_tool 返回 None（可能是网络或认证问题）",
+                        })
+                except Exception as e:
+                    details.append({
+                        "factor": f["name"], "count": f["count"],
+                        "tool_called": f["tool"],
+                        "content": "",
+                        "error": str(e),
+                    })
 
-        return {"warning_id": warning_id, "enterprise": row["enterprise"],
-                "factors": factors_with_data, "details": details}
+        return {
+            "warning_id": warning_id,
+            "enterprise": enterprise,
+            "source": row["source"],
+            "parse_error": parse_error,
+            "factors": factors,
+            "details": details,
+        }
 
     @app.post("/api/warnings/collect")
     def trigger_collect(request: Request):
@@ -396,7 +426,7 @@ def create_app() -> FastAPI:
                 title=ex.get("title", c.get("title", classifiable[:100])),
                 detail=ex.get("abstract", ex.get("readable", classifiable[:500])),
                 suggested_action=c.get("suggested_action", ""),
-                raw_data=text[:2000],
+                raw_data=text,
             )
             # 红色预警 → 写入待推送标记（供 Dispatcher 使用）
             if c["severity"] == "red":
