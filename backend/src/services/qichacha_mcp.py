@@ -3,36 +3,27 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 from typing import Any, Optional
 
 import requests
+from dotenv import load_dotenv
+
+# Ensure .env is loaded before reading token
+_backend_root = Path(__file__).resolve().parent.parent.parent
+load_dotenv(_backend_root / ".env", override=True)
+
+_QCC_TOKEN = os.getenv("QICHACHA_MCP_TOKEN", "")
 
 # MCP 服务配置
 MCP_CONFIG: dict[str, dict[str, str]] = {
-    "company": {
-        "url": "https://agent.qcc.com/mcp/company/stream",
-        "token": "MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV",
-    },
-    "risk": {
-        "url": "https://agent.qcc.com/mcp/risk/stream",
-        "token": "MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV",
-    },
-    "operation": {
-        "url": "https://agent.qcc.com/mcp/operation/stream",
-        "token": "MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV",
-    },
-    "executive": {
-        "url": "https://agent.qcc.com/mcp/executive/stream",
-        "token": "MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV",
-    },
-    "ipr": {
-        "url": "https://agent.qcc.com/mcp/ipr/stream",
-        "token": "MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV",
-    },
-    "history": {
-        "url": "https://agent.qcc.com/mcp/history/stream",
-        "token": "MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV",
-    },
+    "company": {"url": "https://agent.qcc.com/mcp/company/stream", "token": _QCC_TOKEN},
+    "risk": {"url": "https://agent.qcc.com/mcp/risk/stream", "token": _QCC_TOKEN},
+    "operation": {"url": "https://agent.qcc.com/mcp/operation/stream", "token": _QCC_TOKEN},
+    "executive": {"url": "https://agent.qcc.com/mcp/executive/stream", "token": _QCC_TOKEN},
+    "ipr": {"url": "https://agent.qcc.com/mcp/ipr/stream", "token": _QCC_TOKEN},
+    "history": {"url": "https://agent.qcc.com/mcp/history/stream", "token": _QCC_TOKEN},
 }
 
 _request_id = 0
