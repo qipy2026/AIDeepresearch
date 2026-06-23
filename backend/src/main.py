@@ -584,13 +584,13 @@ def create_app() -> FastAPI:
                         try:
                             from iFinDPy import THS_iFinDLogin, THS_RQ, THS_iFinDLogout
                             THS_iFinDLogin(cfg.ths_username, cfg.ths_password)
-                            data = THS_RQ(stock, "latest;changeRatio;pe;pb;totalMarketCap", "")
+                            data = THS_RQ(stock, "latest;changeRatio;pe;pb", "")
                             if data and data.errorcode == 0:
                                 row = data.data.iloc[0]
                                 ths_text = (
                                     f"母公司{ent['parent']}({stock})行情: "
                                     f"最新价{row['latest']}, 涨跌幅{row['changeRatio']}%, "
-                                    f"PE{row['pb']}, 总市值{row['totalMarketCap']}"
+                                    f"PE{row['pe']}, PB{row['pb']}"
                                 )
                                 _collect_source("ths_stock", ths_text, db, cls,
                                                 f"{ent['parent']}（母公司·同花顺）", "ths_stock")
@@ -627,19 +627,21 @@ def create_app() -> FastAPI:
 
         # Web Search 舆情查询
         try:
-            from services.web_search import web_search
+            from services.web_search import dispatch_search
             for ent in _ents:
                 kw = ent.get("keywords", [ent["name"]])
                 query = f'"{kw[0]}" 风险 OR 违约 OR 诉讼 OR 处罚 OR 事故'
-                results = web_search(query)
-                if results:
-                    text = "\n".join(
-                        f"{r.get('title','')}: {r.get('snippet','')}"[:300]
-                        for r in (results if isinstance(results, list) else [results])[:3]
-                    )
-                    if text.strip():
-                        _collect_source("web_search", text, db, cls,
-                                        ent["name"], "web_search")
+                try:
+                    results, _ = dispatch_search(query, max_results=3)
+                    if results:
+                        text = "\n".join(
+                            f"{r.get('title','')}: {r.get('snippet',r.get('body',''))}"[:300]
+                            for r in results[:3]
+                        )
+                        if text.strip():
+                            _collect_source("web_search", text, db, cls,
+                                            ent["name"], "web_search")
+                except: pass
         except Exception as e:
             logger.warning(f"[collector] WebSearch failed: {e}")
 

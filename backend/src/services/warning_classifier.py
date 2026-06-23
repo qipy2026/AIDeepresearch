@@ -83,7 +83,7 @@ class ClassifierService:
                 "red=贷款损失 imminent, orange=偿付恶化, yellow=关注"
             )
             config = Configuration.from_env()
-            resp = invoke_llm(config, prompt, "", timeout=15)
+            resp = invoke_llm(config, prompt, "")
             m = re.search(r"\{[^{}]*\}", resp)
             if m:
                 result = json.loads(m.group(0))
