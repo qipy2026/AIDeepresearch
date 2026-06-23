@@ -65,6 +65,12 @@ class ResearchResponse(BaseModel):
     )
 
 
+class UploadReq(BaseModel):
+    """RAG file upload request body."""
+    enterprise: str
+    content: str
+
+
 def _mask_secret(value: Optional[str], visible: int = 4) -> str:
     """Mask sensitive tokens while keeping leading and trailing characters."""
     if not value:
@@ -190,11 +196,6 @@ def create_app() -> FastAPI:
     from pathlib import Path
     from services.rag_store import upload_text, list_enterprises, delete_enterprise
     from services.minio_storage import upload_bytes
-    from pydantic import BaseModel as PydanticBase
-
-    class UploadReq(PydanticBase):
-        enterprise: str
-        content: str
 
     @app.get("/rag/upload", response_class=HTMLResponse)
     def rag_upload_page():
