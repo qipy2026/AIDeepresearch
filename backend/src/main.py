@@ -578,26 +578,31 @@ def create_app() -> FastAPI:
                         has_risk = data.get("有记录因子数", 0) > 0
                     except: pass
 
-                # 2. 甲方母公司：同花顺金融数据（上市公司）
-                if role == "甲方" and ent.get("parent_stock_code"):
-                    stock = ent["parent_stock_code"]
+                # 2. 同花顺：母公司股票 + 行业概念指数
+                try:
+                    from iFinDPy import THS_iFinDLogin, THS_RQ, THS_iFinDLogout
+                    THS_iFinDLogin(cfg.ths_username, cfg.ths_password)
+                    # 2a. 上市公司母公司 → 股票行情
+                    stock = ent.get("parent_stock_code", "")
                     if stock:
-                        try:
-                            from iFinDPy import THS_iFinDLogin, THS_RQ, THS_iFinDLogout
-                            THS_iFinDLogin(cfg.ths_username, cfg.ths_password)
-                            data = THS_RQ(stock, "latest;changeRatio;pb", "")
-                            if data and data.errorcode == 0:
-                                row = data.data.iloc[0]
-                                ths_text = (
-                                    f"母公司{ent['parent']}({stock})行情: "
-                                    f"最新价{row['latest']}, 涨跌幅{row['changeRatio']}%, "
-                                    f"PB{row['pb']}"
-                                )
-                                _collect_source("ths_stock", ths_text, db, cls,
-                                                f"{ent['parent']}（母公司·同花顺）", "ths_stock")
-                            THS_iFinDLogout()
-                        except Exception as e:
-                            logger.warning(f"THS parent query failed for {stock}: {e}")
+                        data = THS_RQ(stock, "latest;changeRatio;pb", "")
+                        if data and data.errorcode == 0:
+                            row = data.data.iloc[0]
+                            _collect_source("ths_stock",
+                                f"母公司{ent['parent']}({stock}): 最新价{row['latest']}, 涨跌{row['changeRatio']}%, PB{row['pb']}",
+                                db, cls, f"{ent['parent']}（母公司·同花顺）", "ths_stock")
+                    # 2b. 概念指数（非上市企业如国家管网→地下管网概念）
+                    concept = ent.get("concept_code", "")
+                    if concept:
+                        data = THS_RQ(concept, "latest;changeRatio", "")
+                        if data and data.errorcode == 0:
+                            row = data.data.iloc[0]
+                            _collect_source("ths_stock",
+                                f"{ent.get('industry','')}概念({concept}): 最新{row['latest']}, 涨跌{row['changeRatio']}%",
+                                db, cls, f"{ent['name']}（概念·同花顺）", "ths_stock")
+                    THS_iFinDLogout()
+                except Exception as e:
+                    logger.warning(f"THS failed for {ent['name']}: {e}")
 
                 # 3. 甲方无信号 → 追溯母公司企查查
                 if role == "甲方" and ent.get("parent"):
