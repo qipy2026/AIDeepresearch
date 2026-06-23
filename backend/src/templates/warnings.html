@@ -48,6 +48,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .auto-refresh { font-size: 12px; color: #64748b; }
 .pulse { animation: pulse 1s; }
 @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.6 } }
+.tag { display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600; }
+.tag-green { background:#dcfce7;color:#166534; }
+.tag-orange { background:#fff7ed;color:#9a3412; }
+.tag-blue { background:#dbeafe;color:#1e40af; }
+.sev-label { font-weight:600;font-size:12px; }
+.detail-btn { padding:6px 14px;border-radius:8px;border:1px solid #3b82f6;font-size:12px;cursor:pointer;background:#eff6ff;color:#1d4ed8;transition:.15s; }
+.detail-btn:hover { background:#dbeafe; }
 </style>
 </head>
 <body>
@@ -131,27 +138,30 @@ function renderWarnings(warnings) {
     return;
   }
   list.innerHTML = warnings.map(w => {
-    const titleText = parseRawForTitle(w.raw_data) || w.title || '';
-    const detailText = parseDetail(w.detail);
+    // 用户向风险摘要：标题是"企业 — 关键风险信号"，内容是可读摘要
+    const riskTitle = w.title && !w.title.startsWith('{') ? w.title : (parseRawForTitle(w.raw_data) || w.enterprise);
+    const riskSummary = parseDetail(w.detail);
+    const sevLabel = {red:'🔴 红色预警', orange:'🟠 橙色预警', yellow:'🟡 黄色预警'}[w.severity] || w.severity;
     const statusHTML = w.status === 'acked'
-      ? '<span style="color:#16a34a">✅ 已确认</span>'
+      ? '<span class="tag tag-green">已确认</span>'
       : w.status === 'false_positive'
-      ? '<span style="color:#ea580c">⚠️ 误报</span>'
-      : '<span style="color:#3b82f6">🆕 新预警</span>';
+      ? '<span class="tag tag-orange">误报</span>'
+      : '<span class="tag tag-blue">新预警</span>';
     const actionsHTML = (w.status === 'new'
-      ? `<div class="warning-actions"><button class="ack" onclick="ackWarning(${w.id})">✅ 确认</button><button class="false-btn" onclick="falseWarning(${w.id})">❌ 误报</button><button class="ack" onclick="showDetail(${w.id})" style="border-color:#3b82f6;color:#1d4ed8;">📋 明细</button></div>`
+      ? `<div class="warning-actions"><button class="ack" onclick="ackWarning(${w.id})">确认</button><button class="false-btn" onclick="falseWarning(${w.id})">误报</button><button class="detail-btn" onclick="showDetail(${w.id})">明细</button></div>`
       : (w.status === 'acked' || w.status === 'false_positive')
-      ? `<div class="warning-actions"><button class="ack" onclick="unackWarning(${w.id})" style="border-color:#94a3b8;color:#64748b;">↩ 撤销</button><button class="ack" onclick="showDetail(${w.id})" style="border-color:#3b82f6;color:#1d4ed8;">📋 明细</button></div>`
-      : `<div class="warning-actions"><button class="ack" onclick="showDetail(${w.id})" style="border-color:#3b82f6;color:#1d4ed8;">📋 明细</button></div>`);
+      ? `<div class="warning-actions"><button class="ack" onclick="unackWarning(${w.id})" style="border-color:#94a3b8;color:#64748b;">撤销</button><button class="detail-btn" onclick="showDetail(${w.id})">明细</button></div>`
+      : `<div class="warning-actions"><button class="detail-btn" onclick="showDetail(${w.id})">明细</button></div>`);
     return `
     <div class="warning-card ${w.severity}" id="w-${w.id}">
       <div class="sev-icon">${w.severity === 'red' ? '🔴' : w.severity === 'orange' ? '🟠' : '🟡'}</div>
       <div class="warning-content">
-        <div class="warning-title">${w.enterprise} — ${truncate(titleText || detailText, 80)}</div>
-        <div class="warning-detail">${truncate(detailText, 250)}</div>
+        <div class="warning-title">${riskTitle}</div>
+        <div class="warning-detail">${riskSummary}</div>
         <div class="warning-meta">
+          <span class="sev-label">${sevLabel}</span>
           <span>📡 ${w.source}</span>
-          <span>🕐 ${w.created_at || ''}</span>
+          <span>🕐 ${(w.created_at||'').slice(0,16)}</span>
           ${statusHTML}
         </div>
       </div>

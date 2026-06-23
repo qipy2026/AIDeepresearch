@@ -19,41 +19,58 @@ def extract(source: str, raw_text: str) -> Dict[str, str]:
 
 
 def _extract_qichacha(text: str) -> Dict[str, str]:
-    """解析企查查 JSON 响应。"""
+    """解析企查查 JSON 响应，生成用户向风险摘要。"""
     try:
         data = json.loads(text)
     except (json.JSONDecodeError, TypeError):
         return _extract_fallback(text)
 
     enterprise = data.get("企业名称", "")
-    abstract = data.get("摘要", "")
-    record_factors = data.get("有记录因子数", 0)
-    total_factors = record_factors + data.get("无记录因子数", 0)
     scans = data.get("风险因子扫描", [])
 
-    # 提取有记录的风险因子
-    active = []
+    # 分级提取：告警类（红色）和关注类（黄色）
+    alert_factors = []  # 失信、被执行人、行政处罚等
+    watch_factors = []  # 裁判文书、立案、开庭等
     for item in scans:
         count = item.get("条目数", 0)
         if count > 0:
-            active.append(f"{item.get('风险因子', '')}({count})")
+            name = item.get("风险因子", "")
+            if name in ("失信信息", "被执行人", "限制高消费", "行政处罚", "经营异常", "严重违法", "破产重整", "清算信息"):
+                alert_factors.append(f"{name}({count})")
+            else:
+                watch_factors.append(f"{name}({count})")
 
-    summary = f"{enterprise}: {abstract}" if enterprise else abstract
-    readable = (
-        f"企业: {enterprise}\n"
-        f"风险扫描: {record_factors}/{total_factors} 项有记录\n"
-    )
-    if active:
-        readable += f"明细: {', '.join(active)}"
+    # 生成用户向标题: "中铁建物业成都 — 行政处罚1项、裁判文书59项"
+    top_items = alert_factors + watch_factors
+    title = f"{enterprise}"
+    if top_items:
+        title += f" — {'、'.join(top_items[:4])}"
+        if len(top_items) > 4:
+            title += f" 等{len(top_items)}项"
+
+    # 生成用户向摘要：突出最严重的信号
+    if alert_factors:
+        summary = f"⚠️ 告警信号: {'、'.join(alert_factors)}"
+    elif watch_factors:
+        summary = f"📋 风险信号: {'、'.join(watch_factors[:5])}"
     else:
-        readable += "未发现重大风险信号"
+        summary = "未发现风险信号"
+
+    # 可读全文（去除开发者提示语）
+    abstract = data.get("摘要", "")
+    # 移除企查查对开发者的提示
+    abstract = abstract.replace("各因子明细请调用其「明细工具」", "").replace("。", "。").strip()
+    if abstract.endswith("。"):
+        abstract = abstract[:-1]
+
+    readable = abstract if abstract else summary
 
     return {
         "summary": summary,
         "readable": readable,
-        "title": f"{enterprise} 风险扫描" if enterprise else "企查查风险扫描",
+        "title": title,
         "abstract": abstract,
-        "key_facts": ", ".join(active) if active else "无异常",
+        "key_facts": ", ".join(top_items) if top_items else "无异常",
     }
 
 
