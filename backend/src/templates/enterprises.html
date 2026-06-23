@@ -112,12 +112,16 @@ a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
         <span style="font-size:12px;color:#94a3b8;" id="partyCount">已添加 0 个甲方</span>
         <span style="flex:1"></span>
         <button type="button" class="btn btn-primary" onclick="submitProject()">创建项目</button>
+          <button type="button" class="btn btn-outline" onclick="toggleAddForm()">取消</button>
       </div>
       <div id="partyPreview" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;"></div>
     </div>
 
     <div id="msg" class="msg"></div>
   </div>
+
+  <!-- 项目卡片列表 -->
+  <div id="projectList" class="projects-grid"></div>
 </div>
 
 <script>
@@ -187,10 +191,41 @@ async function submitProject() {
   document.getElementById('debtorIndustry').value = '';
   document.getElementById('debtorAmount').value = '';
   document.getElementById('debtorKW').value = '';
+  loadProjects();
 }
 
 async function deleteEnterprise(name) { if(confirm(`删除 ${name}？`)){await fetch(API+'/api/enterprises/'+encodeURIComponent(name),{method:'DELETE'});loadProjects();}}
-function showMsg(text, type) { const m=document.getElementById('msg'); m.textContent=text; m.className='msg '+type; setTimeout(()=>m.className='msg',3000); }
+
+function toggleAddPartyForm(debtorName) {
+  const form = document.getElementById('addPartyForm_'+encodeURIComponent(debtorName));
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitPartyTo(debtorName) {
+  const id = encodeURIComponent(debtorName);
+  const p = {
+    name: document.getElementById('apName_' + id).value.trim(),
+    industry: document.getElementById('apIndustry_' + id).value.trim(),
+    parent: document.getElementById('apParent_' + id).value.trim(),
+    stock: document.getElementById('apStock_' + id).value.trim(),
+  };
+  if (!p.name) return alert('请输入甲方企业全称');
+  const body = {
+    name: p.name, role: '甲方', debtor: debtorName,
+    industry: p.industry || '', parent: p.parent || '',
+    parent_stock_code: p.stock || '', keywords: ''
+  };
+  const r = await fetch(API+'/api/enterprises', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if ((await r.json()).status === 'ok') {
+    document.getElementById('apName_' + id).value = '';
+    document.getElementById('apIndustry_' + id).value = '';
+    document.getElementById('apParent_' + id).value = '';
+    document.getElementById('apStock_' + id).value = '';
+    loadProjects();
+  } else { alert('添加失败'); }
+}
+
+function showMsg(text, type) { const m=document.getElementById('msg'); m.textContent=text; m.className='msg '+type; setTimeout(()=>m.className='msg',5000); }
 
 async function loadProjects() {
   const resp = await fetch(API+'/api/enterprises');
@@ -230,6 +265,20 @@ async function loadProjects() {
             <button class="btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
           </div>
         `).join('') : '<div class="party-row" style="color:#94a3b8;">暂无甲方</div>'}
+        <div style="margin-top:8px;">
+          <button class="btn btn-outline" style="font-size:11px;padding:4px 10px;"
+            onclick="event.stopPropagation();toggleAddPartyForm('${d.name.replace(/'/g,"\'")}')">+ 添加甲方</button>
+        </div>
+        <div id="addPartyForm_${encodeURIComponent(d.name)}" style="display:none;margin-top:8px;padding:12px;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input id="apName_${encodeURIComponent(d.name)}" placeholder="甲方企业全称 *" style="flex:2;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+            <input id="apIndustry_${encodeURIComponent(d.name)}" placeholder="行业" style="flex:1;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+            <input id="apParent_${encodeURIComponent(d.name)}" placeholder="母公司" style="flex:1;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+            <input id="apStock_${encodeURIComponent(d.name)}" placeholder="股票/概念代码" style="flex:1;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+            <button class="btn btn-primary" style="font-size:11px;padding:4px 12px;"
+              onclick="event.stopPropagation();submitPartyTo('${d.name.replace(/'/g,"\'")}')">确认添加</button>
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('');

@@ -18,7 +18,11 @@ def _search_duckduckgo(query: str, max_results: int) -> List[dict]:
     try:
         from ddgs import DDGS
 
-        rows = DDGS().text(query, max_results=max_results)
+        proxy = os.getenv("DDGS_PROXY", "")
+        ddgs_kwargs = {}
+        if proxy:
+            ddgs_kwargs["proxy"] = proxy
+        rows = DDGS(**ddgs_kwargs).text(query, max_results=max_results)
         results = []
         for r in rows or []:
             results.append(

@@ -1,42 +1,72 @@
-# 监管企业注册表
-# role: 乙方=债务企业(借款方)  甲方=核心监管企业(债务人的主要客户/付款方)
-# 关联: 甲方的 debtor 字段指向乙方名称，乙方的 core_parties 列出关联甲方
-# parent: 甲方的母公司（无信号时向上追溯）
-
 enterprises:
-  # ── 乙方（债务企业）──
-  - name: 四川振海保安服务有限公司
-    role: 乙方
-    stock_code: ""
-    industry: 安保服务
-    loan_amount: 1000.0
-    core_parties:                         # 关联的核心监管企业（甲方）
-      - 国家管网集团西南管道有限责任公司重庆输油气分公司
-      - 中铁建物业管理有限公司成都分公司
-    keywords:
-      - 四川振海
-      - 振海保安
-
-  # ── 甲方（核心监管企业）──
-  - name: 国家管网集团西南管道有限责任公司重庆输油气分公司
-    role: 甲方
-    debtor: 四川振海保安服务有限公司      # 对应的债务企业
-    stock_code: ""
-    concept_code: "885692.TI"
-    industry: 管道运输
-    parent: 国家管网集团
-    parent_stock_code: ""
-    keywords:
-      - 国家管网
-      - 西南管道
-
-  - name: 中铁建物业管理有限公司成都分公司
-    role: 甲方
-    debtor: 四川振海保安服务有限公司      # 对应的债务企业
-    stock_code: "601186.SH"
-    industry: 物业管理
-    parent: 中国铁建
-    parent_stock_code: "601186.SH"
-    keywords:
-      - 中铁建物业
-      - 中国铁建
+- core_parties:
+  - 国家管网集团西南管道有限责任公司重庆输油气分公司
+  - 中铁建物业管理有限公司成都分公司
+  industry: 安保服务
+  keywords:
+  - 四川振海
+  - 振海保安
+  loan_amount: 1000.0
+  name: 四川振海保安服务有限公司
+  role: 乙方
+  stock_code: ''
+- concept_code: 885692.TI
+  debtor: 四川振海保安服务有限公司
+  industry: 管道运输
+  keywords:
+  - 国家管网
+  - 西南管道
+  name: 国家管网集团西南管道有限责任公司重庆输油气分公司
+  parent: 国家管网集团
+  parent_stock_code: ''
+  role: 甲方
+  stock_code: ''
+- debtor: 四川振海保安服务有限公司
+  industry: 物业管理
+  keywords:
+  - 中铁建物业
+  - 中国铁建
+  name: 中铁建物业管理有限公司成都分公司
+  parent: 中国铁建
+  parent_stock_code: 601186.SH
+  role: 甲方
+  stock_code: 601186.SH
+- concept_code: ''
+  core_parties:
+  - 新街里南城都汇
+  - 四川能投润嘉
+  debtor: ''
+  industry: ''
+  keywords:
+  - 成都瑜環物业
+  - 瑜環物业
+  loan_amount: ''
+  name: 成都瑜環物业服务有限公司
+  parent: ''
+  parent_stock_code: ''
+  role: 乙方
+  stock_code: ''
+- concept_code: ''
+  core_parties: []
+  debtor: 成都瑜環物业服务有限公司
+  industry: ''
+  keywords:
+  - 新街里南城都汇
+  loan_amount: ''
+  name: 新街里南城都汇
+  parent: ''
+  parent_stock_code: ''
+  role: 甲方
+  stock_code: ''
+- concept_code: ''
+  core_parties: []
+  debtor: 成都瑜環物业服务有限公司
+  industry: ''
+  keywords:
+  - 四川能投润嘉
+  loan_amount: ''
+  name: 四川能投润嘉
+  parent: ''
+  parent_stock_code: ''
+  role: 甲方
+  stock_code: ''

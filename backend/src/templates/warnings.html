@@ -96,6 +96,29 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button onclick="loadWarnings()" style="padding:8px 16px;border-radius:10px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer;font-weight:600;">刷新</button>
   </div>
 
+  <!-- 行业风向标 -->
+  <div class="industry-board" id="industryBoard" style="background:#fff;border-radius:14px;padding:16px 20px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:16px;display:none;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span style="font-size:16px;">🏭</span>
+      <span style="font-weight:700;font-size:14px;">行业风向标</span>
+      <span style="font-size:11px;color:#94a3b8;" id="industryUpdateTime"></span>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <!-- 涨幅 -->
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:11px;font-weight:600;color:#16a34a;margin-bottom:6px;">📈 涨幅领先</div>
+        <div id="topGainers" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
+      <!-- 跌幅 -->
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:11px;font-weight:600;color:#dc2626;margin-bottom:6px;">📉 跌幅领先</div>
+        <div id="topLosers" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
+    </div>
+    <!-- 甲方命中提示 -->
+    <div id="industryAlerts" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+  </div>
+
   <div class="warning-list" id="warningList"></div>
 </div>
 
@@ -170,6 +193,43 @@ async function loadStats() {
     `;
     document.getElementById('totalBadge').textContent = total ? `${total}条` : '暂无';
   } catch (err) { console.error(err); }
+}
+
+async function loadIndustryBoard() {
+  try {
+    var resp = await fetch(API.replace('/warnings','') + '/api/industry/sectors');
+    var data = await resp.json();
+    if (data.status !== 'ok') return;
+
+    var board = document.getElementById('industryBoard');
+    board.style.display = 'block';
+    document.getElementById('industryUpdateTime').textContent = data.updated_at ? ' update ' + new Date(data.updated_at).toLocaleTimeString('zh-CN') : '';
+
+    var gainers = (data.top_gainers || []).slice(0, 10);
+    document.getElementById('topGainers').innerHTML = gainers.map(function(s) {
+      return '<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;background:#dcfce7;color:#166534;white-space:nowrap;">' + s.name + ' <b>+' + s.change_pct + '%</b></span>';
+    }).join('') || '<span style="color:#94a3b8;font-size:12px;">no data</span>';
+
+    var losers = (data.top_losers || []).slice(0, 10);
+    document.getElementById('topLosers').innerHTML = losers.map(function(s) {
+      return '<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;background:#fee2e2;color:#991b1b;white-space:nowrap;">' + s.name + ' <b>' + s.change_pct + '%</b></span>';
+    }).join('') || '<span style="color:#94a3b8;font-size:12px;">no data</span>';
+
+    var risks = data.matched_risks || [];
+    var missed = data.missed_opportunities || [];
+    var alertsHtml = '';
+    risks.forEach(function(r) {
+      var icon = r.level === 'red' ? '!!' : '!!';
+      var bg = r.level === 'red' ? '#fef2f2' : '#fffbeb';
+      var border = r.level === 'red' ? '#fecaca' : '#fde68a';
+      alertsHtml += '<span style="display:inline-block;padding:4px 10px;border-radius:8px;font-size:12px;background:' + bg + ';border:1px solid ' + border + ';white-space:nowrap;">' + icon + ' <b>' + r.enterprise.slice(0, 12) + '</b> ' + r.sector + ' ' + r.change_pct + '%</span>';
+    });
+    missed.forEach(function(m) {
+      alertsHtml += '<span style="display:inline-block;padding:4px 10px;border-radius:8px;font-size:12px;background:#eff6ff;border:1px solid #bfdbfe;white-space:nowrap;">! <b>' + m.sector + '</b> +' + m.change_pct + '% no coverage</span>';
+    });
+    document.getElementById('industryAlerts').innerHTML = alertsHtml || '';
+
+  } catch (err) { console.error('Industry scan:', err); }
 }
 
 function renderWarnings(warnings) {
@@ -522,10 +582,13 @@ function truncate(text, max) {
 // Init
 loadStats();
 loadWarnings();
+loadIndustryBoard();
 let countdown = 60;
+let industryRefreshCount = 0;
 setInterval(() => {
   countdown--;
-  if (countdown <= 0) { loadStats(); loadWarnings(); countdown = 60; }
+  if (countdown <= 0) { loadStats(); loadWarnings(); countdown = 60; industryRefreshCount++; }
+  if (industryRefreshCount >= 5) { loadIndustryBoard(); industryRefreshCount = 0; }
   document.getElementById('refreshInfo').textContent = countdown + 's后刷新';
 }, 1000);
 </script>

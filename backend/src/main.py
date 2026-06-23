@@ -282,6 +282,12 @@ def create_app() -> FastAPI:
         import yaml as _yaml
         from pathlib import Path as _Path
         body = await request.json()
+        keywords_raw = [k.strip() for k in body.get("keywords", "").split(",") if k.strip()]
+        # 自动关键词：用户未填时从企业名称提取
+        if not keywords_raw:
+            import re as _re
+            _core = _re.sub(r'(有限|有限责任|股份有限)?公司|（.*?）|\(.*?\)|分公司|办事处|服务有限公司', '', body.get("name", ""))
+            keywords_raw = [_core.strip()] if _core.strip() else [body.get("name", "")]
         ent = {
             "name": body.get("name", ""),
             "role": body.get("role", "乙方"),
@@ -293,7 +299,7 @@ def create_app() -> FastAPI:
             "concept_code": body.get("concept_code", ""),
             "debtor": body.get("debtor", ""),
             "core_parties": body.get("core_parties", []),
-            "keywords": [k.strip() for k in body.get("keywords", "").split(",") if k.strip()],
+            "keywords": keywords_raw,
         }
         if not ent["name"]:
             raise HTTPException(400, "企业名称不能为空")
@@ -304,6 +310,24 @@ def create_app() -> FastAPI:
         with open(_p, "w", encoding="utf-8") as f:
             _yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
         return {"status": "ok", "enterprise": ent["name"]}
+
+    # ── 行业扫描 API ──────────────────────────────────
+    _industry_cache: dict[str, Any] = {}
+
+    @app.get("/api/industry/sectors")
+    def industry_sectors():
+        """全行业扫描 + 企业池交叉匹配。"""
+        try:
+            from services.industry_scanner import scan_and_match
+            import yaml as _yaml
+            from pathlib import Path as _Path
+            _ep = _Path(__file__).parent.parent / "config" / "enterprises.yaml"
+            with open(_ep, "r", encoding="utf-8") as _f:
+                _ents = _yaml.safe_load(_f).get("enterprises", [])
+            result = scan_and_match(_ents)
+            return {"status": "ok", **result}
+        except Exception as _e:
+            return {"status": "error", "message": str(_e)}
 
     @app.delete("/api/enterprises/{name:path}")
     def delete_enterprise_api(name: str):
@@ -722,6 +746,38 @@ def create_app() -> FastAPI:
         seconds=int(_os.getenv("WARNING_CRON_INTERVAL", "300")),
         id="warning_collect",
     )
+
+    # 行业扫描定时任务（工作日 9:00 和 14:00）
+    def _industry_scan_job():
+        try:
+            import yaml as _yaml
+            from pathlib import Path as _Path
+            from services.industry_scanner import scan_and_match
+            _ep = _Path(__file__).parent.parent / "config" / "enterprises.yaml"
+            with open(_ep, "r", encoding="utf-8") as _f:
+                _ents = _yaml.safe_load(_f).get("enterprises", [])
+            result = scan_and_match(_ents)
+            logger.info("Industry scan: %d risks, %d opportunities",
+                        len(result.get("matched_risks", [])),
+                        len(result.get("missed_opportunities", [])))
+        except Exception as _e:
+            logger.warning("Industry scan failed: %s", _e)
+
+    _industry_cron = _os.getenv("INDUSTRY_SCAN_CRON", "0 9,14 * * 1-5")
+    _cron_parts = _industry_cron.split()
+    if len(_cron_parts) == 5:
+        _scheduler.add_job(
+            _industry_scan_job,
+            "cron",
+            minute=_cron_parts[0], hour=_cron_parts[1],
+            day=_cron_parts[2], month=_cron_parts[3],
+            day_of_week=_cron_parts[4],
+            id="industry_scan",
+        )
+    else:
+        _scheduler.add_job(
+            _industry_scan_job, "interval", hours=6, id="industry_scan"
+        )
 
     @app.on_event("startup")
     def _start_warning_scheduler():
