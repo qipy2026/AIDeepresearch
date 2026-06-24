@@ -890,6 +890,28 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning(f"[collector] Piaojiaosuo RAG failed: {e}")
 
+        # 百度搜索 舆情采集（独立于 SEARCH_API 配置）
+        try:
+            from services.web_search import _search_baidu
+            for ent in _ents:
+                kw = ent.get("keywords", [ent["name"]])
+                query = f"{kw[0]} 风险 违约 诉讼 处罚"
+                try:
+                    results = _search_baidu(query, max_results=5)
+                    for r in results:
+                        _collect_source(
+                            "baidu_search",
+                            f"{r.get('title','')}\n{r.get('content','')}",
+                            db, cls,
+                            ent["name"],
+                            "baidu_search",
+                            title_override=r.get("title", ""),
+                            source_url=r.get("url", ""))
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"[collector] Baidu search failed: {e}")
+
         # Web Search 舆情查询
         try:
             from services.web_search import dispatch_search

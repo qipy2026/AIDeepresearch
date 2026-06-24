@@ -79,6 +79,33 @@ def _search_local(
     return results
 
 
+def _search_baidu(query: str, max_results: int = 5) -> List[dict]:
+    """百度千帆 AI 搜索。需要 BAIDU_ACCESS_TOKEN 环境变量。"""
+    token = os.getenv("BAIDU_ACCESS_TOKEN", "")
+    if not token:
+        logger.warning("BAIDU_ACCESS_TOKEN 未配置，百度搜索不可用")
+        return []
+    try:
+        from search.api import BaiduSearchClient
+        from search.config import Settings as BaiduSettings
+        from search.models import SearchParams
+
+        settings = BaiduSettings(access_token=token)
+        client = BaiduSearchClient(settings)
+        result = client.search(SearchParams(q=query))
+        results = []
+        for r in result.results:
+            results.append({
+                "title": r.title,
+                "url": r.url,
+                "content": r.abstract or "",
+            })
+        return results[:max_results]
+    except Exception as exc:
+        logger.warning("百度搜索失败: %s", exc)
+        return []
+
+
 def _search_tavily(query: str, max_results: int) -> Tuple[List[dict], Optional[str]]:
     key = os.getenv("TAVILY_API_KEY")
     if not key:
@@ -113,6 +140,9 @@ def dispatch_search(
         if search_api == "local":
             results = _search_local(query, enterprise=enterprise, max_results=max_results)
             backend_label = "local"
+        elif search_api == "baidu":
+            results = _search_baidu(query, max_results=max_results)
+            backend_label = "baidu"
         elif search_api == "tavily":
             results, answer_text = _search_tavily(query, max_results)
             backend_label = "tavily"

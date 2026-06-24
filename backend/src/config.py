@@ -19,6 +19,7 @@ class SearchAPI(Enum):
     SEARXNG = "searxng"
     ADVANCED = "advanced"
     LOCAL = "local"
+    BAIDU = "baidu"
 
 
 class Configuration(BaseModel):
