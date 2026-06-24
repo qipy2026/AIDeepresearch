@@ -713,15 +713,15 @@ class ReportingService:
 变化幅度：{headcount_trend.get('delta_pct', 0) * 100:.1f}%
 趋势说明：{headcount_trend.get('message', '')}
 """
-            # 关键时刻截图 URL
+            # 关键时刻截图（文本描述，不含 ![](url) —— 避免 DeepSeek 502）
             key_snaps = data.get("key_snapshots") or []
             if key_snaps:
-                api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
-                ctx += "\n【关键时刻截图】（直接复制图片链接到报告对应位置）\n"
+                ctx += "\n【关键时刻截图信息】\n"
                 for s in key_snaps:
-                    fname = s["snapshot_path"].replace("\\", "/").split("/")[-1]
                     ctx += (f"- {s['snapshot_date']} | 人数:{s['headcount']} | "
-                            f"![]({api_url}/snapshots/{fname})\n")
+                            f"文件:{s['snapshot_path'].replace(chr(92),'/').split('/')[-1]}\n")
+                ctx += "\n[重要] 报告[重点时段照片记录]节请写入以下占位文本（不要改动）：\n"
+                ctx += "（占位，预备未来接入摄像头数据）\n"
         else:
             ctx += """
 【视频巡检人数趋势】
@@ -778,15 +778,14 @@ class ReportingService:
                 prompt += f"\n任务笔记摘录：\n{''.join(notes_block)}\n"
             prompt += "\n请整合以上搜索任务总结、结构化数据和参考来源，严格按贷后监管综合周报模板生成报告。"
 
-            # 后处理钩子: 在 prompt 末尾追加截图 markdown, LLM 无法忽略
+            # 截图后处理: LLM 只需生成占位文本，_inject_snapshot_images 负责替换为真实图片
+            # 不在 prompt 中嵌入 ![](url) —— DeepSeek 等文本模型会因此 502
             _key_snaps = weekly_data.get("key_snapshots") or []
             if _key_snaps:
-                api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
-                prompt += "\n\n[重要: 以下关键时刻截图必须原样复制到报告[重点时段照片记录]节, 不可省略]\n"
-                for s in _key_snaps:
-                    fname = s["snapshot_path"].replace("\\", "/").split("/")[-1]
-                    prompt += f"![{s['snapshot_date']} {s['headcount']}人]({api_url}/snapshots/{fname})\n"
-                prompt += "【截图结束】\n"
+                prompt += (
+                    "\n\n[重要] 报告[重点时段照片记录]节请写入以下占位文本（不要改动）：\n"
+                    "（占位，预备未来接入摄像头数据）\n"
+                )
         else:
             system_prompt = report_writer_instructions.strip()
             prompt = (
@@ -797,22 +796,120 @@ class ReportingService:
                 prompt += f"\n任务笔记摘录：\n{''.join(notes_block)}\n"
             prompt += "\n请整合以上信息，撰写结构完整的中文 Markdown 调查报告。"
 
-        response = invoke_llm(self._config, system_prompt, prompt)
-        report_text = response.strip()
+        try:
+            response = invoke_llm(self._config, system_prompt, prompt)
+            report_text = response.strip()
+        except Exception as _llm_err:
+            logger.warning(
+                "LLM 调用失败，降级为结构化报告: {}",
+                _llm_err,
+            )
+            if self._style == "weekly":
+                report_text = self._build_fallback_report(weekly_data, state)
+            else:
+                report_text = f"报告生成失败，LLM 服务不可用。\n\n错误: {_llm_err}"
+
         if self._config.strip_thinking_tokens:
             report_text = strip_thinking_tokens(report_text)
         report_text = strip_tool_calls(report_text).strip() or "报告生成失败，请检查输入。"
 
         # 后处理：注入关键时刻截图到报告
         _key_snaps = weekly_data.get("key_snapshots") if self._style == "weekly" else None
-        with open("/tmp/snapshot_debug.log", "a") as _f:
-            _f.write(f"DEBUG key_snaps: {_key_snaps is not None}, len={len(_key_snaps) if _key_snaps else 0}\n")
         if _key_snaps:
             report_text = _inject_snapshot_images(report_text, _key_snaps)
-            with open("/tmp/snapshot_debug.log", "a") as _f:
-                _f.write(f"DEBUG after inject, has_img={'![' in report_text}\n")
 
         return report_text
+
+    def _build_fallback_report(
+        self, weekly_data: WeeklyData, state: SummaryState
+    ) -> str:
+        """LLM 不可用时，用结构化数据直接组装基础周报。
+
+        保留所有数据：企业信息、风险统计、视频巡检趋势、截图、搜索任务总结。
+        """
+        wd = weekly_data
+        lines = []
+        lines.append("# 贷后监管综合周报")
+        lines.append("")
+        lines.append(
+            f"报告日期：{wd.get('report_date', '')}　"
+            f"报告周期：{wd.get('report_period_start', '')} ~ {wd.get('report_period_end', '')}"
+        )
+        lines.append(
+            f"监管企业：{wd.get('enterprise', '')}　|　"
+            f"所属行业：{wd.get('industry', '')}　|　"
+            f"发放金额：{wd.get('loan_amount', '')}万元　|　"
+            f"报告类型：贷后监管综合周报"
+        )
+        lines.append("")
+        lines.append("> ⚠️ [系统备注] LLM 服务暂时不可用，本报告由结构化数据自动组装。内容不含 AI 分析，仅展示原始数据。")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # 一、风险统计
+        risk = wd.get("risk", {})
+        lines.append("## 一、风险统计数据")
+        lines.append("")
+        lines.append(f"- 红色预警：{risk.get('red', 0)} 项")
+        lines.append(f"- 橙色预警：{risk.get('orange', 0)} 项")
+        lines.append(f"- 黄色预警：{risk.get('yellow', 0)} 项")
+        lines.append(f"- 合计：{risk.get('total', 0)} 项")
+        lines.append("")
+
+        # 二、搜索任务总结
+        lines.append("## 二、搜索任务总结")
+        lines.append("")
+        for t in state.todo_items:
+            if t.status == "completed" and t.summary:
+                lines.append(f"### {t.title}")
+                lines.append(f"{t.summary[:2000]}")
+                lines.append("")
+        if not any(t.status == "completed" and t.summary for t in state.todo_items):
+            lines.append("暂无搜索任务结果。")
+            lines.append("")
+
+        # 三、视频巡检（从格式化上下文提取）
+        lines.append("## 三、现场视频巡检")
+        lines.append("")
+
+        headcount = wd.get("headcount_trend", {}) or {}
+        if headcount:
+            lines.append(f"- 趋势状态：{headcount.get('status', 'unknown')}")
+            lines.append(f"- 本周日均人数：{headcount.get('current_avg', 'N/A')}")
+            lines.append(f"- 前3周日均人数：{headcount.get('prior_avg', 'N/A')}")
+            if headcount.get('delta_pct') is not None:
+                lines.append(f"- 变化幅度：{headcount['delta_pct'] * 100:.1f}%")
+            lines.append(f"- 趋势说明：{headcount.get('message', '')}")
+            lines.append("")
+
+        lines.append("### 重点时段照片记录")
+        lines.append("")
+        key_snaps = wd.get("key_snapshots") or []
+        if key_snaps:
+            lines.append("（占位，预备未来接入摄像头数据）")
+        else:
+            lines.append("暂无快照数据")
+        lines.append("")
+
+        # 四、甲方经营信号
+        lines.append("## 四、甲方经营信号")
+        lines.append("")
+        party_a = wd.get("party_a_signals") or []
+        if party_a:
+            for sig in party_a:
+                lines.append(f"- {sig.get('name', '')}: {sig.get('value', '')} ({sig.get('status', '')})")
+        else:
+            lines.append("无相关内容")
+        lines.append("")
+
+        # 参考来源
+        lines.append("---")
+        lines.append("")
+        lines.append("— 本报告由贷后监管系统自动生成（降级模式），需经人工确认后方可作为正式依据 —")
+        lines.append(f"报告出具方：贷后监管综合报告系统　|　生成时间：{wd.get('report_date', '')}")
+
+        return "\n".join(lines)
 
 
 # ── 行业数据辅助函数 ──────────────────────────────────
