@@ -695,6 +695,31 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning(f"[collector] Qichacha/THS failed: {e}")
 
+        # 网页爬虫采集（巨潮公告等）
+        try:
+            from services.web_scraper import collect_for_enterprise
+            from services.llm_extractor import extract_and_classify, classify_to_severity
+            for ent in _ents:
+                scraped = collect_for_enterprise(ent)
+                for item in scraped:
+                    llm_result = extract_and_classify(item["text"], _ents)
+                    if llm_result.get("irrelevant"):
+                        continue
+                    for rel in llm_result.get("relevant_enterprises", []):
+                        sev = classify_to_severity(
+                            rel.get("direction", "neutral"),
+                            rel.get("confidence", 0.5))
+                        _collect_source(
+                            "web_scrape",
+                            f'{item["title"]}\n\n{item["text"][:500]}\n\nLLM分析: {json.dumps(rel, ensure_ascii=False)}',
+                            db, cls,
+                            f'{ent.get("parent", "") or ent["name"]}（网页采集）',
+                            "web_scrape",
+                            title_override=rel.get("summary", item["title"]),
+                            detail_override=f'[{rel.get("direction","")}] {rel.get("summary","")} (置信度{rel.get("confidence",0)})')
+        except Exception as e:
+            logger.warning(f"[collector] Web scraping failed: {e}")
+
         # 票交所 RAG 查询
         try:
             from services.rag_store import query as rag_query
