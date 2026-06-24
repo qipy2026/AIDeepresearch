@@ -890,27 +890,84 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning(f"[collector] Piaojiaosuo RAG failed: {e}")
 
-        # 百度搜索 舆情采集（独立于 SEARCH_API 配置）
+        # 百度搜索 多维度采集（企业/行业/供应链）
         try:
             from services.web_search import _search_baidu
+            # 去重：已搜过的 query 不重复搜
+            seen_queries = set()
             for ent in _ents:
-                kw = ent.get("keywords", [ent["name"]])
-                query = f"{kw[0]} 风险 违约 诉讼 处罚"
-                try:
-                    results = _search_baidu(query, max_results=5)
-                    for r in results:
-                        _collect_source(
-                            "baidu_search",
-                            f"{r.get('title','')}\n{r.get('content','')}",
-                            db, cls,
-                            ent["name"],
-                            "baidu_search",
-                            title_override=r.get("title", ""),
-                            source_url=r.get("url", ""))
-                except Exception:
-                    pass
+                name = ent["name"]
+                industry = ent.get("industry", "")
+                role = ent.get("role", "乙方")
+                debtor = ent.get("debtor", "")
+                parent = ent.get("parent", "")
+
+                # 维度 1: 企业自身（风险/诉讼/经营）
+                kw_list = ent.get("keywords", [name])
+                for kw in kw_list[:2]:
+                    for suffix in ["风险 违约 诉讼", "经营 异常 处罚", "工商 变更 新闻"]:
+                        q = f"{kw} {suffix}"
+                        if q in seen_queries:
+                            continue
+                        seen_queries.add(q)
+                        try:
+                            for r in _search_baidu(q, max_results=3):
+                                _collect_source("baidu_search",
+                                    f"{r.get('title','')}\n{r.get('content','')}",
+                                    db, cls, name, "baidu_search",
+                                    title_override=r.get("title",""),
+                                    source_url=r.get("url",""))
+                        except Exception:
+                            pass
+
+                # 维度 2: 行业（仅乙方触发，每条行业 query 全局只搜一次）
+                if role == "乙方" and industry:
+                    for suffix in ["行业 发展 规模 2026", "监管 政策 新规", "行业 风险 挑战"]:
+                        q = f"{industry} {suffix}"
+                        if q in seen_queries:
+                            continue
+                        seen_queries.add(q)
+                        try:
+                            for r in _search_baidu(q, max_results=3):
+                                _collect_source("baidu_search",
+                                    f"{r.get('title','')}\n{r.get('content','')}",
+                                    db, cls, name, "baidu_search",
+                                    title_override=r.get("title",""),
+                                    source_url=r.get("url",""))
+                        except Exception:
+                            pass
+
+                # 维度 3: 供应链（甲方自身+母公司）
+                if role == "甲方":
+                    for suffix in ["经营 风险 诉讼", "项目 动态 处罚", "财务 状况 新闻"]:
+                        q = f"{name} {suffix}"
+                        if q in seen_queries:
+                            continue
+                        seen_queries.add(q)
+                        try:
+                            for r in _search_baidu(q, max_results=3):
+                                _collect_source("baidu_search",
+                                    f"{r.get('title','')}\n{r.get('content','')}",
+                                    db, cls, name, "baidu_search",
+                                    title_override=r.get("title",""),
+                                    source_url=r.get("url",""))
+                        except Exception:
+                            pass
+                    if parent:
+                        q = f"{parent} 经营 风险 动态"
+                        if q not in seen_queries:
+                            seen_queries.add(q)
+                            try:
+                                for r in _search_baidu(q, max_results=3):
+                                    _collect_source("baidu_search",
+                                        f"{r.get('title','')}\n{r.get('content','')}",
+                                        db, cls, name, "baidu_search",
+                                        title_override=r.get("title",""),
+                                        source_url=r.get("url",""))
+                            except Exception:
+                                pass
         except Exception as e:
-            logger.warning(f"[collector] Baidu search failed: {e}")
+            logger.warning(f"[collector] Baidu multi-dimension search failed: {e}")
 
         # Web Search 舆情查询
         try:

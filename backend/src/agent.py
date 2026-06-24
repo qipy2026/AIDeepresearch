@@ -59,44 +59,65 @@ class DeepResearchAgent:
     def _make_weekly_tasks(topic: str) -> list[TodoItem]:
         from services.reporter import ReportingService
         enterprise = ReportingService._extract_enterprise_from_topic(topic)
-        # 从 enterprises.yaml 获取目标企业的行业，动态生成搜索 query
         industry = ReportingService._get_enterprise_field(enterprise, "industry") or "行业"
+
+        # 获取该企业的甲方列表（从 enterprises.yaml）
+        ents = ReportingService._load_enterprises_yaml()
+        parties = [e for e in ents if e.get("debtor") == enterprise and e.get("role") == "甲方"]
+
+        # ── 行业搜索 query（百度优化）──
+        industry_queries = [
+            f"{industry} 行业 发展 规模 2026",
+            f"{industry} 监管 政策 新规 2026",
+            f"{industry} 行业 风险 挑战 新闻",
+            f"{industry} 市场 趋势 分析",
+        ]
+
+        # ── 供应链(甲方)搜索 query（百度优化）──
+        supply_queries = []
+        for p in parties[:4]:
+            pname = p.get("name", "")
+            pparent = p.get("parent", "")
+            if pname:
+                supply_queries.append(f"{pname} 经营 风险 诉讼")
+                supply_queries.append(f"{pname} 项目 动态 处罚 新闻")
+            if pparent:
+                supply_queries.append(f"{pparent} 经营 风险 动态")
+        if not supply_queries:
+            supply_queries = ["核心企业 风险 排查"]
+
+        # ── 债务方搜索 query（百度优化）──
+        debtor_queries = [
+            f"{enterprise} 工商 变更 信息",
+            f"{enterprise} 法律 诉讼 裁判 文书",
+            f"{enterprise} 经营 异常 处罚 新闻",
+            f"{enterprise} 财务 状况 风险",
+        ]
+
         return [
             TodoItem(id=1, title="行业与宏观监管",
                      intent="搜索行业动态、政策变化和风险提示",
-                     query=f"{industry} 行业 发展 营收 2026",
-                     micro_queries=[
-                         f"{industry} 行业发展 营收 规模 2026",
-                         f"{industry} 监管 政策 新规",
-                         f"{industry} 行业 风险 挑战",
-                     ]),
-            TodoItem(id=2, title="核心企业监管",
-                     intent="排查两家甲方核心企业的经营风险",
-                     query="核心企业 风险 排查",
-                     micro_queries=[
-                         "中铁建物业管理有限公司成都分公司 项目 经营 诉讼",
-                         "国家管网集团西南管道有限责任公司重庆输油气分公司 项目 动态 处罚",
-                     ]),
+                     query=f"{industry} 行业 发展 2026",
+                     micro_queries=industry_queries),
+            TodoItem(id=2, title="核心企业监管（供应链扫描）",
+                     intent="排查甲方核心企业的经营风险、诉讼、舆情",
+                     query="核心企业 风险 排查" if not supply_queries else supply_queries[0],
+                     micro_queries=supply_queries),
             TodoItem(id=3, title="债务企业自身监管",
-                     intent="排查企业工商、诉讼、高管信息",
-                     query=f"{enterprise} 工商 状态",
-                     micro_queries=[
-                         f"{enterprise} 工商 信息",
-                         f"{enterprise} 法律 诉讼 裁判",
-                         "马振朋 保安",
-                     ]),
+                     intent="排查企业工商、诉讼、经营异常、财务风险信息",
+                     query=debtor_queries[0],
+                     micro_queries=debtor_queries),
             TodoItem(id=4, title="现场视频巡检",
                      intent="巡检数据",
                      query=f"{enterprise} 监控",
                      micro_queries=[]),
             TodoItem(id=5, title="企查查数据查询",
-                     intent="通过企查查查询核心企业(甲方)和债务企业的工商、风险、经营数据",
+                     intent="通过企查查查询甲乙方工商、风险、经营数据",
                      query="企查查 企业查询",
-                     micro_queries=[
-                         "国家管网集团西南管道有限责任公司重庆输油气分公司",
-                         "中铁建物业管理有限公司成都分公司",
-                         enterprise,
-                     ]),
+                     micro_queries=(
+                         [p.get("name", "") for p in parties if p.get("name")] +
+                         [enterprise]
+                     )),
         ]
 
     def run_stream(self, topic: str) -> Iterator[dict[str, Any]]:
