@@ -61,6 +61,7 @@ class WeeklyData(TypedDict, total=False):
     warnings_signals: Optional[List[Dict[str, Any]]]
     warnings_summary: Optional[Dict[str, Any]]
     headcount_trend: Optional[Dict[str, Any]]
+    key_snapshots: Optional[List[Dict[str, Any]]]
     party_a_signals: Optional[List[Dict[str, Any]]]
     industry_data: Optional[Dict[str, Any]]
 
@@ -558,6 +559,10 @@ class ReportingService:
         # ── 运营信号 ──
         headcount_trend = self._compute_headcount_trend(enterprise)
 
+        # 关键时刻截图（含 snapshot_path 的原始记录）
+        raw_snapshots = ReportingService._read_camera_snapshots(enterprise, weeks=4)
+        key_snaps = [s for s in raw_snapshots if s.get("snapshot_path")]
+
         # Party A 运营信号（条件性）
         party_a_signals: Optional[List[Dict[str, Any]]] = None
 
@@ -576,6 +581,7 @@ class ReportingService:
             warnings_signals=db_warnings.get("signals", []),
             warnings_summary=db_warnings,
             headcount_trend=headcount_trend,
+            key_snapshots=key_snaps if key_snaps else None,
             party_a_signals=party_a_signals,
             industry_data=industry_data,
         )
@@ -666,6 +672,15 @@ class ReportingService:
 变化幅度：{headcount_trend.get('delta_pct', 0) * 100:.1f}%
 趋势说明：{headcount_trend.get('message', '')}
 """
+            # 关键时刻截图 URL
+            key_snaps = data.get("key_snapshots") or []
+            if key_snaps:
+                api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
+                ctx += "\n【关键时刻截图】（直接复制图片链接到报告对应位置）\n"
+                for s in key_snaps:
+                    fname = s["snapshot_path"].replace("\\", "/").split("/")[-1]
+                    ctx += (f"- {s['snapshot_date']} | 人数:{s['headcount']} | "
+                            f"![]({api_url}/snapshots/{fname})\n")
         else:
             ctx += """
 【视频巡检人数趋势】
