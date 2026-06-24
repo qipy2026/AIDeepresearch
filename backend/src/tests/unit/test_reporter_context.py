@@ -117,7 +117,7 @@ class TestSearchLocal:
 
         kw = _extract_keywords("的 了 风险 监控 2026 物业管理 诉讼")
         assert "物业管理" in kw
+        assert "物业管理" in kw
         assert "诉讼" in kw
-        assert "风险" not in kw  # stop word
-        assert "的" not in kw
-        assert "2026" not in kw
+        assert "的" not in kw      # stop word
+        assert "2026" not in kw    # stop word

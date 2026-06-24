@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 MAX_TOKENS_PER_SOURCE = 2000
 
 CHINESE_STOP_WORDS = frozenset({
-    "的", "了", "在", "是", "和", "与", "或", "及", "等",
-    "风险", "搜索", "查询", "2026", "2025", "监控", "报告",
+    "的", "了", "在", "是", "和", "与", "或", "及", "等", "与",
+    "搜索", "查询", "2026", "2025", "监控", "报告", "OR",
 })
 
 
@@ -45,26 +45,35 @@ def _search_local(
         base_sql += " AND enterprise LIKE ?"
         params.append(f"%{enterprise}%")
 
-    if keywords:
-        like_clauses = " OR ".join(["title LIKE ? OR detail LIKE ?"] * len(keywords))
-        base_sql += f" AND ({like_clauses})"
-        for kw in keywords:
-            params.extend([f"%{kw}%", f"%{kw}%"])
-
-    base_sql += """ ORDER BY CASE severity
-        WHEN 'red' THEN 0 WHEN 'orange' THEN 1
-        WHEN 'yellow' THEN 2 ELSE 3 END,
-        created_at DESC LIMIT ?"""
-    params.append(max_results)
+    def _execute(extra_clause: str, extra_params: list) -> List[dict]:
+        sql = base_sql + extra_clause
+        sql += """ ORDER BY CASE severity
+            WHEN 'red' THEN 0 WHEN 'orange' THEN 1
+            WHEN 'yellow' THEN 2 ELSE 3 END,
+            created_at DESC LIMIT ?"""
+        all_params = params + extra_params + [max_results]
+        rows = conn.execute(sql, all_params).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            out.append({
+                "title": f"[{d['severity']}] {d['title']}",
+                "url": d.get("source_url") or "",
+                "content": (d.get("detail") or d.get("title"))[:500],
+            })
+        return out
 
     try:
-        rows = conn.execute(base_sql, params).fetchall()
-        for r in rows:
-            results.append({
-                "title": f"[{r['severity']}] {r['title']}",
-                "url": r.get("source_url") or "",
-                "content": (r.get("detail") or r.get("title"))[:500],
-            })
+        if keywords:
+            like_clauses = " OR ".join(["title LIKE ? OR detail LIKE ?"] * len(keywords))
+            kw_params = []
+            for kw in keywords:
+                kw_params.extend([f"%{kw}%", f"%{kw}%"])
+            results = _execute(f" AND ({like_clauses})", kw_params)
+
+        # Fallback: keyword match 无结果时返回企业全部预警（按 severity 排序）
+        if not results:
+            results = _execute("", [])
     except Exception as exc:
         logger.warning("_search_local failed: %s", exc)
     return results
