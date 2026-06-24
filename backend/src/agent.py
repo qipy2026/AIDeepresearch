@@ -81,8 +81,10 @@ class DeepResearchAgent:
             if pname:
                 supply_queries.append(f"{pname} 经营 风险 诉讼")
                 supply_queries.append(f"{pname} 项目 动态 处罚 新闻")
+                supply_queries.append(f"{pname} 企业新闻 舆情 2026")
             if pparent:
                 supply_queries.append(f"{pparent} 经营 风险 动态")
+                supply_queries.append(f"{pparent} 新闻 舆情 2026")
         if not supply_queries:
             supply_queries = ["核心企业 风险 排查"]
 
@@ -92,6 +94,8 @@ class DeepResearchAgent:
             f"{enterprise} 法律 诉讼 裁判 文书",
             f"{enterprise} 经营 异常 处罚 新闻",
             f"{enterprise} 财务 状况 风险",
+            f"{enterprise} 新闻 舆情 2026",
+            f"{enterprise} 负面 事件 曝光",
         ]
 
         return [

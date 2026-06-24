@@ -350,7 +350,28 @@ class ReportingService:
                 "industry_available": bool(industry_result.get("industry_specific")),
             }
         except Exception as e:
-            logger.warning(f"行业数据获取失败 ({industry}): {e}")
+            logger.warning(f"行业数据获取失败 ({industry}): {e}，尝试百度搜索")
+            # Fallback: 百度搜索行业动态
+            try:
+                from services.web_search import _search_baidu
+                baidu_results = _search_baidu(f"{industry} 行业 发展 政策 2026", max_results=5)
+                if baidu_results:
+                    events = [r.get("title", "") for r in baidu_results[:3]]
+                    return {
+                        "industry": industry,
+                        "industry_status": "百度搜索",
+                        "key_indicators": f"百度搜索到{len(baidu_results)}条{industry}行业相关信息",
+                        "major_events": events,
+                        "policy_direction": "待分析",
+                        "policy_detail": "详见百度搜索结果",
+                        "risk_warning": "未发现明显负面信号",
+                        "signals": [],
+                        "source": "百度搜索",
+                        "macro_available": False,
+                        "industry_available": bool(events),
+                    }
+            except Exception:
+                pass
             return {
                 "industry": industry,
                 "industry_status": "暂无数据",
