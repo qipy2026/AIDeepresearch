@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+import time
 from io import BytesIO
 
 if sys.platform == "win32":
@@ -962,7 +964,10 @@ def create_app() -> FastAPI:
 
         db = WarningDB()
         db.init()
-        cls = ClassifierService(cfg.keywords_path)
+        _keywords_path = cfg.keywords_path
+        if not _Path(_keywords_path).is_absolute():
+            _keywords_path = str(_Path(__file__).resolve().parent.parent / _keywords_path)
+        cls = ClassifierService(_keywords_path)
         _ep = _Path(__file__).resolve().parent.parent / "config" / "enterprises.yaml"
         with open(_ep, "r", encoding="utf-8") as _f:
             _ents = _yaml.safe_load(_f).get("enterprises", [])

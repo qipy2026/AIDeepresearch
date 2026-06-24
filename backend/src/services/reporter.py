@@ -769,6 +769,16 @@ class ReportingService:
             if notes_block:
                 prompt += f"\n任务笔记摘录：\n{''.join(notes_block)}\n"
             prompt += "\n请整合以上搜索任务总结、结构化数据和参考来源，严格按贷后监管综合周报模板生成报告。"
+
+            # 后处理钩子: 在 prompt 末尾追加截图 markdown, LLM 无法忽略
+            _key_snaps = weekly_data.get("key_snapshots") or []
+            if _key_snaps:
+                api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
+                prompt += "\n\n【重要：以下关键时刻截图必须原样复制到报告"重点时段照片记录"节，不可省略】\n"
+                for s in _key_snaps:
+                    fname = s["snapshot_path"].replace("\\", "/").split("/")[-1]
+                    prompt += f"![{s['snapshot_date']} {s['headcount']}人]({api_url}/snapshots/{fname})\n"
+                prompt += "【截图结束】\n"
         else:
             system_prompt = report_writer_instructions.strip()
             prompt = (
@@ -786,8 +796,12 @@ class ReportingService:
         report_text = strip_tool_calls(report_text).strip() or "报告生成失败，请检查输入。"
 
         # 后处理：注入关键时刻截图到报告
-        if self._style == "weekly" and weekly_data.get("key_snapshots"):
-            report_text = _inject_snapshot_images(report_text, weekly_data["key_snapshots"])
+        _key_snaps = weekly_data.get("key_snapshots") if self._style == "weekly" else None
+        if _key_snaps:
+            logger.info("Injecting {} key snapshot images into report", len(_key_snaps))
+            report_text = _inject_snapshot_images(report_text, _key_snaps)
+        elif self._style == "weekly":
+            logger.warning("No key_snapshots in weekly_data — snapshot injection skipped")
 
         return report_text
 
