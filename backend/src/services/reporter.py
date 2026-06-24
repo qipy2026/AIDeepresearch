@@ -66,6 +66,39 @@ class WeeklyData(TypedDict, total=False):
     industry_data: Optional[Dict[str, Any]]
 
 
+def _inject_snapshot_images(report: str, key_snapshots: list) -> str:
+    """后处理：将关键时刻截图注入报告"重点时段照片记录"节。
+
+    LLM 可能忽略模板指令不复制图片链接，此函数在 LLM 输出后强制替换占位文本。
+    """
+    if not key_snapshots:
+        return report
+
+    api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
+    img_lines = []
+    for s in key_snapshots:
+        fname = s["snapshot_path"].replace("\\", "/").split("/")[-1]
+        img_lines.append(
+            f"![{s['snapshot_date']} {s['headcount']}人]"
+            f"({api_url}/snapshots/{fname})"
+        )
+    img_block = "\n".join(img_lines) + "\n"
+
+    # 替换占位文本为真实截图
+    import re as _re
+    report = _re.sub(
+        r"（占位，预备未来接入摄像头数据）",
+        img_block,
+        report,
+    )
+    report = _re.sub(
+        r"（若上下文中包含【关键时刻截图】.*?）",
+        img_block,
+        report,
+    )
+    return report
+
+
 # ── ReportingService ────────────────────────────────────
 
 
@@ -750,7 +783,13 @@ class ReportingService:
         report_text = response.strip()
         if self._config.strip_thinking_tokens:
             report_text = strip_thinking_tokens(report_text)
-        return strip_tool_calls(report_text).strip() or "报告生成失败，请检查输入。"
+        report_text = strip_tool_calls(report_text).strip() or "报告生成失败，请检查输入。"
+
+        # 后处理：注入关键时刻截图到报告
+        if self._style == "weekly" and weekly_data.get("key_snapshots"):
+            report_text = _inject_snapshot_images(report_text, weekly_data["key_snapshots"])
+
+        return report_text
 
 
 # ── 行业数据辅助函数 ──────────────────────────────────
