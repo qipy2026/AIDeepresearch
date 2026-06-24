@@ -329,6 +329,27 @@ def create_app() -> FastAPI:
         except Exception as _e:
             return {"status": "error", "message": str(_e)}
 
+    # ── 原始素材 API ──────────────────────────────────
+    @app.get("/api/scrape/sources")
+    def scrape_sources(enterprise: str = "", limit: int = 100):
+        """爬虫采集的原始素材列表，供人工审计。"""
+        try:
+            from scrape_db import list_sources
+            rows = list_sources(enterprise, limit)
+            return {"status": "ok", "sources": rows}
+        except Exception as _e:
+            return {"status": "error", "message": str(_e)}
+
+    @app.post("/api/scrape/sources/{source_id}/credible")
+    def scrape_mark_credible(source_id: int, credible: bool = True):
+        """标记素材可信/不可信。"""
+        try:
+            from scrape_db import mark_credible
+            mark_credible(source_id, credible)
+            return {"status": "ok"}
+        except Exception as _e:
+            return {"status": "error", "message": str(_e)}
+
     @app.delete("/api/enterprises/{name:path}")
     def delete_enterprise_api(name: str):
         import yaml as _yaml
@@ -599,7 +620,8 @@ def create_app() -> FastAPI:
     _scheduler = BackgroundScheduler()
 
     def _collect_source(name: str, text: str, db, cls, ent_name: str, source: str,
-                        title_override: str = "", detail_override: str = ""):
+                        title_override: str = "", detail_override: str = "",
+                        source_url: str = ""):
         """统一采集-提取-分类-存储。"""
         if not text or not text.strip():
             return
@@ -618,6 +640,7 @@ def create_app() -> FastAPI:
             detail=detail,
             suggested_action=c.get("suggested_action", ""),
             raw_data=text,
+            source_url=source_url,
             )
             # 不再自动推送——由用户在预警中心点击"推送"手动发送
 
@@ -699,10 +722,26 @@ def create_app() -> FastAPI:
         try:
             from services.web_scraper import collect_for_enterprise
             from services.llm_extractor import extract_and_classify, classify_to_severity
+            from scrape_db import insert as insert_scrape_source
             for ent in _ents:
                 scraped = collect_for_enterprise(ent)
                 for item in scraped:
                     llm_result = extract_and_classify(item["text"], _ents)
+                    # 存储原始素材（无论是否关联到企业都存）
+                    direction = ""
+                    summary = ""
+                    if not llm_result.get("irrelevant") and llm_result.get("relevant_enterprises"):
+                        direction = llm_result["relevant_enterprises"][0].get("direction", "")
+                        summary = llm_result["relevant_enterprises"][0].get("summary", "")
+                    insert_scrape_source(
+                        ent.get("parent", "") or ent["name"],
+                        item.get("source", "web"),
+                        item.get("source_url", ""),
+                        item["title"],
+                        item["text"][:5000],
+                        direction,
+                        summary,
+                    )
                     if llm_result.get("irrelevant"):
                         continue
                     for rel in llm_result.get("relevant_enterprises", []):
@@ -716,7 +755,8 @@ def create_app() -> FastAPI:
                             f'{ent.get("parent", "") or ent["name"]}（网页采集）',
                             "web_scrape",
                             title_override=rel.get("summary", item["title"]),
-                            detail_override=f'[{rel.get("direction","")}] {rel.get("summary","")} (置信度{rel.get("confidence",0)})')
+                            detail_override=f'[{rel.get("direction","")}] {rel.get("summary","")} (置信度{rel.get("confidence",0)})',
+                            source_url=item.get("source_url", ""))
         except Exception as e:
             logger.warning(f"[collector] Web scraping failed: {e}")
 

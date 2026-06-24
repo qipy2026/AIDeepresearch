@@ -40,13 +40,19 @@ class WarningDB:
                 acked_by TEXT DEFAULT '',
                 acked_at TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now','localtime')),
-                raw_data TEXT DEFAULT ''
+                raw_data TEXT DEFAULT '',
+                source_url TEXT DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_w_enterprise ON warning_log(enterprise);
             CREATE INDEX IF NOT EXISTS idx_w_severity ON warning_log(severity);
             CREATE INDEX IF NOT EXISTS idx_w_status ON warning_log(status);
             CREATE INDEX IF NOT EXISTS idx_w_created ON warning_log(created_at);
         """)
+        # migration: add source_url column for existing databases
+        try:
+            conn.execute("ALTER TABLE warning_log ADD COLUMN source_url TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
     @staticmethod
@@ -58,6 +64,7 @@ class WarningDB:
         self, enterprise: str, source: str, severity: str,
         category: str, title: str, detail: str,
         suggested_action: str, raw_data: str = "",
+        source_url: str = "",
     ) -> int:
         conn = self._get_conn()
         ch = self._hash(enterprise, source, title)
@@ -65,10 +72,10 @@ class WarningDB:
             conn.execute(
                 """INSERT INTO warning_log
                    (enterprise, source, severity, category, title,
-                    detail, suggested_action, content_hash, raw_data)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                    detail, suggested_action, content_hash, raw_data, source_url)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (enterprise, source, severity, category, title,
-                 detail, suggested_action, ch, raw_data),
+                 detail, suggested_action, ch, raw_data, source_url),
             )
             conn.commit()
             row = conn.execute("SELECT last_insert_rowid()").fetchone()

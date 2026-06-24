@@ -116,6 +116,7 @@ def collect_for_enterprise(enterprise: dict[str, Any]) -> list[dict[str, Any]]:
             "text": text,
             "source_label": f"{keyword}（巨潮公告）",
             "source": "cninfo",
+            "source_url": detail_url,
         })
 
     return results
