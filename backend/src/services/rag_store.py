@@ -15,19 +15,23 @@ _client: chromadb.ClientAPI | None = None
 _collection: chromadb.Collection | None = None
 
 
-def _get_collection() -> chromadb.Collection:
+def _get_collection() -> chromadb.Collection | None:
     global _client, _collection
     if _collection is None:
-        db_dir = os.getenv("CHROMA_DB_DIR", str(Path(__file__).resolve().parent.parent.parent / "chroma_db"))
-        _client = chromadb.PersistentClient(path=db_dir)
-        # 使用国内 HuggingFace 镜像
-        os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-        ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"
-        )
-        _collection = _client.get_or_create_collection(
-            name=COLLECTION_NAME, embedding_function=ef
-        )
+        try:
+            db_dir = os.getenv("CHROMA_DB_DIR", str(Path(__file__).resolve().parent.parent.parent / "chroma_db"))
+            _client = chromadb.PersistentClient(path=db_dir)
+            os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+            ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2"
+            )
+            _collection = _client.get_or_create_collection(
+                name=COLLECTION_NAME, embedding_function=ef
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("ChromaDB init failed: %s", e)
+            return None
     return _collection
 
 
@@ -71,6 +75,8 @@ def upload_text(content: str, enterprise: str, source: str = "manual") -> dict:
 def query(field_key: str, enterprise: str = "", n_results: int = 3) -> str:
     """检索最相关文档块。field_key 转为自然语言查询。不指定 enterprise 则搜索全部。"""
     col = _get_collection()
+    if col is None:
+        return ""  # ChromaDB 不可用时返回空
     query_text = field_key.replace("_", " ")
     where = {"enterprise": enterprise} if enterprise else None
     try:
