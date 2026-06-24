@@ -85,6 +85,11 @@ class Configuration(BaseModel):
         title="LLM API Key",
         description="Optional API key when using custom OpenAI-compatible services",
     )
+    camera_api_url: str = Field(
+        default="http://localhost:5000",
+        title="Camera API URL",
+        description="Base URL of the camera snapshot counting service (search project Flask app)",
+    )
     llm_base_url: Optional[str] = Field(
         default=None,
         title="LLM Base URL",

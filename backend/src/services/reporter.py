@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
+import requests
 from config import Configuration
 from core.llm import invoke_llm
 from models import SummaryState
@@ -80,18 +82,117 @@ class ReportingService:
     # ── 视频巡检趋势 ───────────────────────────────────────
 
     @staticmethod
+    def _attach_key_snapshots(
+        aggregated: List[Dict[str, Any]],
+        raw_snapshots: List[Dict[str, Any]],
+    ) -> None:
+        """从原始快照记录中找到关键时刻并回填 snapshot_path 到聚合结果。
+
+        关键时刻: 人数峰值、人数谷值(>0)、最接近9:00、最接近14:00。
+        """
+        if not raw_snapshots:
+            return
+
+        # 按 person_count 排序找峰值和谷值
+        by_count = sorted(raw_snapshots,
+                          key=lambda r: r.get("person_count", 0))
+        valley = by_count[0]  # 最小值
+        peak = by_count[-1]   # 最大值
+
+        # 按时间接近 9:00 和 14:00 找最近记录
+        def _minutes_from_target(rec: dict, target_hour: int) -> float:
+            ts = rec.get("timestamp", "")
+            try:
+                from datetime import datetime as _dt
+                t = _dt.fromisoformat(ts.replace("Z", "+00:00"))
+                return abs((t.hour + t.minute / 60) - target_hour)
+            except (ValueError, TypeError):
+                return float("inf")
+
+        near_9am = min(raw_snapshots,
+                       key=lambda r: _minutes_from_target(r, 9), default=None)
+        near_2pm = min(raw_snapshots,
+                       key=lambda r: _minutes_from_target(r, 14), default=None)
+
+        # 构建关键时刻 snapshot_path 集合 (去重)
+        key_paths = {}
+        for label, snap in [("peak", peak), ("valley", valley),
+                            ("9am", near_9am), ("2pm", near_2pm)]:
+            if snap and snap.get("snapshot_path"):
+                key_paths[snap["snapshot_path"]] = label
+
+        # 匹配聚合桶: 原始记录的 timestamp 前缀匹配聚合桶的 snapshot_date
+        for row in aggregated:
+            bucket = row.get("snapshot_date", "")
+            for snap_path, label in key_paths.items():
+                # 找到这个 snapshot_path 对应的原始记录 timestamp
+                snap_ts = next(
+                    (r["timestamp"] for r in [peak, valley, near_9am, near_2pm]
+                     if r and r.get("snapshot_path") == snap_path),
+                    "",
+                )
+                # timestamp 格式 "2026-06-24T14:00:00+00:00"
+                # bucket 格式 "2026-06-24T14"
+                if snap_ts and snap_ts.startswith(bucket):
+                    row["snapshot_path"] = snap_path
+                    break  # 一个桶只匹配一张截图
+
+    @staticmethod
     def _read_camera_snapshots(enterprise: str, weeks: int = 4) -> List[Dict[str, Any]]:
         """读取企业指定周数内的摄像头快照人数数据。
 
-        当前为 stub 实现——CameraSnapshot 表尚未在代码层建模。
-        返回空列表使 _compute_headcount_trend 输出"数据不足"，
-        直到真实数据管道（摄像头 → AI → DB）完成迁移。
+        通过 HTTP 调用 search 项目（摄像头 + YOLO 人数检测）的 /api/counts/timeseries
+        端点获取真实人数时序数据。search 服务不可达时优雅降级，返回空列表。
+
+        enterprise 参数当前未使用——单摄场景下所有企业共享同一摄像头数据。
+        保留此参数以便后续多摄像头对应多企业时按 enterprise 筛选 camera_id。
         """
-        # TODO: 替换为真实 DB 查询
-        # SELECT snapshot_date, headcount FROM camera_snapshots
-        # WHERE enterprise_name = ? AND snapshot_date >= date('now', f'-{weeks*7} days')
-        # ORDER BY snapshot_date DESC
-        return []
+        api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
+        try:
+            # 1. 聚合数据（趋势计算用）
+            resp = requests.get(
+                f"{api_url}/api/counts/timeseries",
+                params={"camera_id": 1, "days": weeks * 7},
+                timeout=5,
+            )
+            resp.raise_for_status()
+            raw = resp.json()
+            rows = raw.get("data", []) if isinstance(raw, dict) else raw
+            result = [
+                {
+                    "snapshot_date": row["bucket"],
+                    "headcount": round(row["avg_count"]),
+                    "snapshot_path": "",
+                }
+                for row in rows
+                if row.get("avg_count") is not None
+            ]
+
+            # 2. 原始记录（关键时刻截图用）
+            try:
+                from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+                from_ts = (_dt.now(_tz.utc) - _td(days=weeks * 7)).strftime("%Y-%m-%d")
+                raw_resp = requests.get(
+                    f"{api_url}/api/counts/timeseries",
+                    params={"camera_id": 1, "bucket": "raw", "from": from_ts},
+                    timeout=5,
+                )
+                raw_resp.raise_for_status()
+                raw_data = raw_resp.json()
+                raw_rows = raw_data.get("data", []) if isinstance(raw_data, dict) else []
+                # 过滤掉无快照的记录
+                snapshots = [
+                    r for r in raw_rows
+                    if r.get("snapshot_path") and r.get("person_count") is not None
+                ]
+                if snapshots:
+                    ReportingService._attach_key_snapshots(result, snapshots)
+            except (requests.RequestException, ValueError, KeyError):
+                pass  # 截图获取失败不影响趋势数据
+
+            return result
+        except (requests.RequestException, ValueError, KeyError):
+            return []
 
     @staticmethod
     def _compute_headcount_trend(
