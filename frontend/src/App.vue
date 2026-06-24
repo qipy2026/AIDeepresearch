@@ -140,25 +140,25 @@
             </svg>
             开始新调查
           </button>
-          <a class="sidebar-link" href="http://localhost:8080/rag/upload" target="_blank" rel="noopener">
+          <a class="sidebar-link" href="/rag/upload">
             <svg viewBox="0 0 24 24" width="16" height="16">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             上传参考文档
           </a>
-          <a class="sidebar-link" href="http://localhost:8080/warnings" target="_blank" rel="noopener">
+          <a class="sidebar-link" href="/warnings">
             <svg viewBox="0 0 24 24" width="16" height="16">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
             </svg>
             预警中心
           </a>
-          <a class="sidebar-link" href="http://localhost:8080/enterprises" target="_blank" rel="noopener">
+          <a class="sidebar-link" href="/enterprises">
             <svg viewBox="0 0 24 24" width="16" height="16">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             企业管理
           </a>
-          <a class="sidebar-link" href="http://localhost:8080/sources" target="_blank" rel="noopener">
+          <a class="sidebar-link" href="/sources">
             <svg viewBox="0 0 24 24" width="16" height="16">
               <path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v2H9V9zm0 4h6v2H9v-2z" fill="currentColor"/>
             </svg>
