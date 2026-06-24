@@ -59,14 +59,16 @@ class DeepResearchAgent:
     def _make_weekly_tasks(topic: str) -> list[TodoItem]:
         from services.reporter import ReportingService
         enterprise = ReportingService._extract_enterprise_from_topic(topic)
+        # 从 enterprises.yaml 获取目标企业的行业，动态生成搜索 query
+        industry = ReportingService._get_enterprise_field(enterprise, "industry") or "行业"
         return [
             TodoItem(id=1, title="行业与宏观监管",
                      intent="搜索行业动态、政策变化和风险提示",
-                     query="保安服务 行业 发展 营收 2026",
+                     query=f"{industry} 行业 发展 营收 2026",
                      micro_queries=[
-                         "保安服务 行业发展 营收 规模 2026",
-                         "保安服务 监管 政策 公安部 新规",
-                         "保安服务 行业 风险 挑战",
+                         f"{industry} 行业发展 营收 规模 2026",
+                         f"{industry} 监管 政策 新规",
+                         f"{industry} 行业 风险 挑战",
                      ]),
             TodoItem(id=2, title="核心企业监管",
                      intent="排查两家甲方核心企业的经营风险",

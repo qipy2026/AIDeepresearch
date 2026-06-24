@@ -13,6 +13,28 @@ logger = logging.getLogger(__name__)
 
 MAX_TOKENS_PER_SOURCE = 2000
 
+# 搜索域名黑名单 — 命中域名的搜索结果会被静默过滤
+SEARCH_DOMAIN_BLOCKLIST = [
+    "linkedin.com/jobs",    # LinkedIn 职位页 — 搜索误匹配
+    "ye998.com",            # 色情/垃圾站
+    "moneyminors.com",      # 无关内容
+    "earlybird.com",        # VC网站，非企业信息
+    "qs.com",               # QS教育排名，与贷后无关
+    "libguides.luc.edu",    # 大学图书馆，无关
+]
+
+
+def _is_blocked(url: str) -> bool:
+    """检查 URL 是否命中黑名单域名。"""
+    if not url:
+        return False
+    url_lower = url.lower()
+    for domain in SEARCH_DOMAIN_BLOCKLIST:
+        if domain in url_lower:
+            logger.info("search: blocked URL containing %s: %s", domain, url[:80])
+            return True
+    return False
+
 
 def _search_duckduckgo(query: str, max_results: int) -> List[dict]:
     try:
@@ -75,8 +97,16 @@ def dispatch_search(
             results = _search_duckduckgo(query, max_results)
             backend_label = "duckduckgo"
 
+        # 过滤黑名单域名
+        filtered = []
+        for r in results:
+            url = r.get("url") or r.get("href") or ""
+            if _is_blocked(url):
+                continue
+            filtered.append(r)
+
         payload: dict[str, Any] = {
-            "results": results,
+            "results": filtered,
             "backend": backend_label,
             "answer": answer_text,
             "notices": [],

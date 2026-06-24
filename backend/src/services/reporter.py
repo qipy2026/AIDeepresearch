@@ -202,9 +202,18 @@ class ReportingService:
 
     @staticmethod
     def _extract_enterprise_from_topic(topic: str) -> str:
-        """从调查主题中提取企业名。"""
+        """从调查主题中提取企业名。先匹配含公司后缀的，再回退到 enterprises.yaml 已知企业名。"""
         m = re.search(r"([一-鿿]{2,20}(?:有限公司|有限责任公司|分公司))", topic)
-        return m.group(1) if m else topic.strip()
+        if m:
+            return m.group(1)
+        # Fallback: match against known enterprise names from YAML (covers names
+        # without standard company suffixes like 新街里南城都汇, 四川能投润嘉)
+        ents = ReportingService._load_enterprises_yaml()
+        for ent in ents:
+            name = ent.get("name", "")
+            if name and len(name) >= 3 and name in topic:
+                return name
+        return topic.strip()
 
     @staticmethod
     def _calc_risk_counts_from_tasks(tasks: list) -> dict:
@@ -249,6 +258,29 @@ class ReportingService:
 
         result = rag_query(field_key, enterprise, n_results=1)
         return result if result else None
+
+    @staticmethod
+    def _load_enterprises_yaml() -> list[dict]:
+        """加载 enterprises.yaml 企业列表。"""
+        import yaml
+        from pathlib import Path as _Path
+
+        _p = _Path(__file__).resolve().parent.parent.parent / "config" / "enterprises.yaml"
+        if not _p.exists():
+            return []
+        with open(_p, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return data.get("enterprises", [])
+
+    @classmethod
+    def _get_enterprise_field(cls, enterprise_name: str, field: str) -> str:
+        """从 enterprises.yaml 按企业名查询字段值。无匹配返回空字符串。"""
+        ents = cls._load_enterprises_yaml()
+        for ent in ents:
+            if ent.get("name") == enterprise_name:
+                val = ent.get(field, "")
+                return str(val) if val else ""
+        return ""
 
     def _collect_sources(self, tasks: list) -> str:
         """从所有任务中收集来源链接。"""
@@ -322,8 +354,12 @@ class ReportingService:
         enterprise = self._extract_enterprise_from_topic(topic)
         risk = self._calc_risk_counts_from_tasks(tasks)
         ref_text = self._read_reference_doc(enterprise)
-        industry = self._rag_match("industry", ref_text, enterprise) or "安保服务"
-        loan_amount = self._rag_match("loan_amount", ref_text, enterprise) or "1000.0"
+
+        # 企业字段: ChromaDB RAG → enterprises.yaml lookup → 空字符串
+        industry = (self._rag_match("industry", ref_text, enterprise)
+                    or self._get_enterprise_field(enterprise, "industry"))
+        loan_amount = (self._rag_match("loan_amount", ref_text, enterprise)
+                       or self._get_enterprise_field(enterprise, "loan_amount"))
 
         # ── 运营信号 ──
         headcount_trend = self._compute_headcount_trend(enterprise)

@@ -315,13 +315,37 @@ def create_app() -> FastAPI:
         }
         if not ent["name"]:
             raise HTTPException(400, "企业名称不能为空")
+
+        # Tier 1 自动补全：行业或关键词为空时，LLM 推断
+        enrichment = None
+        if not ent["industry"] or not keywords_raw or len(keywords_raw) <= 1:
+            try:
+                from services.enterprise_enricher import enrich
+                enrichment = enrich(ent["name"], ent["role"])
+                if not enrichment.get("skipped"):
+                    if enrichment.get("industry") and not ent["industry"]:
+                        ent["industry"] = enrichment["industry"]
+                    if enrichment.get("keywords"):
+                        ent["keywords"] = enrichment["keywords"]
+            except Exception as _e:
+                logger.warning("enricher failed for %s: %s", ent["name"], _e)
+
         _p = _Path(__file__).parent.parent / "config" / "enterprises.yaml"
         with open(_p, "r", encoding="utf-8") as f:
             data = _yaml.safe_load(f)
         data["enterprises"].append(ent)
         with open(_p, "w", encoding="utf-8") as f:
             _yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
-        return {"status": "ok", "enterprise": ent["name"]}
+
+        resp = {"status": "ok", "enterprise": ent["name"]}
+        if enrichment:
+            resp["enrichment"] = {
+                "industry": enrichment.get("industry"),
+                "keywords": enrichment.get("keywords"),
+                "confidence": enrichment.get("confidence"),
+                "skipped": enrichment.get("skipped", False),
+            }
+        return resp
 
     # ── 行业扫描 API ──────────────────────────────────
     _industry_cache: dict[str, Any] = {}
