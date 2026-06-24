@@ -350,6 +350,34 @@ def create_app() -> FastAPI:
         except Exception as _e:
             return {"status": "error", "message": str(_e)}
 
+    # ── 数据源管理 ──────────────────────────────────
+
+    @app.get("/sources", response_class=HTMLResponse)
+    def sources_page():
+        from pathlib import Path as _Path
+        _p = _Path(__file__).parent / "templates" / "sources.html"
+        return _p.read_text(encoding="utf-8")
+
+    @app.get("/api/sources")
+    def get_sources():
+        import yaml as _yaml
+        from pathlib import Path as _Path
+        _p = _Path(__file__).parent.parent / "config" / "sources.yaml"
+        with open(_p, "r", encoding="utf-8") as _f:
+            data = _yaml.safe_load(_f)
+        return {"status": "ok", "sources": data.get("sources", [])}
+
+    @app.post("/api/sources")
+    async def save_sources(request: Request):
+        import yaml as _yaml
+        from pathlib import Path as _Path
+        body = await request.json()
+        sources = body.get("sources", [])
+        _p = _Path(__file__).parent.parent / "config" / "sources.yaml"
+        with open(_p, "w", encoding="utf-8") as _f:
+            _yaml.dump({"sources": sources}, _f, allow_unicode=True, default_flow_style=False)
+        return {"status": "ok", "count": len(sources)}
+
     @app.delete("/api/enterprises/{name:path}")
     def delete_enterprise_api(name: str):
         import yaml as _yaml
@@ -720,11 +748,12 @@ def create_app() -> FastAPI:
 
         # 网页爬虫采集（巨潮公告等）
         try:
-            from services.web_scraper import collect_for_enterprise
+            from services.web_scraper import collect_for_enterprise, collect_from_sources
             from services.llm_extractor import extract_and_classify, classify_to_severity
             from scrape_db import insert as insert_scrape_source
             for ent in _ents:
                 scraped = collect_for_enterprise(ent)
+                scraped += collect_from_sources(ent)
                 for item in scraped:
                     llm_result = extract_and_classify(item["text"], _ents)
                     # 存储原始素材（无论是否关联到企业都存）

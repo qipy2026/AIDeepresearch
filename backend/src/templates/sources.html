@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据源管理 - 贷后监管</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
+.header { background: linear-gradient(135deg,#1e293b,#334155); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:12px; }
+.header h1 { font-size:18px; font-weight:700; }
+a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
+.container { max-width:1100px; margin:0 auto; padding:24px; }
+
+.toolbar { display:flex; gap:10px; margin-bottom:16px; align-items:center; }
+.btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+.btn-primary { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; }
+.btn-outline { background:transparent; border:1px solid #e2e8f0; color:#64748b; }
+.btn-sm { padding:4px 8px; font-size:11px; border-radius:5px; cursor:pointer; border:1px solid #e2e8f0; }
+
+table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+th { background:#f8fafc; text-align:left; padding:12px 14px; font-size:12px; font-weight:700; color:#64748b; border-bottom:2px solid #e2e8f0; }
+td { padding:10px 14px; font-size:13px; border-bottom:1px solid #f1f5f9; }
+tr:hover { background:#fafbfc; }
+
+.tag { display:inline-block; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:600; }
+.tag-macro { background:#dbeafe; color:#1e40af; }
+.tag-report { background:#dcfce7; color:#166534; }
+.tag-opinion { background:#fef3c7; color:#92400e; }
+.tag-commerce { background:#fce7f3; color:#9d174d; }
+.tag-movie { background:#e0e7ff; color:#3730a3; }
+.tag-rank { background:#fef2f2; color:#991b1b; }
+.tag-stock { background:#e0f2fe; color:#075985; }
+
+.toggle { width:40px; height:22px; border-radius:11px; border:none; cursor:pointer; transition:background .2s; }
+.toggle.on { background:#16a34a; }
+.toggle.off { background:#cbd5e1; }
+.toggle::after { content:''; display:block; width:18px; height:18px; border-radius:50%; background:#fff; margin:2px; transition:transform .2s; }
+.toggle.on::after { transform:translateX(18px); }
+
+.modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,.5); align-items:center; justify-content:center; padding:24px; }
+.modal.open { display:flex; }
+.modal-box { background:#fff; border-radius:16px; padding:24px; max-width:500px; width:100%; box-shadow:0 24px 64px rgba(0,0,0,.25); }
+.modal-box h3 { margin-bottom:16px; }
+.form-row { display:flex; gap:10px; margin-bottom:10px; }
+.form-field { flex:1; }
+.form-field label { display:block; font-size:11px; font-weight:600; color:#94a3b8; margin-bottom:3px; }
+.form-field input, .form-field select { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:7px; font-size:13px; }
+.msg { padding:8px 14px; border-radius:8px; font-size:13px; margin-top:10px; display:none; }
+.msg.ok { display:block; background:#dcfce7; color:#166534; }
+.msg.err { display:block; background:#fee2e2; color:#991b1b; }
+</style>
+</head>
+<body>
+<div class="header">
+  <span>📡</span><h1>数据源管理</h1>
+  <span style="flex:1"></span>
+  <a class="back" href="/warnings">← 预警中心</a>
+</div>
+
+<div class="container">
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAdd()">+ 新增数据源</button>
+    <button class="btn btn-outline" onclick="saveAll()">💾 保存修改</button>
+    <span style="font-size:12px;color:#94a3b8;margin-left:8px;" id="statusMsg"></span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>状态</th><th>名称</th><th>URL</th><th>分类</th><th>采集频率</th><th>builtin</th><th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="sourceTable"></tbody>
+  </table>
+</div>
+
+<!-- 新增/编辑弹窗 -->
+<div class="modal" id="editModal">
+  <div class="modal-box">
+    <h3 id="modalTitle">新增数据源</h3>
+    <div class="form-row">
+      <div class="form-field" style="flex:2"><label>名称 *</label><input id="sName"></div>
+      <div class="form-field"><label>分类</label>
+        <select id="sCategory">
+          <option value="宏观数据">宏观数据</option>
+          <option value="行业报告">行业报告</option>
+          <option value="舆情指数">舆情指数</option>
+          <option value="电商流量">电商流量</option>
+          <option value="影视票房">影视票房</option>
+          <option value="行业排名">行业排名</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field" style="flex:2"><label>URL *</label><input id="sUrl"></div>
+      <div class="form-field"><label>采集频率</label>
+        <select id="sSchedule"><option value="daily">每日</option><option value="weekly">每周</option><option value="monthly">每月</option></select>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="document.getElementById('editModal').classList.remove('open')">取消</button>
+      <button class="btn btn-primary" onclick="saveSource()">确定</button>
+    </div>
+    <div id="editMsg" class="msg"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8080';
+let sources = [];
+let editIndex = -1;
+
+const CAT_TAGS = {
+  '宏观数据': 'macro', '行业报告': 'report', '舆情指数': 'opinion',
+  '电商流量': 'commerce', '影视票房': 'movie', '行业排名': 'rank',
+  '上市公司公告': 'stock', '其他': 'macro'
+};
+
+async function loadSources() {
+  const resp = await fetch(API + '/api/sources');
+  const data = await resp.json();
+  sources = data.sources || [];
+  render();
+}
+
+function render() {
+  const tbody = document.getElementById('sourceTable');
+  tbody.innerHTML = sources.map((s, i) => {
+    const tag = CAT_TAGS[s.category] || 'macro';
+    const builtin = s.builtin ? '🔒' : '';
+    return `<tr>
+      <td><button class="toggle ${s.enabled ? 'on' : 'off'}" onclick="toggleSource(${i})"></button></td>
+      <td>${s.name}</td>
+      <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><a href="${s.url}" target="_blank" style="color:#3b82f6;">${s.url}</a></td>
+      <td><span class="tag tag-${tag}">${s.category}</span></td>
+      <td>${s.schedule === 'daily' ? '每日' : s.schedule === 'weekly' ? '每周' : '每月'}</td>
+      <td>${builtin}</td>
+      <td>
+        <button class="btn-sm" onclick="openEdit(${i})">编辑</button>
+        ${s.builtin ? '' : `<button class="btn-sm" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;" onclick="deleteSource(${i})">删除</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleSource(i) {
+  sources[i].enabled = !sources[i].enabled;
+  render();
+  document.getElementById('statusMsg').textContent = '状态已修改，请点击「保存修改」';
+}
+
+function openAdd() {
+  editIndex = -1;
+  document.getElementById('modalTitle').textContent = '新增数据源';
+  document.getElementById('sName').value = '';
+  document.getElementById('sUrl').value = '';
+  document.getElementById('sCategory').value = '其他';
+  document.getElementById('sSchedule').value = 'daily';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function openEdit(i) {
+  editIndex = i;
+  const s = sources[i];
+  document.getElementById('modalTitle').textContent = '编辑数据源';
+  document.getElementById('sName').value = s.name;
+  document.getElementById('sUrl').value = s.url;
+  document.getElementById('sCategory').value = s.category;
+  document.getElementById('sSchedule').value = s.schedule;
+  document.getElementById('editModal').classList.add('open');
+}
+
+function saveSource() {
+  const name = document.getElementById('sName').value.trim();
+  const url = document.getElementById('sUrl').value.trim();
+  if (!name || !url) {
+    document.getElementById('editMsg').className = 'msg err';
+    document.getElementById('editMsg').textContent = '名称和 URL 不能为空';
+    return;
+  }
+  const entry = {
+    name, url,
+    category: document.getElementById('sCategory').value,
+    schedule: document.getElementById('sSchedule').value,
+    enabled: true
+  };
+  if (editIndex >= 0) {
+    entry.enabled = sources[editIndex].enabled;
+    if (sources[editIndex].builtin) entry.builtin = true;
+    sources[editIndex] = entry;
+  } else {
+    sources.push(entry);
+  }
+  document.getElementById('editModal').classList.remove('open');
+  render();
+  document.getElementById('statusMsg').textContent = '已修改，请点击「保存修改」';
+}
+
+function deleteSource(i) {
+  if (!confirm('删除 ' + sources[i].name + '？')) return;
+  sources.splice(i, 1);
+  render();
+  document.getElementById('statusMsg').textContent = '已修改，请点击「保存修改」';
+}
+
+async function saveAll() {
+  try {
+    const resp = await fetch(API + '/api/sources', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({sources})
+    });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      document.getElementById('statusMsg').textContent = '✅ 保存成功，下次采集周期生效';
+    }
+  } catch(e) {
+    document.getElementById('statusMsg').textContent = '保存失败';
+  }
+}
+
+loadSources();
+</script>
+</body>
+</html>

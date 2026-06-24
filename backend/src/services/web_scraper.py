@@ -120,3 +120,46 @@ def collect_for_enterprise(enterprise: dict[str, Any]) -> list[dict[str, Any]]:
         })
 
     return results
+
+
+def load_enabled_sources() -> list[dict[str, Any]]:
+    """读取 sources.yaml 中已启用的数据源。"""
+    try:
+        import yaml
+        from pathlib import Path
+        config_path = Path(__file__).resolve().parent.parent.parent / "config" / "sources.yaml"
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        return [s for s in data.get("sources", []) if s.get("enabled")]
+    except Exception as e:
+        logger.warning("Failed to load sources.yaml: %s", e)
+        return []
+
+
+def collect_from_sources(enterprise: dict[str, Any]) -> list[dict[str, Any]]:
+    """对所有已启用的通用数据源进行采集。"""
+    sources = load_enabled_sources()
+    sources = [s for s in sources if not s.get("builtin")]
+    if not sources:
+        return []
+
+    keyword = enterprise.get("parent", "") or enterprise["name"]
+    results = []
+
+    for src in sources:
+        try:
+            text = fetch_page_text(src["url"])
+            if not text or len(text) < 50:
+                continue
+            results.append({
+                "title": f'{src["name"]} - 数据采集',
+                "time": datetime.now().isoformat(),
+                "text": text[:3000],
+                "source_label": f'{keyword}（{src["name"]}）',
+                "source": "web_scrape",
+                "source_url": src["url"],
+            })
+        except Exception as e:
+            logger.warning("Source %s crawl failed: %s", src["name"], e)
+
+    return results
