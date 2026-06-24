@@ -85,13 +85,12 @@ def _inject_snapshot_images(report: str, key_snapshots: list) -> str:
     img_block = "\n".join(img_lines) + "\n"
 
     # 替换占位文本为真实截图
-    import re as _re
-    report = _re.sub(
+    report = re.sub(
         r"（占位，预备未来接入摄像头数据）",
         img_block,
         report,
     )
-    report = _re.sub(
+    report = re.sub(
         r"（若上下文中包含【关键时刻截图】.*?）",
         img_block,
         report,
@@ -221,11 +220,20 @@ class ReportingService:
                 ]
                 if snapshots:
                     ReportingService._attach_key_snapshots(result, snapshots)
-            except (requests.RequestException, ValueError, KeyError):
-                pass  # 截图获取失败不影响趋势数据
+            except (requests.RequestException, ValueError, KeyError) as _e:
+                logger.warning(
+                    "摄像头截图数据获取失败，企业={}，错误={}",
+                    enterprise,
+                    _e,
+                )
 
             return result
-        except (requests.RequestException, ValueError, KeyError):
+        except (requests.RequestException, ValueError, KeyError) as _e:
+            logger.warning(
+                "摄像头快照API不可达，企业={}，错误={}，降级为空数据",
+                enterprise,
+                _e,
+            )
             return []
 
     @staticmethod
@@ -774,7 +782,7 @@ class ReportingService:
             _key_snaps = weekly_data.get("key_snapshots") or []
             if _key_snaps:
                 api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
-                prompt += "\n\n【重要：以下关键时刻截图必须原样复制到报告"重点时段照片记录"节，不可省略】\n"
+                prompt += "\n\n[重要: 以下关键时刻截图必须原样复制到报告[重点时段照片记录]节, 不可省略]\n"
                 for s in _key_snaps:
                     fname = s["snapshot_path"].replace("\\", "/").split("/")[-1]
                     prompt += f"![{s['snapshot_date']} {s['headcount']}人]({api_url}/snapshots/{fname})\n"
@@ -797,11 +805,12 @@ class ReportingService:
 
         # 后处理：注入关键时刻截图到报告
         _key_snaps = weekly_data.get("key_snapshots") if self._style == "weekly" else None
+        with open("/tmp/snapshot_debug.log", "a") as _f:
+            _f.write(f"DEBUG key_snaps: {_key_snaps is not None}, len={len(_key_snaps) if _key_snaps else 0}\n")
         if _key_snaps:
-            logger.info("Injecting {} key snapshot images into report", len(_key_snaps))
             report_text = _inject_snapshot_images(report_text, _key_snaps)
-        elif self._style == "weekly":
-            logger.warning("No key_snapshots in weekly_data — snapshot injection skipped")
+            with open("/tmp/snapshot_debug.log", "a") as _f:
+                _f.write(f"DEBUG after inject, has_img={'![' in report_text}\n")
 
         return report_text
 

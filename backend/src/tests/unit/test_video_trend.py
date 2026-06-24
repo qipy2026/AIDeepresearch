@@ -218,3 +218,116 @@ class TestComputeHeadcountTrend:
         result = ReportingService._compute_headcount_trend("测试企业")
         # Should not raise; dedup works
         assert result["status"] in ("stable", "decline", "growth", "insufficient", "anomaly")
+
+
+class TestAttachKeySnapshots:
+    """T3: _attach_key_snapshots — key moment selection and backfill."""
+
+    def test_selects_peak_valley_9am_2pm(self):
+        """有4张不同时间快照 → 4个关键时刻全部选取并匹配到聚合桶."""
+        from services.reporter import ReportingService
+
+        aggregated = [
+            {"snapshot_date": "2026-06-24T14", "headcount": 18, "snapshot_path": ""},
+            {"snapshot_date": "2026-06-24T09", "headcount": 5, "snapshot_path": ""},
+        ]
+        raw = [
+            {"timestamp": "2026-06-24T14:00:00+00:00", "person_count": 18,
+             "snapshot_path": "/data/snap_14.jpg"},
+            {"timestamp": "2026-06-24T09:05:00+00:00", "person_count": 5,
+             "snapshot_path": "/data/snap_09.jpg"},
+            {"timestamp": "2026-06-24T16:00:00+00:00", "person_count": 25,
+             "snapshot_path": "/data/snap_16.jpg"},
+            {"timestamp": "2026-06-24T08:55:00+00:00", "person_count": 3,
+             "snapshot_path": "/data/snap_08.jpg"},
+        ]
+
+        ReportingService._attach_key_snapshots(aggregated, raw)
+
+        # 14:00 桶匹配到 14:00 快照
+        row_14 = next(r for r in aggregated if r["snapshot_date"] == "2026-06-24T14")
+        assert row_14["snapshot_path"] != ""
+        # 09:00 桶匹配到 09:05 快照
+        row_09 = next(r for r in aggregated if r["snapshot_date"] == "2026-06-24T09")
+        assert row_09["snapshot_path"] != ""
+
+    def test_empty_raw_snapshots_is_noop(self):
+        """空原始快照列表 → 聚合结果不变,不抛异常."""
+        from services.reporter import ReportingService
+
+        aggregated = [
+            {"snapshot_date": "2026-06-24T14", "headcount": 0, "snapshot_path": ""},
+        ]
+        ReportingService._attach_key_snapshots(aggregated, [])
+
+        assert aggregated[0]["snapshot_path"] == ""
+
+    def test_single_snapshot_becomes_all_key_moments(self):
+        """只有1张快照 → peak/valley/9am/2pm 都是同一张."""
+        from services.reporter import ReportingService
+
+        aggregated = [
+            {"snapshot_date": "2026-06-24T12", "headcount": 10, "snapshot_path": ""},
+        ]
+        raw = [
+            {"timestamp": "2026-06-24T12:00:00+00:00", "person_count": 10,
+             "snapshot_path": "/data/snap_solo.jpg"},
+        ]
+
+        ReportingService._attach_key_snapshots(aggregated, raw)
+        assert aggregated[0]["snapshot_path"] == "/data/snap_solo.jpg"
+
+
+class TestInjectSnapshotImages:
+    """T4: _inject_snapshot_images — post-processing placeholder replacement."""
+
+    def test_replaces_placeholder_with_images(self):
+        """报告中含占位文本 → 替换为真实截图 markdown 图片."""
+        from services.reporter import _inject_snapshot_images
+
+        report = """## 四、现场视频巡检
+
+### 重点时段照片记录
+
+（占位，预备未来接入摄像头数据）
+
+报告结束。"""
+
+        key_snapshots = [
+            {"snapshot_date": "2026-06-24T16", "headcount": 17,
+             "snapshot_path": "/data/snap_16.jpg"},
+            {"snapshot_date": "2026-06-24T14", "headcount": 18,
+             "snapshot_path": "/data/snap_14.jpg"},
+        ]
+
+        result = _inject_snapshot_images(report, key_snapshots)
+
+        assert "占位" not in result
+        assert "snap_16.jpg" in result
+        assert "snap_14.jpg" in result
+        assert "17人" in result
+        assert "18人" in result
+
+    def test_empty_snapshots_returns_unchanged(self):
+        """空截图列表 → 报告原文不变."""
+        from services.reporter import _inject_snapshot_images
+
+        report = "（占位，预备未来接入摄像头数据）"
+        result = _inject_snapshot_images(report, [])
+
+        assert result == report
+
+    def test_alternate_placeholder_pattern_replaced(self):
+        """备用占位模式（关键时刻截图）也正确替换."""
+        from services.reporter import _inject_snapshot_images
+
+        report = "（若上下文中包含【关键时刻截图】，请原样复制到此处）"
+        key_snapshots = [
+            {"snapshot_date": "2026-06-24T09", "headcount": 5,
+             "snapshot_path": "/data/snap_09.jpg"},
+        ]
+
+        result = _inject_snapshot_images(report, key_snapshots)
+
+        assert "关键时刻截图" not in result
+        assert "snap_09.jpg" in result

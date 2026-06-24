@@ -16,8 +16,11 @@ from services.reporter import (
 class TestWeeklyReportPipeline:
     """Full pipeline: data → context → report generation."""
 
-    def test_insufficient_trend_produces_fallback_in_context(self):
+    def test_insufficient_trend_produces_fallback_in_context(self, monkeypatch):
         """When CameraSnapshot is empty, the context shows '数据不足'."""
+        def _mock_empty(*args, **kwargs):
+            return []
+        monkeypatch.setattr(ReportingService, "_read_camera_snapshots", _mock_empty)
         svc = ReportingService.__new__(ReportingService)
         data = svc._build_weekly_data("测试企业", [])
         ctx = ReportingService._format_weekly_context(data)
@@ -109,3 +112,161 @@ class TestWeeklyReportPipeline:
 
         assert "数据异常" in ctx
         assert "摄像头配置" in ctx
+
+    def test_key_snapshots_injected_into_context(self):
+        """E2E: key_snapshots in WeeklyData produce screenshot markdown in context."""
+        data = WeeklyData(
+            enterprise="测试企业",
+            industry="安保",
+            loan_amount="500.0",
+            risk={"red": 0, "orange": 0, "yellow": 0, "total": 0},
+            headcount_trend={
+                "status": "stable",
+                "current_avg": 15.0,
+                "prior_avg": 14.0,
+                "delta_pct": 0.071,
+                "message": "→ 稳定，变化 7.1%",
+            },
+            key_snapshots=[
+                {"snapshot_date": "2026-06-24T16", "headcount": 17,
+                 "snapshot_path": "/data/snap_16.jpg"},
+                {"snapshot_date": "2026-06-24T14", "headcount": 18,
+                 "snapshot_path": "/data/snap_14.jpg"},
+            ],
+        )
+        ctx = ReportingService._format_weekly_context(data)
+
+        # 截图应出现在关键时刻截图区域
+        assert "snap_16.jpg" in ctx
+        assert "snap_14.jpg" in ctx
+        assert "人数" in ctx
+        assert "关键时刻截图" in ctx
+
+    def test_screenshot_injection_post_process(self):
+        """E2E: _inject_snapshot_images replaces placeholder in a complete report."""
+        from services.reporter import _inject_snapshot_images
+
+        report = """## 四、现场视频巡检
+
+（注：一个企业通常配置4-6个摄像头点位，以下为巡检数据）
+
+### 重点时段照片记录
+
+（占位，预备未来接入摄像头数据）
+
+---
+## 五、综合结论与建议
+"""
+
+        key_snapshots = [
+            {"snapshot_date": "2026-06-24T16", "headcount": 17,
+             "snapshot_path": "/data/snap_a.jpg"},
+        ]
+
+        result = _inject_snapshot_images(report, key_snapshots)
+
+        assert "占位" not in result
+        assert "snap_a.jpg" in result
+        # 其余章节不受影响
+        assert "综合结论与建议" in result
+
+
+class TestCameraApiConnectivity:
+    """T9: 真实摄像头数据源连通性与 schema 契约验证。
+
+    这些测试在摄像头 search 项目不可达时自动跳过。
+    """
+
+    @staticmethod
+    def _camera_api_url() -> str:
+        import os
+        return os.getenv("CAMERA_API_URL", "http://localhost:5000")
+
+    @classmethod
+    def _is_reachable(cls) -> bool:
+        import requests
+        try:
+            r = requests.get(
+                f"{cls._camera_api_url()}/api/counts/timeseries",
+                params={"camera_id": 1, "days": 1},
+                timeout=3,
+            )
+            return r.status_code == 200
+        except requests.RequestException:
+            return False
+
+    def test_aggregated_endpoint_schema(self):
+        """聚合端点返回 schema 与 _read_camera_snapshots 契约一致。
+
+        验证: data[] 中每项含 bucket/avg_count/min_count/max_count/sample_count。
+        """
+        if not self._is_reachable():
+            pytest.skip("摄像头 search 项目不可达")
+
+        import requests
+        resp = requests.get(
+            f"{self._camera_api_url()}/api/counts/timeseries",
+            params={"camera_id": 1, "days": 7},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+
+        assert isinstance(body, dict), f"顶层期望 dict，实际 {type(body)}"
+        data = body.get("data", []) if isinstance(body, dict) else []
+        assert isinstance(data, list), f"data 期望 list，实际 {type(data)}"
+
+        required_fields = {"bucket", "avg_count", "min_count", "max_count", "sample_count"}
+        for i, row in enumerate(data[:20]):  # 抽检前 20 条
+            missing = required_fields - set(row.keys())
+            assert not missing, f"行 {i} 缺字段: {missing}"
+
+    def test_raw_endpoint_schema(self):
+        """原始记录端点返回 schema 含 snapshot_path/person_count/timestamp。
+
+        验证: 可被 _attach_key_snapshots 正确消费。
+        """
+        if not self._is_reachable():
+            pytest.skip("摄像头 search 项目不可达")
+
+        import requests
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        from_ts = (_dt.now(_tz.utc) - _td(days=7)).strftime("%Y-%m-%d")
+
+        resp = requests.get(
+            f"{self._camera_api_url()}/api/counts/timeseries",
+            params={"camera_id": 1, "bucket": "raw", "from": from_ts},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+
+        data = body.get("data", []) if isinstance(body, dict) else []
+        assert isinstance(data, list), f"raw data 期望 list，实际 {type(data)}"
+
+        if data:
+            required_fields = {"snapshot_path", "person_count", "timestamp"}
+            for i, row in enumerate(data[:10]):
+                missing = required_fields - set(row.keys())
+                assert not missing, f"raw 行 {i} 缺字段: {missing}"
+
+    def test_full_pipeline_with_real_data(self):
+        """端到端: 真实 API 数据 → _read_camera_snapshots → 聚合结果非空。
+
+        这是对【现场视频巡检数据源】最直接的连通性验证。
+        """
+        if not self._is_reachable():
+            pytest.skip("摄像头 search 项目不可达")
+
+        from services.reporter import ReportingService
+
+        result = ReportingService._read_camera_snapshots("成都瑜璟物业服务有限公司", weeks=2)
+
+        assert isinstance(result, list), f"期望 list，实际 {type(result)}"
+        # 即使数据为空也不 crash——优雅降级已验证
+        if result:
+            row0 = result[0]
+            assert "snapshot_date" in row0, f"缺 snapshot_date，keys={list(row0.keys())}"
+            assert "headcount" in row0, f"缺 headcount，keys={list(row0.keys())}"
+            assert isinstance(row0["headcount"], int), \
+                f"headcount 期望 int，实际 {type(row0['headcount'])}"
