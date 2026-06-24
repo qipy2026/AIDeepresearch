@@ -99,6 +99,10 @@ def scan_and_match(enterprises: list[dict[str, Any]],
         key=lambda x: x["change_pct"]
     )[:10]
 
+    # 东方财富不通则走同花顺 SDK
+    if not unique:
+        return _ths_fallback(enterprises, ths_user, ths_pass, now)
+
     parties = [e for e in enterprises if e.get("role") == "甲方"]
     matched_risks = []
     matched_opportunities = []
@@ -144,3 +148,80 @@ def scan_and_match(enterprises: list[dict[str, Any]],
     _cache = result
     _cache_time = now
     return result
+
+
+def _ths_fallback(enterprises, ths_user, ths_pass, now) -> dict[str, Any]:
+    """同花顺 SDK 兜底——东财不通时使用。"""
+    try:
+        from iFinDPy import THS_iFinDLogin, THS_RQ, THS_iFinDLogout
+        THS_iFinDLogin(ths_user or "dhsybl002", ths_pass or "5TSc27g4")
+    except Exception:
+        return _empty(now)
+
+    CODES = {
+        "885692.TI": "地下管网", "885431.TI": "物业管理", "885438.TI": "建筑装饰",
+        "885502.TI": "安防", "885411.TI": "煤炭", "885521.TI": "新能源",
+        "885522.TI": "电力", "885519.TI": "石油石化", "885443.TI": "汽车",
+        "885451.TI": "机械设备", "885427.TI": "电子", "885537.TI": "计算机",
+        "885546.TI": "通信", "885439.TI": "半导体", "885529.TI": "人工智能",
+        "885528.TI": "食品饮料", "885430.TI": "医药生物", "885414.TI": "环保",
+        "885473.TI": "银行", "885479.TI": "券商", "885452.TI": "房地产",
+        "885424.TI": "交通运输", "885673.TI": "物流", "885416.TI": "钢铁",
+        "885423.TI": "化工", "885550.TI": "有色金属", "885425.TI": "建材",
+        "885699.TI": "水利",
+    }
+
+    sectors = []
+    for code, name in CODES.items():
+        try:
+            data = THS_RQ(code, "latest;changeRatio", "")
+            if data and data.errorcode == 0:
+                df = data.data
+                row = df.iloc[0]
+                latest = float(row["latest"]) if "latest" in df.columns else 0
+                chg = round(float(row["changeRatio"]), 2) if "changeRatio" in df.columns else 0
+                sectors.append({"code": code, "name": name, "change_pct": chg, "index_value": latest})
+        except Exception:
+            pass
+
+    try:
+        THS_iFinDLogout()
+    except Exception:
+        pass
+
+    if not sectors:
+        return _empty(now)
+
+    sorted_asc = sorted(sectors, key=lambda x: x["change_pct"])
+    top_gainers = [s for s in sorted_asc if s["change_pct"] > 0][-10:]
+    top_gainers.reverse()
+    top_losers = [s for s in sorted_asc if s["change_pct"] < 0][:10]
+
+    parties = [e for e in enterprises if e.get("role") == "甲方"]
+    risks = []
+    for p in parties:
+        name = p.get("name", "")
+        industry = p.get("industry", "")
+        for s in top_losers:
+            if _fuzzy_match(name, industry, s["name"]):
+                chg = s["change_pct"]
+                risks.append({
+                    "enterprise": name, "sector": s["name"],
+                    "sector_code": s["code"], "change_pct": chg,
+                    "lead_stock": "",
+                    "level": "red" if chg <= -5 else ("orange" if chg <= -2 else "yellow"),
+                })
+
+    return {
+        "top_gainers": top_gainers, "top_losers": top_losers,
+        "matched_risks": risks, "matched_opportunities": [],
+        "missed_opportunities": [], "updated_at": now.isoformat(),
+    }
+
+
+def _empty(now) -> dict[str, Any]:
+    return {
+        "top_gainers": [], "top_losers": [],
+        "matched_risks": [], "matched_opportunities": [],
+        "missed_opportunities": [], "updated_at": now.isoformat(),
+    }

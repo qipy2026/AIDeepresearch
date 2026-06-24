@@ -198,69 +198,99 @@ async function submitProject() {
   document.getElementById('debtorAmount').value = '';
   document.getElementById('debtorKW').value = '';
   loadProjects();
-function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.toggle('active', b.textContent.includes(name === 'projects' ? '贷款' : '素材')); });
-  document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.toggle('active', p.id === 'tab-' + name); });
-  if (name === 'scrape') loadScrapeSources();
 }
 
-async function loadScrapeSources() {
-  var tbody = document.getElementById('scrapeTableBody');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:40px;">加载中...</td></tr>';
-  try {
-    var resp = await fetch(API + '/api/scrape/sources?limit=100');
-    var data = await resp.json();
-    if (data.status !== 'ok' || !data.sources.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:40px;">暂无采集素材，等待首次采集完成</td></tr>';
-      document.getElementById('scrapeStats').textContent = '';
-      return;
-    }
-    var sources = data.sources;
-    document.getElementById('scrapeStats').textContent = '共 ' + sources.length + ' 条';
-    tbody.innerHTML = sources.map(function(s) {
-      var dir = s.llm_direction;
-      var dirClass = dir === 'positive' ? 'dir-pos' : (dir === 'negative' ? 'dir-neg' : 'dir-neu');
-      var dirText = dir === 'positive' ? '利好' : (dir === 'negative' ? '利空' : '中性');
-      var credHtml = s.credible === null
-        ? '<button class="cred-btn up" onclick="markCredible(' + s.id + ',true)">👍</button><button class="cred-btn down" onclick="markCredible(' + s.id + ',false)">👎</button>'
-        : (s.credible ? '<span class="cred-up">可信</span>' : '<span class="cred-down">不可信</span>');
-      return '<tr>' +
-        '<td style="white-space:nowrap;font-size:12px;color:#94a3b8;">' + (s.created_at || '').slice(0,16) + '</td>' +
-        '<td style="font-size:11px;">' + (s.source || 'web') + '</td>' +
-        '<td><a href="' + (s.source_url || '#') + '" target="_blank">' + (s.title || '').slice(0,50) + '</a></td>' +
-        '<td style="font-size:12px;">' + (s.enterprise || '') + '</td>' +
-        '<td><span class="' + dirClass + '">' + dirText + '</span></td>' +
-        '<td>' + credHtml + '</td>' +
-        '</tr>';
-    }).join('');
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#dc2626;padding:40px;">加载失败</td></tr>';
+function showMsg(text, type) {
+  const m = document.getElementById('msg');
+  m.textContent = text; m.className = 'msg ' + type;
+  setTimeout(() => m.className = 'msg', 3000);
+}
+
+// ── 项目视图（乙方 + 关联甲方）──
+async function loadProjects() {
+  const resp = await fetch(API + '/api/enterprises');
+  const data = await resp.json();
+  const all = data.enterprises || [];
+  const debtors = all.filter(e => e.role === '乙方');
+  const parties = all.filter(e => e.role === '甲方');
+
+  if (!all.length) {
+    document.getElementById('projectList').innerHTML = '<div class="empty"><p style="font-size:40px;margin-bottom:12px;">📋</p><p>暂无企业，请添加</p></div>';
+    document.getElementById('totalInfo').textContent = '';
+    return;
   }
-}
 
-async function markCredible(id, val) {
-  await fetch(API + '/api/scrape/sources/' + id + '/credible?credible=' + val, {method:'POST'});
-  loadScrapeSources();
-}
-
-}
-
-async function deleteEnterprise(name) { if(confirm(`删除 ${name}？`)){await fetch(API+'/api/enterprises/'+encodeURIComponent(name),{method:'DELETE'});loadProjects();
-        </div>
-        <div id="addPartyForm_${encodeURIComponent(d.name)}" style="display:none;margin-top:8px;padding:12px;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1;">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input id="apName_${encodeURIComponent(d.name)}" placeholder="甲方企业全称 *" style="flex:2;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
-            <input id="apIndustry_${encodeURIComponent(d.name)}" placeholder="行业" style="flex:1;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
-            <input id="apParent_${encodeURIComponent(d.name)}" placeholder="母公司" style="flex:1;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
-            <input id="apStock_${encodeURIComponent(d.name)}" placeholder="股票/概念代码" style="flex:1;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
-            <button class="btn btn-primary" style="font-size:11px;padding:4px 12px;"
-              onclick="event.stopPropagation();submitPartyTo('${d.name.replace(/'/g,"\'")}')">确认添加</button>
+  let html = '';
+  debtors.forEach((d, i) => {
+    const linked = parties.filter(p => p.debtor === d.name);
+    html += `<div class="project-card open">
+      <div class="project-head" onclick="this.parentElement.classList.toggle('open')">
+        <div class="num" style="background:${COLORS[i % COLORS.length]}">${i + 1}</div>
+        <div class="info">
+          <div class="name">${d.name}
+            <span class="tag tag-debtor">乙方·债务企业</span>
+          </div>
+          <div class="meta">
+            ${d.industry ? `<span>🏭 ${d.industry}</span>` : ''}
+            ${d.loan_amount ? `<span>💰 ${d.loan_amount}万元</span>` : ''}
+            <span>甲方 ${linked.length} 家</span>
           </div>
         </div>
+        <button class="btn btn-sm" onclick="event.stopPropagation();deleteEnterprise('${d.name.replace(/'/g,"\\'")}')">删除</button>
+      </div>
+      <div class="project-body">
+        ${linked.length ? linked.map(p => `
+          <div class="party-row">
+            <div style="flex:1;min-width:0;">
+              <span class="arrow">└</span>
+              <span style="font-weight:600;font-size:14px;">${p.name}</span>
+              <span class="tag tag-party-a">甲方</span>
+              ${p.parent ? `<span class="tag tag-parent">母公司 ${p.parent}</span>` : ''}
+              ${p.parent_stock_code ? `<span class="tag tag-stock">${p.parent_stock_code}</span>` : ''}
+              <div style="font-size:12px;color:#64748b;margin-top:3px;margin-left:18px;">🏭 ${p.industry || '未填行业'}</div>
+            </div>
+            <button class="btn btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
+          </div>
+        `).join('') : '<div class="party-row" style="color:#94a3b8;">暂无关联甲方</div>'}
       </div>
     </div>`;
-  }).join('');
-  document.getElementById('totalInfo').textContent = '共 '+debtors.length+' 个项目，'+all.length+' 家企业';
+  });
+
+  // 未关联的甲方
+  const unlinked = parties.filter(p => !p.debtor);
+  if (unlinked.length) {
+    html += `<div class="project-card open" style="border-left-color:#94a3b8;">
+      <div class="project-head" onclick="this.parentElement.classList.toggle('open')">
+        <div class="num" style="background:#94a3b8;">!</div>
+        <div class="info">
+          <div class="name" style="color:#64748b;">📋 未关联的甲方（${unlinked.length}家）</div>
+          <div class="meta">缺少债务企业绑定</div>
+        </div>
+      </div>
+      <div class="project-body">
+        ${unlinked.map(p => `
+          <div class="party-row">
+            <div style="flex:1;min-width:0;">
+              <span style="font-weight:600;font-size:14px;">${p.name}</span>
+              <span class="tag tag-party-a">甲方</span>
+              ${p.parent ? `<span class="tag tag-parent">母公司 ${p.parent}</span>` : ''}
+              <div style="font-size:12px;color:#64748b;margin-top:3px;">🏭 ${p.industry || '未填行业'}</div>
+            </div>
+            <button class="btn btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('projectList').innerHTML = html;
+  document.getElementById('totalInfo').textContent = '共 ' + debtors.length + ' 个项目，' + all.length + ' 家企业';
+}
+
+async function deleteEnterprise(name) {
+  if (!confirm(`删除 ${name}？`)) return;
+  await fetch(API + '/api/enterprises/' + encodeURIComponent(name), { method: 'DELETE' });
+  loadProjects();
 }
 
 function toggleAddForm() {
@@ -274,3 +304,6 @@ function toggleAll() {
 }
 
 loadProjects();
+</script>
+</body>
+</html>
