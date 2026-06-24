@@ -102,6 +102,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # 挂载 Vue SPA 静态文件（贷后助手）
+    from fastapi.staticfiles import StaticFiles
+    from pathlib import Path as _P
+    _vue_dist = _P(__file__).parent.parent.parent / "frontend" / "dist"
+    if _vue_dist.exists():
+        app.mount("/app", StaticFiles(directory=str(_vue_dist), html=True), name="vue_spa")
+
     @app.on_event("startup")
     def log_startup_configuration() -> None:
         config = Configuration.from_env()
