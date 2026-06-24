@@ -140,6 +140,12 @@ def dispatch_search(
         if search_api == "local":
             results = _search_local(query, enterprise=enterprise, max_results=max_results)
             backend_label = "local"
+            # 本地数据不足时自动 fallback 百度搜索
+            if len(results) < 3:
+                baidu_results = _search_baidu(query, max_results=max_results - len(results))
+                if baidu_results:
+                    results = results + baidu_results
+                    backend_label = "local+baidu"
         elif search_api == "baidu":
             results = _search_baidu(query, max_results=max_results)
             backend_label = "baidu"
