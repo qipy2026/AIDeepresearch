@@ -1,9 +1,10 @@
-"""Web 搜索（LangChain 生态 / 直连 API，替代 HelloAgents SearchTool）。"""
+"""Web 搜索（SQLite 本地搜索为主，Tavily 可选 fallback）。"""
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any, List, Optional, Tuple
 
 from config import Configuration
@@ -13,51 +14,60 @@ logger = logging.getLogger(__name__)
 
 MAX_TOKENS_PER_SOURCE = 2000
 
-# 搜索域名黑名单 — 命中域名的搜索结果会被静默过滤
-SEARCH_DOMAIN_BLOCKLIST = [
-    "linkedin.com/jobs",    # LinkedIn 职位页 — 搜索误匹配
-    "ye998.com",            # 色情/垃圾站
-    "moneyminors.com",      # 无关内容
-    "earlybird.com",        # VC网站，非企业信息
-    "qs.com",               # QS教育排名，与贷后无关
-    "libguides.luc.edu",    # 大学图书馆，无关
-]
+CHINESE_STOP_WORDS = frozenset({
+    "的", "了", "在", "是", "和", "与", "或", "及", "等",
+    "风险", "搜索", "查询", "2026", "2025", "监控", "报告",
+})
 
 
-def _is_blocked(url: str) -> bool:
-    """检查 URL 是否命中黑名单域名。"""
-    if not url:
-        return False
-    url_lower = url.lower()
-    for domain in SEARCH_DOMAIN_BLOCKLIST:
-        if domain in url_lower:
-            logger.info("search: blocked URL containing %s: %s", domain, url[:80])
-            return True
-    return False
+def _extract_keywords(query: str) -> List[str]:
+    """从搜索 query 中提取中文关键词。"""
+    tokens = re.split(r"[\s,，、]+", query)
+    return [t.strip() for t in tokens if len(t.strip()) >= 2 and t.strip() not in CHINESE_STOP_WORDS]
 
 
-def _search_duckduckgo(query: str, max_results: int) -> List[dict]:
+def _search_local(
+    query: str, enterprise: str = "", max_results: int = 5
+) -> List[dict]:
+    """从 SQLite warning_log 表中搜索预警数据。"""
+    from warning_db import WarningDB
+    db = WarningDB()
+    keywords = _extract_keywords(query)
+    conn = db._get_conn()
+    results: List[dict] = []
+
+    # 企业名精确匹配优先
+    base_sql = """SELECT title, detail, severity, source, source_url, created_at
+                  FROM warning_log WHERE 1=1"""
+    params: list = []
+
+    if enterprise:
+        base_sql += " AND enterprise LIKE ?"
+        params.append(f"%{enterprise}%")
+
+    if keywords:
+        like_clauses = " OR ".join(["title LIKE ? OR detail LIKE ?"] * len(keywords))
+        base_sql += f" AND ({like_clauses})"
+        for kw in keywords:
+            params.extend([f"%{kw}%", f"%{kw}%"])
+
+    base_sql += """ ORDER BY CASE severity
+        WHEN 'red' THEN 0 WHEN 'orange' THEN 1
+        WHEN 'yellow' THEN 2 ELSE 3 END,
+        created_at DESC LIMIT ?"""
+    params.append(max_results)
+
     try:
-        from ddgs import DDGS
-
-        proxy = os.getenv("DDGS_PROXY", "")
-        ddgs_kwargs = {}
-        if proxy:
-            ddgs_kwargs["proxy"] = proxy
-        rows = DDGS(**ddgs_kwargs).text(query, max_results=max_results)
-        results = []
-        for r in rows or []:
-            results.append(
-                {
-                    "title": r.get("title") or "",
-                    "url": r.get("href") or r.get("url") or "",
-                    "content": r.get("body") or r.get("snippet") or "",
-                }
-            )
-        return results
+        rows = conn.execute(base_sql, params).fetchall()
+        for r in rows:
+            results.append({
+                "title": f"[{r['severity']}] {r['title']}",
+                "url": r.get("source_url") or "",
+                "content": (r.get("detail") or r.get("title"))[:500],
+            })
     except Exception as exc:
-        logger.warning("DuckDuckGo search failed: %s", exc)
-        raise
+        logger.warning("_search_local failed: %s", exc)
+    return results
 
 
 def _search_tavily(query: str, max_results: int) -> Tuple[List[dict], Optional[str]]:
@@ -84,29 +94,26 @@ def dispatch_search(
     query: str,
     config: Configuration,
     loop_count: int,
+    enterprise: str = "",
 ) -> Tuple[dict[str, Any] | None, list[str], Optional[str], str]:
     search_api = get_config_value(config.search_api)
     max_results = 5
 
     try:
         answer_text: Optional[str] = None
-        if search_api == "tavily":
+        if search_api == "local":
+            results = _search_local(query, enterprise=enterprise, max_results=max_results)
+            backend_label = "local"
+        elif search_api == "tavily":
             results, answer_text = _search_tavily(query, max_results)
             backend_label = "tavily"
         else:
-            results = _search_duckduckgo(query, max_results)
-            backend_label = "duckduckgo"
-
-        # 过滤黑名单域名
-        filtered = []
-        for r in results:
-            url = r.get("url") or r.get("href") or ""
-            if _is_blocked(url):
-                continue
-            filtered.append(r)
+            # 兜底：其他后端走 local
+            results = _search_local(query, enterprise=enterprise, max_results=max_results)
+            backend_label = "local"
 
         payload: dict[str, Any] = {
-            "results": filtered,
+            "results": results,
             "backend": backend_label,
             "answer": answer_text,
             "notices": [],

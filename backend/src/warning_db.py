@@ -146,6 +146,75 @@ class WarningDB:
         )
         self._get_conn().commit()
 
+    # ── 读查询（research 管线）─────────────────────────
+
+    def get_warnings_by_enterprise(
+        self, enterprise: str, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """读取某企业的全部预警（含甲方），按 severity 优先级排序。"""
+        conn = self._get_conn()
+        rows = conn.execute(
+            """SELECT enterprise, source, severity, title, detail, source_url, created_at
+               FROM warning_log
+               WHERE enterprise LIKE ?
+               ORDER BY CASE severity
+                   WHEN 'red' THEN 0 WHEN 'orange' THEN 1
+                   WHEN 'yellow' THEN 2 ELSE 3 END,
+                   created_at DESC
+               LIMIT ?""",
+            (f"%{enterprise}%", limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_warnings_grouped_by_severity(
+        self, enterprise: str
+    ) -> Dict[str, int]:
+        """按 severity 统计企业预警数量。"""
+        conn = self._get_conn()
+        rows = conn.execute(
+            """SELECT severity, COUNT(*) as cnt
+               FROM warning_log
+               WHERE enterprise LIKE ?
+               GROUP BY severity""",
+            (f"%{enterprise}%",),
+        ).fetchall()
+        result = {"red": 0, "orange": 0, "yellow": 0, "normal": 0}
+        for r in rows:
+            sev = r["severity"]
+            if sev in result:
+                result[sev] = r["cnt"]
+        return result
+
+    def count_recent_warnings(
+        self, enterprise: str, hours: int = 24
+    ) -> int:
+        """检查是否有足够的新鲜预警数据。返回最近 N 小时内的预警数。"""
+        conn = self._get_conn()
+        row = conn.execute(
+            """SELECT COUNT(*) as cnt FROM warning_log
+               WHERE enterprise LIKE ?
+               AND created_at > datetime('now', 'localtime', ?)""",
+            (f"%{enterprise}%", f"-{hours} hours"),
+        ).fetchone()
+        return row["cnt"] if row else 0
+
+    def get_signals_summary(
+        self, enterprise: str, limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """读取企业的高危信号摘要（red/orange 优先，去重）。"""
+        conn = self._get_conn()
+        rows = conn.execute(
+            """SELECT DISTINCT title, severity, source, detail, source_url, created_at
+               FROM warning_log
+               WHERE enterprise LIKE ? AND severity IN ('red', 'orange', 'yellow')
+               ORDER BY CASE severity
+                   WHEN 'red' THEN 0 WHEN 'orange' THEN 1 ELSE 2 END,
+                   created_at DESC
+               LIMIT ?""",
+            (f"%{enterprise}%", limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     def set_severity(self, warning_id: int, severity: str):
         """人工覆盖预警级别。"""
         self._get_conn().execute(

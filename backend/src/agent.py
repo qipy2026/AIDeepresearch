@@ -103,6 +103,23 @@ class DeepResearchAgent:
         state = SummaryState(research_topic=topic)
         yield {"type": "status", "message": "初始化调查流程（LangGraph 流式管线）"}
 
+        # 检查预警数据新鲜度：不足时先触发采集
+        if getattr(self.reporting, '_style', None) == 'weekly':
+            from services.reporter import ReportingService
+            from warning_db import WarningDB
+            _ent = ReportingService._extract_enterprise_from_topic(topic)
+            _db = WarningDB()
+            _recent = _db.count_recent_warnings(_ent, hours=24)
+            _total = _db.count_recent_warnings(_ent, hours=720)  # 30 days
+            if _recent < 5 and _total < 20:
+                yield {"type": "status", "message": f"预警数据不足（近24h仅有{_recent}条），正在自动采集…"}
+                try:
+                    from main import _warning_collect_cycle
+                    _warning_collect_cycle()
+                    yield {"type": "status", "message": "采集完成，继续生成报告"}
+                except Exception as _e:
+                    yield {"type": "status", "message": f"采集出错: {_e}，使用现有数据继续"}
+
         if getattr(self.reporting, '_style', None) == 'weekly':
             state.todo_items = self._make_weekly_tasks(topic)
         else:
@@ -278,8 +295,11 @@ class DeepResearchAgent:
         for q in queries:
             if not q or not q.strip():
                 continue
+            # 从 topic 提取企业名，传给本地搜索做精确匹配
+            from services.reporter import ReportingService
+            _ent = ReportingService._extract_enterprise_from_topic(state.research_topic)
             search_result, notices, answer_text, backend = dispatch_search(
-                q, self.config, state.research_loop_count
+                q, self.config, state.research_loop_count, enterprise=_ent
             )
             if notices:
                 all_notices.extend(n for n in notices if n)

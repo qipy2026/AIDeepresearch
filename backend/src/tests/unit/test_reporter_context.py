@@ -90,25 +90,34 @@ class TestExtractEnterpriseFromTopic:
         assert name == "random text without enterprise"
 
 
-class TestSearchBlocklist:
-    """Verify search domain blocklist filters correctly."""
+class TestSearchLocal:
+    """Verify _search_local queries SQLite warning_log correctly."""
 
-    def test_blocked_domain_is_filtered(self):
-        from services.web_search import _is_blocked
+    def test_search_local_returns_results(self):
+        from services.web_search import _search_local
+        import os
 
-        assert _is_blocked("https://ye998.com/page?q=test") is True
-        assert _is_blocked("https://www.linkedin.com/jobs/view/12345") is True
-        assert _is_blocked("https://www.qs.com/rankings") is True
+        # _search_local uses WarningDB with default path postloan.db (CWD)
+        # Verify the function runs without crashing
+        results = _search_local("诉讼 风险 违约", enterprise="成都瑜環", max_results=10)
+        # Database may or may not exist depending on test CWD; function should
+        # not raise an exception regardless
+        assert isinstance(results, list)
+        if results:
+            assert all("title" in r and "content" in r for r in results)
 
-    def test_normal_domain_passes(self):
-        from services.web_search import _is_blocked
+    def test_search_local_empty_for_unknown_enterprise(self):
+        from services.web_search import _search_local
 
-        assert _is_blocked("https://news.qq.com/article/123") is False
-        assert _is_blocked("https://www.sina.com.cn/finance") is False
-        assert _is_blocked("") is False
+        results = _search_local("不存在的企业", enterprise="不存在", max_results=5)
+        assert results == []
 
-    def test_blocklist_is_loaded(self):
-        from services.web_search import SEARCH_DOMAIN_BLOCKLIST
+    def test_extract_keywords_filters_stop_words(self):
+        from services.web_search import _extract_keywords
 
-        assert len(SEARCH_DOMAIN_BLOCKLIST) >= 6
-        assert "ye998.com" in SEARCH_DOMAIN_BLOCKLIST
+        kw = _extract_keywords("的 了 风险 监控 2026 物业管理 诉讼")
+        assert "物业管理" in kw
+        assert "诉讼" in kw
+        assert "风险" not in kw  # stop word
+        assert "的" not in kw
+        assert "2026" not in kw

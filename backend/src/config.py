@@ -18,6 +18,7 @@ class SearchAPI(Enum):
     DUCKDUCKGO = "duckduckgo"
     SEARXNG = "searxng"
     ADVANCED = "advanced"
+    LOCAL = "local"
 
 
 class Configuration(BaseModel):
@@ -39,7 +40,7 @@ class Configuration(BaseModel):
         description="Provider identifier (ollama, lmstudio, or custom)",
     )
     search_api: SearchAPI = Field(
-        default=SearchAPI.DUCKDUCKGO,
+        default=SearchAPI.LOCAL,
         title="Search API",
         description="Web search API to use",
     )

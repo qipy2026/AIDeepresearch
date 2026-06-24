@@ -282,6 +282,29 @@ class ReportingService:
                 return str(val) if val else ""
         return ""
 
+    @staticmethod
+    def _read_warnings_from_db(enterprise: str) -> dict:
+        """从 SQLite warning_log 读取企业预警数据。
+
+        Returns dict with:
+          signals: 高危信号列表 (red/orange/yellow)
+          counts: 按 severity 统计 {red:N, orange:N, yellow:N, normal:N}
+          total: 预警总数
+          latest_time: 最新预警时间
+        """
+        from warning_db import WarningDB
+        db = WarningDB()
+        signals = db.get_signals_summary(enterprise, limit=20)
+        counts = db.get_warnings_grouped_by_severity(enterprise)
+        total = sum(counts.values())
+        latest = signals[0]["created_at"] if signals else ""
+        return {
+            "signals": signals,
+            "counts": counts,
+            "total": total,
+            "latest_time": latest,
+        }
+
     def _collect_sources(self, tasks: list) -> str:
         """从所有任务中收集来源链接。"""
         sources = []
@@ -352,8 +375,19 @@ class ReportingService:
             else today.replace(day=today.day - 7).isoformat()
         )
         enterprise = self._extract_enterprise_from_topic(topic)
-        risk = self._calc_risk_counts_from_tasks(tasks)
+        task_risk = self._calc_risk_counts_from_tasks(tasks)
         ref_text = self._read_reference_doc(enterprise)
+
+        # 从 SQLite 读取已有预警数据（企查查+同花顺+票交所）
+        db_warnings = self._read_warnings_from_db(enterprise)
+        # 合并风险计数：SQLite 结构化数据优先，task 关键词扫描补充
+        db_counts = db_warnings.get("counts", {})
+        risk = {
+            "red": max(task_risk.get("red", 0), db_counts.get("red", 0)),
+            "orange": max(task_risk.get("orange", 0), db_counts.get("orange", 0)),
+            "yellow": max(task_risk.get("yellow", 0), db_counts.get("yellow", 0)),
+            "total": max(task_risk.get("total", 0), db_warnings.get("total", 0)),
+        }
 
         # 企业字段: ChromaDB RAG → enterprises.yaml lookup → 空字符串
         industry = (self._rag_match("industry", ref_text, enterprise)
