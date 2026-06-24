@@ -390,6 +390,60 @@ def create_app() -> FastAPI:
             _yaml.dump({"sources": sources}, _f, allow_unicode=True, default_flow_style=False)
         return {"status": "ok", "count": len(sources)}
 
+    # ── 报告管理 ──────────────────────────────────
+    import glob as _glob
+    from datetime import datetime as _dt
+    from pathlib import Path as _RP
+
+    _reports_dir = _RP(__file__).parent.parent / "reports"
+    _reports_dir.mkdir(parents=True, exist_ok=True)
+
+    @app.get("/reports", response_class=HTMLResponse)
+    def reports_page():
+        _p = _RP(__file__).parent / "templates" / "reports.html"
+        return _p.read_text(encoding="utf-8") if _p.exists() else "<h1>reports.html not found</h1>"
+
+    @app.get("/api/reports")
+    def list_reports():
+        files = sorted(_glob.glob(str(_reports_dir / "*.md")), reverse=True)
+        result = []
+        for f in files:
+            name = _RP(f).stem.replace("_", " ")[:60]
+            mtime = _RP(f).stat().st_mtime
+            result.append({
+                "id": _RP(f).stem,
+                "name": name,
+                "updated": _dt.fromtimestamp(mtime).isoformat(),
+                "size": _RP(f).stat().st_size,
+            })
+        return {"status": "ok", "reports": result}
+
+    @app.get("/api/reports/{report_id}")
+    def get_report(report_id: str):
+        _p = _reports_dir / f"{report_id}.md"
+        if not _p.exists():
+            raise HTTPException(404, "Report not found")
+        content = _p.read_text(encoding="utf-8")
+        return {"status": "ok", "id": report_id, "content": content}
+
+    @app.post("/api/reports")
+    async def save_report(request: Request):
+        body = await request.json()
+        title = body.get("title", "untitled")[:80]
+        content = body.get("content", "")
+        safe = "".join(c if c.isalnum() or c in "._- " else "_" for c in title)
+        filename = f"{safe}_{_dt.now().strftime('%Y%m%d_%H%M%S')}.md"
+        _p = _reports_dir / filename
+        _p.write_text(content, encoding="utf-8")
+        return {"status": "ok", "id": _p.stem, "filename": filename}
+
+    @app.delete("/api/reports/{report_id}")
+    def delete_report(report_id: str):
+        _p = _reports_dir / f"{report_id}.md"
+        if _p.exists():
+            _p.unlink()
+        return {"status": "ok"}
+
     @app.delete("/api/enterprises/{name:path}")
     def delete_enterprise_api(name: str):
         import yaml as _yaml

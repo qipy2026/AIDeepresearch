@@ -1062,6 +1062,11 @@ const handleSubmit = async () => {
           reportMarkdown.value = report || "报告生成失败，未获得有效内容";
           pulse(reportHighlight);
           progressLogs.value.push("最终报告已生成");
+          // 自动保存到后端
+          fetch('http://127.0.0.1:8080/api/reports', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title: form.topic, content: reportMarkdown.value})
+          }).catch(() => {});
           return;
         }
 
