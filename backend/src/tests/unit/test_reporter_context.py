@@ -10,14 +10,14 @@ class TestEnterpriseFieldLookup:
     """Verify _get_enterprise_field reads from enterprises.yaml correctly."""
 
     def test_get_industry_from_yaml(self):
-        """成都瑜環 should get 物业管理 from YAML, not 安保服务."""
+        """成都瑜璟 should get 物业管理 from YAML, not 安保服务."""
         from services.reporter import ReportingService
 
         industry = ReportingService._get_enterprise_field(
-            "成都瑜環物业服务有限公司", "industry"
+            "成都瑜璟物业服务有限公司", "industry"
         )
         assert industry == "物业管理", (
-            f"Expected 物业管理 for 成都瑜環, got {industry}"
+            f"Expected 物业管理 for 成都瑜璟, got {industry}"
         )
 
     def test_get_industry_not_matching(self):
@@ -39,11 +39,11 @@ class TestEnterpriseFieldLookup:
         assert loan == "1000.0"
 
     def test_get_empty_field_returns_empty_string(self):
-        """成都瑜環 has no loan_amount in YAML, should return ''."""
+        """成都瑜璟 has no loan_amount in YAML, should return ''."""
         from services.reporter import ReportingService
 
         loan = ReportingService._get_enterprise_field(
-            "成都瑜環物业服务有限公司", "loan_amount"
+            "成都瑜璟物业服务有限公司", "loan_amount"
         )
         assert loan == ""
 
@@ -55,7 +55,7 @@ class TestEnterpriseFieldLookup:
         assert len(ents) >= 6
         names = [e["name"] for e in ents]
         assert "四川振海保安服务有限公司" in names
-        assert "成都瑜環物业服务有限公司" in names
+        assert "成都瑜璟物业服务有限公司" in names
 
 
 class TestExtractEnterpriseFromTopic:
@@ -66,9 +66,9 @@ class TestExtractEnterpriseFromTopic:
         from services.reporter import ReportingService
 
         name = ReportingService._extract_enterprise_from_topic(
-            "成都瑜環物业服务有限公司 贷后风险报告"
+            "成都瑜璟物业服务有限公司 贷后风险报告"
         )
-        assert name == "成都瑜環物业服务有限公司"
+        assert name == "成都瑜璟物业服务有限公司"
 
     def test_extract_without_suffix_falls_back_to_yaml(self):
         """Names like 四川能投润嘉 (no suffix) should be found via YAML fallback."""
@@ -99,7 +99,7 @@ class TestSearchLocal:
 
         # _search_local uses WarningDB with default path postloan.db (CWD)
         # Verify the function runs without crashing
-        results = _search_local("诉讼 风险 违约", enterprise="成都瑜環", max_results=10)
+        results = _search_local("诉讼 风险 违约", enterprise="成都瑜璟", max_results=10)
         # Database may or may not exist depending on test CWD; function should
         # not raise an exception regardless
         assert isinstance(results, list)

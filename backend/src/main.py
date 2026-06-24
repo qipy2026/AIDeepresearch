@@ -743,6 +743,10 @@ def create_app() -> FastAPI:
         """统一采集-提取-分类-存储。"""
         if not text or not text.strip():
             return
+        # 企查查搜索无匹配=企业不存在，不生成预警
+        if source == 'qichacha' and '未匹配到搜索关键词' in text:
+            logger.info(f'qichacha: enterprise not found for {ent_name}, skip')
+            return
         from services.warning_extractor import extract
         ex = extract(source, text)
         classifiable = ex.get("readable", ex.get("summary", text))
