@@ -56,6 +56,8 @@ class WeeklyData(TypedDict, total=False):
     report_period_end: str
     ref_text: str
     risk: Dict[str, int]
+    warnings_signals: Optional[List[Dict[str, Any]]]
+    warnings_summary: Optional[Dict[str, Any]]
     headcount_trend: Optional[Dict[str, Any]]
     party_a_signals: Optional[List[Dict[str, Any]]]
     industry_data: Optional[Dict[str, Any]]
@@ -413,6 +415,8 @@ class ReportingService:
             report_period_end=p_end,
             ref_text=ref_text,
             risk=risk,
+            warnings_signals=db_warnings.get("signals", []),
+            warnings_summary=db_warnings,
             headcount_trend=headcount_trend,
             party_a_signals=party_a_signals,
             industry_data=industry_data,
@@ -454,6 +458,20 @@ class ReportingService:
 黄色预警：{risk['yellow']} 项
 合计：{risk['total']} 项
 """
+
+        # ── 预警信号明细（从 SQLite warning_log 读取）──
+        warnings_signals = data.get("warnings_signals", [])
+        if warnings_signals:
+            ctx += "\n【历史预警信号】（来源：企查查/同花顺/百度/票交所）\n"
+            for s in warnings_signals[:10]:
+                sev_label = {"red": "🔴", "orange": "🟠", "yellow": "🟡"}.get(s.get("severity", ""), "⚪")
+                ctx += f"{sev_label} [{s.get('severity','?')}] {s.get('title','')}"
+                detail = s.get("detail", "")
+                if detail and detail != s.get("title", ""):
+                    ctx += f" — {detail[:120]}"
+                ctx += "\n"
+        else:
+            ctx += "\n【历史预警信号】暂无历史预警数据\n"
 
         # ── 行业宏观数据（同花顺 iFinD，覆盖所有行业）──
         industry_data = data.get("industry_data")
