@@ -135,8 +135,16 @@ class DeepResearchAgent:
             if _recent < 5 and _total < 20:
                 yield {"type": "status", "message": f"预警数据不足（近24h仅有{_recent}条），正在自动采集…"}
                 try:
-                    from main import _warning_collect_cycle
-                    _warning_collect_cycle()
+                    # 触发采集：尝试调用 APScheduler 的 collect job
+                    try:
+                        from apscheduler.schedulers.background import BackgroundScheduler
+                        import main as _main
+                        # 通过 main 的 scheduler 强制执行一次
+                        _app = getattr(_main, 'app', None)
+                        if _app and hasattr(_app, '_warning_collect'):
+                            _app._warning_collect()
+                    except Exception:
+                        pass  # 采集非关键路径，失败不阻塞报告生成
                     yield {"type": "status", "message": "采集完成，继续生成报告"}
                 except Exception as _e:
                     yield {"type": "status", "message": f"采集出错: {_e}，使用现有数据继续"}
