@@ -9,6 +9,10 @@
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
 .header { background: linear-gradient(135deg,#1e293b,#334155); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:12px; }
 .header h1 { font-size:18px; font-weight:700; }
+.nav-link { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .2s; white-space: nowrap; }
+.nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.nav-link.current { color: #fff; background: rgba(255,255,255,0.15); font-weight: 700; }
+
 a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
 .container { max-width:960px; margin:0 auto; padding:24px; }
 
@@ -71,10 +75,11 @@ a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
 </head>
 <body>
 
-<div class="header">
-  <span>🏢</span><h1>贷款项目管理</h1>
-  <span style="flex:1"></span>
-  <a class="back" href="/warnings">← 预警中心</a>
+<div class="header"><span>🏢</span><h1>贷款项目管理</h1>  <span style="flex:1"></span>
+  <a href="/warnings" class="nav-link ">预警中心</a>
+  <a href="/enterprises" class="nav-link current">贷款项目</a>
+  <a href="/sources" class="nav-link ">数据源管理</a>
+  <a href="/rag/upload" class="nav-link ">参考文档</a>
 </div>
 
 <div class="container">
@@ -192,82 +197,54 @@ async function submitProject() {
   document.getElementById('debtorAmount').value = '';
   document.getElementById('debtorKW').value = '';
   loadProjects();
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.toggle('active', b.textContent.includes(name === 'projects' ? '贷款' : '素材')); });
+  document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.toggle('active', p.id === 'tab-' + name); });
+  if (name === 'scrape') loadScrapeSources();
 }
 
-async function deleteEnterprise(name) { if(confirm(`删除 ${name}？`)){await fetch(API+'/api/enterprises/'+encodeURIComponent(name),{method:'DELETE'});loadProjects();}}
-
-function toggleAddPartyForm(debtorName) {
-  const form = document.getElementById('addPartyForm_'+encodeURIComponent(debtorName));
-  form.style.display = form.style.display === 'none' ? 'block' : 'none';
-}
-
-async function submitPartyTo(debtorName) {
-  const id = encodeURIComponent(debtorName);
-  const p = {
-    name: document.getElementById('apName_' + id).value.trim(),
-    industry: document.getElementById('apIndustry_' + id).value.trim(),
-    parent: document.getElementById('apParent_' + id).value.trim(),
-    stock: document.getElementById('apStock_' + id).value.trim(),
-  };
-  if (!p.name) return alert('请输入甲方企业全称');
-  const body = {
-    name: p.name, role: '甲方', debtor: debtorName,
-    industry: p.industry || '', parent: p.parent || '',
-    parent_stock_code: p.stock || '', keywords: ''
-  };
-  const r = await fetch(API+'/api/enterprises', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  if ((await r.json()).status === 'ok') {
-    document.getElementById('apName_' + id).value = '';
-    document.getElementById('apIndustry_' + id).value = '';
-    document.getElementById('apParent_' + id).value = '';
-    document.getElementById('apStock_' + id).value = '';
-    loadProjects();
-  } else { alert('添加失败'); }
-}
-
-function showMsg(text, type) { const m=document.getElementById('msg'); m.textContent=text; m.className='msg '+type; setTimeout(()=>m.className='msg',5000); }
-
-async function loadProjects() {
-  const resp = await fetch(API+'/api/enterprises');
-  const data = await resp.json();
-  const all = data.enterprises || [];
-  const debtors = all.filter(e=>e.role==='乙方');
-  const parties = all.filter(e=>e.role==='甲方');
-
-  if (!all.length) {
-    document.getElementById('projectList').innerHTML = '<div class="empty"><p style="font-size:48px;">📋</p><p>暂无项目，请创建</p></div>';
-    return;
+async function loadScrapeSources() {
+  var tbody = document.getElementById('scrapeTableBody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:40px;">加载中...</td></tr>';
+  try {
+    var resp = await fetch(API + '/api/scrape/sources?limit=100');
+    var data = await resp.json();
+    if (data.status !== 'ok' || !data.sources.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:40px;">暂无采集素材，等待首次采集完成</td></tr>';
+      document.getElementById('scrapeStats').textContent = '';
+      return;
+    }
+    var sources = data.sources;
+    document.getElementById('scrapeStats').textContent = '共 ' + sources.length + ' 条';
+    tbody.innerHTML = sources.map(function(s) {
+      var dir = s.llm_direction;
+      var dirClass = dir === 'positive' ? 'dir-pos' : (dir === 'negative' ? 'dir-neg' : 'dir-neu');
+      var dirText = dir === 'positive' ? '利好' : (dir === 'negative' ? '利空' : '中性');
+      var credHtml = s.credible === null
+        ? '<button class="cred-btn up" onclick="markCredible(' + s.id + ',true)">👍</button><button class="cred-btn down" onclick="markCredible(' + s.id + ',false)">👎</button>'
+        : (s.credible ? '<span class="cred-up">可信</span>' : '<span class="cred-down">不可信</span>');
+      return '<tr>' +
+        '<td style="white-space:nowrap;font-size:12px;color:#94a3b8;">' + (s.created_at || '').slice(0,16) + '</td>' +
+        '<td style="font-size:11px;">' + (s.source || 'web') + '</td>' +
+        '<td><a href="' + (s.source_url || '#') + '" target="_blank">' + (s.title || '').slice(0,50) + '</a></td>' +
+        '<td style="font-size:12px;">' + (s.enterprise || '') + '</td>' +
+        '<td><span class="' + dirClass + '">' + dirText + '</span></td>' +
+        '<td>' + credHtml + '</td>' +
+        '</tr>';
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#dc2626;padding:40px;">加载失败</td></tr>';
   }
+}
 
-  document.getElementById('projectList').innerHTML = debtors.map((d,i) => {
-    const linked = parties.filter(p=>p.debtor===d.name);
-    return `<div class="project-card">
-      <div class="project-head" onclick="this.closest('.project-card').classList.toggle('open')">
-        <div class="num" style="background:${COLORS[i%COLORS.length]}">${i+1}</div>
-        <div class="info">
-          <div class="name">${d.name} <span class="tag tag-debtor">乙方</span></div>
-          <div class="meta">
-            ${d.industry?`<span>🏭 ${d.industry}</span>`:''}
-            ${d.loan_amount?`<span>💰 ${d.loan_amount}万</span>`:''}
-            <span>甲方 ${linked.length} 家</span>
-          </div>
-        </div>
-        <button class="btn-sm" onclick="deleteEnterprise('${d.name.replace(/'/g,"\\'")}')">删除</button>
-      </div>
-      <div class="project-body">
-        ${linked.length ? linked.map(p=>`
-          <div class="party-row">
-            <div style="flex:1">
-              <span class="arrow">└</span> <b>${p.name}</b> <span class="tag tag-party-a">甲方</span>
-              ${p.parent?`<span class="tag tag-parent">${p.parent}</span>`:''}
-              ${p.parent_stock_code?`<span class="tag tag-stock">${p.parent_stock_code}</span>`:''}
-            </div>
-            <button class="btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
-          </div>
-        `).join('') : '<div class="party-row" style="color:#94a3b8;">暂无甲方</div>'}
-        <div style="margin-top:8px;">
-          <button class="btn btn-outline" style="font-size:11px;padding:4px 10px;"
-            onclick="event.stopPropagation();toggleAddPartyForm('${d.name.replace(/'/g,"\'")}')">+ 添加甲方</button>
+async function markCredible(id, val) {
+  await fetch(API + '/api/scrape/sources/' + id + '/credible?credible=' + val, {method:'POST'});
+  loadScrapeSources();
+}
+
+}
+
+async function deleteEnterprise(name) { if(confirm(`删除 ${name}？`)){await fetch(API+'/api/enterprises/'+encodeURIComponent(name),{method:'DELETE'});loadProjects();
         </div>
         <div id="addPartyForm_${encodeURIComponent(d.name)}" style="display:none;margin-top:8px;padding:12px;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1;">
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -296,6 +273,3 @@ function toggleAll() {
 }
 
 loadProjects();
-</script>
-</body>
-</html>

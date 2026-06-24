@@ -158,6 +158,12 @@
             </svg>
             企业管理
           </a>
+          <a class="sidebar-link" href="http://localhost:8080/sources" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v2H9V9zm0 4h6v2H9v-2z" fill="currentColor"/>
+            </svg>
+            数据源管理
+          </a>
         </div>
       </aside>
 

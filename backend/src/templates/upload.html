@@ -6,6 +6,11 @@
 <title>企业参考文档 - 贷后监管</title>
 <style>
   * { box-sizing: border-box; }
+.header { background: linear-gradient(135deg,#1e293b,#334155); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:12px; }
+.header h1 { font-size:18px; font-weight:700; margin:0; color:#fff; }
+.nav-link { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .2s; white-space: nowrap; }
+.nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.nav-link.current { color: #fff; background: rgba(255,255,255,0.15); font-weight: 700; }
   body { font-family: -apple-system, sans-serif; background: #f1f5f9; margin: 0; padding: 24px; }
   .container { max-width: 640px; margin: 0 auto; }
   .card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
@@ -33,9 +38,18 @@
   .btn-del { padding: 4px 12px; border-radius: 6px; border: 1px solid #fca5a5; background: #fff; color: #dc2626; font-size: 12px; cursor: pointer; transition: .2s; }
   .btn-del:hover { background: #fee2e2; }
   .empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 20px; }
+.nav-link { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .2s; white-space: nowrap; }
+.nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.nav-link.current { color: #fff; background: rgba(255,255,255,0.15); font-weight: 700; }
 </style>
 </head>
 <body>
+<div class="header"><span>📄</span><h1>参考文档</h1>  <span style="flex:1"></span>
+  <a href="/warnings" class="nav-link ">预警中心</a>
+  <a href="/enterprises" class="nav-link ">贷款项目</a>
+  <a href="/sources" class="nav-link ">数据源管理</a>
+  <a href="/rag/upload" class="nav-link current">参考文档</a>
+</div>
 <div class="container">
   <div class="card">
     <h1>📄 企业参考文档</h1>

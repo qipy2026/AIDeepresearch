@@ -135,6 +135,11 @@ def create_app() -> FastAPI:
     def health_check() -> Dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/")
+    def root_redirect():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/warnings")
+
     @app.post("/research", response_model=ResearchResponse)
     def run_research(payload: ResearchRequest) -> ResearchResponse:
         try:
