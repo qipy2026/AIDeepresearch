@@ -147,15 +147,155 @@ def create_app() -> FastAPI:
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/warnings")
 
+    # ── 按需采集 + 数据新鲜度门控 ─────────────────────────
+
+    def _collect_single_enterprise(enterprise_name: str):
+        """对单个企业执行快速采集（企查查+同花顺+百度舆情），在文件锁保护下运行。"""
+        import yaml as _yaml
+        from pathlib import Path as _Path
+
+        _ep = _Path(__file__).resolve().parent.parent / "config" / "enterprises.yaml"
+        with open(_ep, "r", encoding="utf-8") as _f:
+            _ents = _yaml.safe_load(_f).get("enterprises", [])
+        ent = next((e for e in _ents if e["name"] == enterprise_name), None)
+        if not ent:
+            logger.warning("_collect_single_enterprise: %s not found", enterprise_name)
+            return
+
+        lock_fd = _acquire_collection_lock(timeout=30)
+        if lock_fd is None:
+            logger.info("On-demand collect skipped: lock held by scheduled cycle")
+            return
+
+        try:
+            from services.warning_classifier import ClassifierService
+            from warning_db import WarningDB
+            cfg = WarningConfig.from_env()
+            db = WarningDB()
+            db.init()
+            cls = ClassifierService(cfg.keywords_path)
+
+            # 1. 企查查风险扫描
+            try:
+                from services.qichacha_mcp import call_tool
+                import json as _json
+                r = call_tool("risk", "get_company_risk_scan",
+                              {"searchKey": ent["name"]})
+                if r:
+                    for item in r.get("content", []):
+                        _collect_source("qichacha", item.get("text", ""),
+                                        db, cls, ent["name"], "qichacha")
+            except Exception as e:
+                logger.warning("On-demand qichacha failed: %s", e)
+
+            # 2. 同花顺采集
+            try:
+                from services.ths_collector import collect_all
+                signals = collect_all(
+                    cfg.ths_username, cfg.ths_password,
+                    stock_code=ent.get("parent_stock_code", "") or ent.get("stock_code", ""),
+                    enterprise=ent.get("parent", "") or ent["name"],
+                    industry=ent.get("industry", ""),
+                    concept_code=ent.get("concept_code", ""),
+                )
+                for sig in signals:
+                    _collect_source(sig["source"],
+                        sig.get("raw", sig.get("detail", "")),
+                        db, cls,
+                        sig.get("label", ent["name"]),
+                        sig.get("source", "ths_stock"),
+                        title_override=sig.get("title", ""),
+                        detail_override=sig.get("detail", ""))
+            except Exception as e:
+                logger.warning("On-demand THS failed: %s", e)
+
+            # 3. 百度舆情搜索
+            try:
+                from services.web_search import _search_baidu
+                SENTIMENT_QUERIES = [
+                    "{name} 投诉 OR 曝光 OR 维权",
+                    "{name} 拖欠 OR 违约 OR 烂尾",
+                    "{name} 负面 新闻",
+                    "{name} 事故 OR 安全",
+                    "{name} 维权 OR 讨薪",
+                    "{name} 监管 OR 处罚 OR 约谈",
+                    "{name} 破产 OR 重整",
+                ]
+                for tmpl in SENTIMENT_QUERIES:
+                    q = tmpl.format(name=ent["name"])
+                    try:
+                        for r in _search_baidu(q, max_results=3):
+                            _collect_source("baidu_search",
+                                f"{r.get('title','')}\n{r.get('content','')}",
+                                db, cls, ent["name"], "baidu_search",
+                                title_override=r.get("title",""),
+                                source_url=r.get("url",""))
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning("On-demand Baidu failed: %s", e)
+
+            logger.info("On-demand collect completed for %s", enterprise_name)
+        finally:
+            _release_collection_lock(lock_fd)
+
+    def _ensure_data_freshness(enterprise_name: str) -> str:
+        """检查数据新鲜度，不足则触发后台按需采集+轮询。
+        返回: 'fresh' | 'stale' | 'empty'
+        """
+        from warning_db import WarningDB
+        import threading
+
+        db = WarningDB()
+        recent_24h = db.count_recent_warnings(enterprise_name, hours=24)
+        if recent_24h >= 3:
+            return "fresh"
+
+        recent_72h = db.count_recent_warnings(enterprise_name, hours=72)
+        if recent_72h >= 3:
+            return "stale"
+
+        # 后台触发按需采集
+        logger.info("Data stale for %s (24h:%d, 72h:%d), triggering on-demand collect",
+                    enterprise_name, recent_24h, recent_72h)
+        t = threading.Thread(target=_collect_single_enterprise,
+                             args=(enterprise_name,), daemon=True)
+        t.start()
+
+        # 轮询等待（最多 30 秒）
+        for _ in range(10):
+            time.sleep(3)
+            if db.count_recent_warnings(enterprise_name, hours=24) >= 3:
+                return "fresh"
+
+        logger.warning("On-demand collect timeout for %s", enterprise_name)
+        return "empty"
+
     @app.post("/research", response_model=ResearchResponse)
     def run_research(payload: ResearchRequest) -> ResearchResponse:
+        # Phase 0: 数据新鲜度门控
+        # 从 topic 中尝试提取企业名（格式: "企业名 周报/月报" 或直接是企业名）
+        import re as _re
+        _topic = payload.topic.strip()
+        _ent_match = _re.match(r"^(.+?)(?:周报|月报|年报|风险|监测|报告|\s|$)", _topic)
+        _enterprise = _ent_match.group(1).strip() if _ent_match else _topic
+
+        freshness = _ensure_data_freshness(_enterprise)
+        if freshness == "empty":
+            raise HTTPException(
+                status_code=503,
+                detail=f"「{_enterprise}」暂无足够预警数据，请稍后重试或手动触发采集 "
+                       f"POST /api/warnings/collect")
+        elif freshness == "stale":
+            logger.info("Using stale data for %s", _enterprise)
+
         try:
             config = _build_config(payload)
             agent = DeepResearchAgent(config=config)
             result = agent.run(payload.topic)
-        except ValueError as exc:  # Likely due to unsupported configuration
+        except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except Exception as exc:  # pragma: no cover - defensive guardrail
+        except Exception as exc:
             raise HTTPException(status_code=500, detail="Research failed") from exc
 
         todo_payload = [
@@ -737,6 +877,31 @@ def create_app() -> FastAPI:
 
     _scheduler = BackgroundScheduler()
 
+    # ── 文件锁（跨 worker 互斥，防止多进程重复采集）────────
+    import tempfile as _tempfile
+    _COLLECTION_LOCK_FILE = os.path.join(_tempfile.gettempdir(), "aidr_collection.lock")
+
+    def _acquire_collection_lock(timeout: int = 10):
+        """跨平台文件锁。返回锁文件 fd，获取失败返回 None。"""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                fd = os.open(_COLLECTION_LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                os.write(fd, str(os.getpid()).encode())
+                return fd
+            except FileExistsError:
+                time.sleep(0.5)
+        return None
+
+    def _release_collection_lock(fd):
+        """释放文件锁。"""
+        if fd is not None:
+            try:
+                os.close(fd)
+                os.unlink(_COLLECTION_LOCK_FILE)
+            except OSError:
+                pass
+
     def _collect_source(name: str, text: str, db, cls, ent_name: str, source: str,
                         title_override: str = "", detail_override: str = "",
                         source_url: str = ""):
@@ -776,6 +941,25 @@ def create_app() -> FastAPI:
         cfg = WarningConfig.from_env()
         if not cfg.enabled_sources or cfg.enabled_sources == "none":
             return
+
+        # 文件锁：防止多 worker 重复采集
+        lock_fd = _acquire_collection_lock(timeout=5)
+        if lock_fd is None:
+            logger.info("Collection lock held by another worker, skipping cycle")
+            return
+
+        try:
+            _run_collection_cycle(cfg)
+        finally:
+            _release_collection_lock(lock_fd)
+
+    def _run_collection_cycle(cfg):
+        """采集周期主逻辑（在文件锁保护下执行）。"""
+        from services.warning_classifier import ClassifierService
+        from warning_db import WarningDB
+        import yaml as _yaml
+        from pathlib import Path as _Path
+
         db = WarningDB()
         db.init()
         cls = ClassifierService(cfg.keywords_path)
@@ -883,6 +1067,76 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning(f"[collector] Web scraping failed: {e}")
 
+        # Phase 3: 定向采集（东方财富新闻/政府招标/国家统计局/DM查债通）
+        try:
+            from services.web_scraper import (
+                search_eastmoney_news, search_gov_bid, fetch_stats_gov_data)
+            for ent in _ents:
+                name = ent["name"]
+                parent_name = ent.get("parent", "")
+
+                # 东方财富新闻
+                for r in search_eastmoney_news(name, max_results=5):
+                    _collect_source("eastmoney_news",
+                        f'{r.get("title","")}\n{r.get("content","")}',
+                        db, cls, name, "eastmoney_news",
+                        title_override=r.get("title",""),
+                        source_url=r.get("url",""))
+
+                # 政府招标公告
+                for r in search_gov_bid(parent_name or name, max_results=5):
+                    _collect_source("gov_bid",
+                        f'{r.get("title","")}\n{r.get("content","")}',
+                        db, cls, name, "gov_bid",
+                        title_override=r.get("title",""),
+                        source_url=r.get("url",""))
+
+            # 国家统计局（全局只查一次）
+            for r in fetch_stats_gov_data():
+                _collect_source("stats_gov",
+                    f'{r.get("title","")}\n{r.get("content","")}',
+                    db, cls, "宏观经济", "stats_gov",
+                    title_override=r.get("title",""),
+                    source_url=r.get("url",""))
+
+            # DM 查债通
+            try:
+                from services.dm_client import search_dm
+                for ent in _ents:
+                    name = ent["name"]
+                    for r in search_dm(name, cfg.dm_username, cfg.dm_password):
+                        _collect_source("dm_zhai",
+                            f'{r.get("title","")}\n{r.get("content","")}',
+                            db, cls, name, "dm_zhai",
+                            title_override=r.get("title",""),
+                            source_url=r.get("url",""))
+            except Exception as dm_e:
+                logger.warning(f"[collector] DM client failed: {dm_e}")
+
+        except Exception as e:
+            logger.warning(f"[collector] Phase 3 scrapers failed: {e}")
+
+        # Phase 4: 行业报告深层抓取
+        try:
+            from services.web_scraper import (search_deep_industry_reports,
+                                              _summarize_report_with_llm)
+            industries = list({e.get("industry", "") for e in _ents if e.get("industry")})
+            ent_names = [e["name"] for e in _ents]
+            for industry in industries[:5]:
+                reports = search_deep_industry_reports(industry, ent_names, max_reports=2)
+                for r in reports:
+                    summary = _summarize_report_with_llm(
+                        r["content"], ent_names, industry)
+                    display = summary or r["content"][:300]
+                    _collect_source("deep_report",
+                        f'{r["title"]}\n\n{display}',
+                        db, cls,
+                        f"{industry}（行业报告）", "deep_report",
+                        title_override=r.get("title",""),
+                        source_url=r.get("url",""))
+        except Exception as e:
+            logger.warning(f"[collector] Deep industry reports failed: {e}")
+
         # 票交所 RAG 查询
         try:
             from services.rag_store import query as rag_query
@@ -894,82 +1148,91 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning(f"[collector] Piaojiaosuo RAG failed: {e}")
 
-        # 百度搜索 多维度采集（企业/行业/供应链）
+        # 百度搜索 多维度采集（企业/行业/供应链/舆情）
         try:
             from services.web_search import _search_baidu
-            # 去重：已搜过的 query 不重复搜
+
+            _BAIDU_CALL_CAP = 200
+            _baidu_calls = 0
+
+            def _search_baidu_batch(queries, db, cls, ent_name, seen_queries,
+                                     max_results=3):
+                """批量百度搜索+采集。返回实际调用次数。"""
+                nonlocal _baidu_calls
+                batch_calls = 0
+                for q in queries:
+                    if q in seen_queries:
+                        continue
+                    if _baidu_calls >= _BAIDU_CALL_CAP:
+                        logger.warning(
+                            "Baidu search cap (%d) reached, skipping: %s",
+                            _BAIDU_CALL_CAP, q)
+                        break
+                    seen_queries.add(q)
+                    _baidu_calls += 1
+                    batch_calls += 1
+                    try:
+                        for r in _search_baidu(q, max_results=max_results):
+                            _collect_source("baidu_search",
+                                f"{r.get('title','')}\n{r.get('content','')}",
+                                db, cls, ent_name, "baidu_search",
+                                title_override=r.get("title",""),
+                                source_url=r.get("url",""))
+                    except Exception:
+                        logger.warning("Baidu query failed: %s", q)
+                return batch_calls
+
+            # 舆情 query 模板（Phase 1 — 新增）
+            SENTIMENT_QUERIES = [
+                "{name} 投诉 OR 曝光 OR 维权",
+                "{name} 拖欠 OR 违约 OR 烂尾",
+                "{name} 抖音 OR 微博",
+                "{name} 负面 新闻",
+                "{name} 事故 OR 安全",
+                "{name} 维权 OR 讨薪",
+                "{name} 监管 OR 处罚 OR 约谈",
+                "{name} 破产 OR 重整",
+            ]
+
             seen_queries = set()
             for ent in _ents:
                 name = ent["name"]
                 industry = ent.get("industry", "")
                 role = ent.get("role", "乙方")
-                debtor = ent.get("debtor", "")
                 parent = ent.get("parent", "")
 
                 # 维度 1: 企业自身（风险/诉讼/经营）
                 kw_list = ent.get("keywords", [name])
-                for kw in kw_list[:2]:
-                    for suffix in ["风险 违约 诉讼", "经营 异常 处罚", "工商 变更 新闻"]:
-                        q = f"{kw} {suffix}"
-                        if q in seen_queries:
-                            continue
-                        seen_queries.add(q)
-                        try:
-                            for r in _search_baidu(q, max_results=3):
-                                _collect_source("baidu_search",
-                                    f"{r.get('title','')}\n{r.get('content','')}",
-                                    db, cls, name, "baidu_search",
-                                    title_override=r.get("title",""),
-                                    source_url=r.get("url",""))
-                        except Exception:
-                            pass
+                queries_self = [
+                    f"{kw} {suffix}"
+                    for kw in kw_list[:2]
+                    for suffix in ["风险 违约 诉讼", "经营 异常 处罚", "工商 变更 新闻"]
+                ]
+                _search_baidu_batch(queries_self, db, cls, name, seen_queries)
 
-                # 维度 2: 行业（仅乙方触发，每条行业 query 全局只搜一次）
+                # 维度 2: 行业（仅乙方触发）
                 if role == "乙方" and industry:
-                    for suffix in ["行业 发展 规模 2026", "监管 政策 新规", "行业 风险 挑战"]:
-                        q = f"{industry} {suffix}"
-                        if q in seen_queries:
-                            continue
-                        seen_queries.add(q)
-                        try:
-                            for r in _search_baidu(q, max_results=3):
-                                _collect_source("baidu_search",
-                                    f"{r.get('title','')}\n{r.get('content','')}",
-                                    db, cls, name, "baidu_search",
-                                    title_override=r.get("title",""),
-                                    source_url=r.get("url",""))
-                        except Exception:
-                            pass
+                    queries_industry = [
+                        f"{industry} {suffix}"
+                        for suffix in ["行业 发展 规模 2026", "监管 政策 新规", "行业 风险 挑战"]
+                    ]
+                    _search_baidu_batch(queries_industry, db, cls, name, seen_queries)
 
                 # 维度 3: 供应链（甲方自身+母公司）
                 if role == "甲方":
-                    for suffix in ["经营 风险 诉讼", "项目 动态 处罚", "财务 状况 新闻"]:
-                        q = f"{name} {suffix}"
-                        if q in seen_queries:
-                            continue
-                        seen_queries.add(q)
-                        try:
-                            for r in _search_baidu(q, max_results=3):
-                                _collect_source("baidu_search",
-                                    f"{r.get('title','')}\n{r.get('content','')}",
-                                    db, cls, name, "baidu_search",
-                                    title_override=r.get("title",""),
-                                    source_url=r.get("url",""))
-                        except Exception:
-                            pass
+                    queries_supply = [
+                        f"{name} {suffix}"
+                        for suffix in ["经营 风险 诉讼", "项目 动态 处罚", "财务 状况 新闻"]
+                    ]
+                    _search_baidu_batch(queries_supply, db, cls, name, seen_queries)
                     if parent:
-                        q = f"{parent} 经营 风险 动态"
-                        if q not in seen_queries:
-                            seen_queries.add(q)
-                            try:
-                                for r in _search_baidu(q, max_results=3):
-                                    _collect_source("baidu_search",
-                                        f"{r.get('title','')}\n{r.get('content','')}",
-                                        db, cls, name, "baidu_search",
-                                        title_override=r.get("title",""),
-                                        source_url=r.get("url",""))
-                            except Exception:
-                                pass
+                        _search_baidu_batch(
+                            [f"{parent} 经营 风险 动态"], db, cls, name, seen_queries)
+
+                # 维度 4: 舆情（新增 — Phase 1）
+                queries_sentiment = [q.format(name=name) for q in SENTIMENT_QUERIES]
+                _search_baidu_batch(queries_sentiment, db, cls, name, seen_queries)
+
         except Exception as e:
             logger.warning(f"[collector] Baidu multi-dimension search failed: {e}")
 
@@ -1010,7 +1273,7 @@ def create_app() -> FastAPI:
     _scheduler.add_job(
         _warning_collect_cycle,
         "interval",
-        seconds=int(_os.getenv("WARNING_CRON_INTERVAL", "300")),
+        seconds=int(_os.getenv("WARNING_CRON_INTERVAL", "7200")),
         id="warning_collect",
     )
 
