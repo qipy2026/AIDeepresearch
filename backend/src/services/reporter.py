@@ -462,14 +462,15 @@ class ReportingService:
         # ── 预警信号明细（从 SQLite warning_log 读取）──
         warnings_signals = data.get("warnings_signals", [])
         if warnings_signals:
-            ctx += "\n【历史预警信号】（来源：企查查/同花顺/百度/票交所）\n"
-            for s in warnings_signals[:10]:
-                sev_label = {"red": "🔴", "orange": "🟠", "yellow": "🟡"}.get(s.get("severity", ""), "⚪")
-                ctx += f"{sev_label} [{s.get('severity','?')}] {s.get('title','')}"
+            ctx += "\n【历史预警信号】（来源：企查查/同花顺/百度/票交所，以下为系统已采集的真实数据，请直接引用，不要写\"无相关内容\"）\n"
+            for s in warnings_signals[:15]:
+                sev = s.get("severity", "?")
+                sev_label = {"red": "🔴红", "orange": "🟠橙", "yellow": "🟡黄"}.get(sev, "⚪")
+                title = s.get("title", "")
                 detail = s.get("detail", "")
-                if detail and detail != s.get("title", ""):
-                    ctx += f" — {detail[:120]}"
-                ctx += "\n"
+                text = detail if detail and detail != title else title
+                ctx += f"{sev_label}级 | {text[:200]}\n"
+            ctx += f"\n（以上共 {len(warnings_signals)} 条预警信号，均为系统实时采集的权威数据源信息）\n"
         else:
             ctx += "\n【历史预警信号】暂无历史预警数据\n"
 
