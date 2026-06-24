@@ -79,12 +79,20 @@ def fetch_page_text(url: str) -> str:
 SOURCES = {
     "cninfo": {
         "name": "巨潮资讯",
-        "type": "api",  # 用 API 搜索 + crawl4ai 抓详情
+        "type": "api",
     },
-    # 后续扩展:
-    # "eastmoney_news": {"name": "东方财富新闻", "type": "crawl"},
-    # "gov_bid": {"name": "政府招标公告", "type": "crawl"},
-    # "stats_gov": {"name": "国家统计局", "type": "crawl"},
+    "eastmoney_news": {
+        "name": "东方财富新闻",
+        "type": "api",
+    },
+    "gov_bid": {
+        "name": "政府招标公告",
+        "type": "baidu",
+    },
+    "stats_gov": {
+        "name": "国家统计局",
+        "type": "api",
+    },
 }
 
 
@@ -145,12 +153,16 @@ def collect_from_sources(enterprise: dict[str, Any]) -> list[dict[str, Any]]:
 
     keyword = enterprise.get("parent", "") or enterprise["name"]
     results = []
+    attempted = 0
+    succeeded = 0
 
     for src in sources:
+        attempted += 1
         try:
             text = fetch_page_text(src["url"])
             if not text or len(text) < 50:
                 continue
+            succeeded += 1
             results.append({
                 "title": f'{src["name"]} - 数据采集',
                 "time": datetime.now().isoformat(),
@@ -162,4 +174,198 @@ def collect_from_sources(enterprise: dict[str, Any]) -> list[dict[str, Any]]:
         except Exception as e:
             logger.warning("Source %s crawl failed: %s", src["name"], e)
 
+    if attempted > 0:
+        logger.info("collect_from_sources(%s): %d/%d sources returned data",
+                     keyword, succeeded, attempted)
     return results
+
+
+# ── Phase 3: 定向采集器 ──────────────────────────────────────────
+
+def search_eastmoney_news(keyword: str, max_results: int = 5) -> list[dict[str, Any]]:
+    """东方财富新闻搜索。通过 searchapi.eastmoney.com 按企业名搜索。"""
+    try:
+        url = "https://searchapi.eastmoney.com/bussiness/Web/GetCMSSearchResult"
+        params = {
+            "keyword": keyword,
+            "type": "8197",
+            "pageIndex": 1,
+            "pageSize": max_results,
+        }
+        resp = requests.get(url, params=params, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://www.eastmoney.com/",
+        }, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        results = []
+        for item in data.get("Data", []) or []:
+            title = item.get("Title", "")
+            content = item.get("Content", "")
+            pub_date = item.get("ShowDate", "")
+            article_url = item.get("Url", "")
+            if title:
+                results.append({
+                    "title": title,
+                    "url": article_url,
+                    "content": (content or title)[:500],
+                    "time": pub_date,
+                })
+        logger.info("eastmoney_news(%s): %d results", keyword, len(results))
+        return results[:max_results]
+    except Exception as e:
+        logger.warning("eastmoney_news(%s) failed: %s", keyword, e)
+        return []
+
+
+def search_gov_bid(enterprise_name: str, max_results: int = 5) -> list[dict[str, Any]]:
+    """政府招标公告搜索。用百度 site:ccgp.gov.cn 限定政府采购网。"""
+    try:
+        from services.web_search import _search_baidu
+        queries = [
+            f"{enterprise_name} 中标 site:ccgp.gov.cn",
+            f"{enterprise_name} 招标 公告",
+        ]
+        results = []
+        for q in queries:
+            try:
+                for r in _search_baidu(q, max_results=max_results):
+                    results.append({
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "content": r.get("content", "")[:500],
+                        "time": "",
+                    })
+            except Exception:
+                pass
+        logger.info("gov_bid(%s): %d results", enterprise_name, len(results))
+        return results[:max_results]
+    except Exception as e:
+        logger.warning("gov_bid(%s) failed: %s", enterprise_name, e)
+        return []
+
+
+def fetch_stats_gov_data(indicator_codes: list[str] | None = None,
+                         max_results: int = 5) -> list[dict[str, Any]]:
+    """国家统计局公开数据。通过 data.stats.gov.cn API 查询宏观经济指标。"""
+    if indicator_codes is None:
+        indicator_codes = ["A010101", "A020101", "A050101"]
+    try:
+        results = []
+        for code in indicator_codes[:max_results]:
+            url = "https://data.stats.gov.cn/easyquery.htm"
+            params = {
+                "m": "QueryData",
+                "dbcode": "hgnd",
+                "rowcode": "zb",
+                "colcode": "sj",
+                "wds": "[]",
+                "dfwds": f'[{{"wdcode":"zb","valuecode":"{code}"}}]',
+            }
+            resp = requests.get(url, params=params, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            rows = (data.get("returndata") or {}).get("datanodes") or []
+            for node in rows[:3]:
+                wds = node.get("wds", [])
+                label = next((w["wdsname"] for w in wds if w["wdcode"] == "zb"), code)
+                val = node.get("data", {}).get("strdata", "N/A")
+                results.append({
+                    "title": f"国家统计局: {label} = {val}",
+                    "url": f"https://data.stats.gov.cn/easyquery.htm?cn=A01&zb={code}",
+                    "content": f"{label}: {val}",
+                    "time": "",
+                })
+        logger.info("stats_gov: %d indicators fetched", len(results))
+        return results
+    except Exception as e:
+        logger.warning("stats_gov failed: %s", e)
+        return []
+
+
+# ── Phase 4: 行业报告深层抓取 + LLM 摘要 ─────────────────────
+
+# 咨询/研究机构站点列表（用于 site: 限定搜索）
+_DEEP_REPORT_SITES = [
+    "mckinsey.com.cn",
+    "home.kpmg/cn",
+    "bain.cn",
+    "ey.com/zh_cn",
+    "pwccn.com/zh",
+    "deloitte.com/cn",
+    "aliresearch.com",
+    "tisi.org",
+    "analysys.cn",
+]
+
+
+def search_deep_industry_reports(
+    industry: str, enterprise_names: list[str],
+    max_reports: int = 3,
+) -> list[dict[str, Any]]:
+    """行业报告深层抓取。
+
+    对每个咨询机构站点，用百度搜索行业报告，crawl4ai 抓取全文，
+    LLM 提取摘要。返回结构化结果列表。
+    """
+    if not industry:
+        return []
+
+    results = []
+    searched = 0
+
+    for site in _DEEP_REPORT_SITES:
+        if searched >= max_reports:
+            break
+        try:
+            from services.web_search import _search_baidu
+            query = f"{industry} 研究报告 site:{site}"
+            search_results = _search_baidu(query, max_results=2)
+            for sr in search_results:
+                if searched >= max_reports:
+                    break
+                url = sr.get("url", "")
+                if not url:
+                    continue
+                # crawl4ai 抓取全文
+                full_text = fetch_page_text(url)
+                if not full_text or len(full_text) < 200:
+                    continue
+                searched += 1
+                results.append({
+                    "title": sr.get("title", f"{industry} 行业报告"),
+                    "url": url,
+                    "content": full_text[:5000],
+                    "time": "",
+                    "source_site": site,
+                })
+        except Exception as e:
+            logger.warning("deep_report(%s, %s) failed: %s", industry, site, e)
+
+    logger.info("deep_industry_reports(%s): %d reports from %d sites searched",
+                industry, len(results), searched)
+    return results
+
+
+def _summarize_report_with_llm(text: str, enterprise_names: list[str],
+                               industry: str) -> str:
+    """用 LLM 提取行业报告中对监管企业相关的 3 句话摘要。"""
+    try:
+        from services.llm_extractor import extract_and_classify
+        enterprises = [{"name": n, "role": ""} for n in enterprise_names]
+        result = extract_and_classify(
+            f"行业: {industry}\n\n报告内容:\n{text[:3000]}",
+            enterprises,
+        )
+        if result.get("irrelevant"):
+            return ""
+        summaries = []
+        for rel in result.get("relevant_enterprises", [])[:2]:
+            direction = rel.get("direction", "")
+            summary = rel.get("summary", "")
+            if summary:
+                summaries.append(f"[{direction}] {summary}")
+        return "; ".join(summaries) if summaries else ""
+    except Exception as e:
+        logger.warning("deep_report LLM summary failed: %s", e)
+        return text[:300] if text else ""
