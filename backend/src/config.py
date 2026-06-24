@@ -196,7 +196,7 @@ class Configuration(BaseModel):
 class WarningConfig(BaseModel):
     """实时预警模块配置。"""
 
-    cron_interval: int = Field(default=300, description="采集间隔（秒）")
+    cron_interval: int = Field(default=7200, description="采集间隔（秒）")
     source_timeout: int = Field(default=30, description="单源超时（秒）")
     keywords_path: str = Field(default="./config/keywords.yaml")
     red_max_delay: int = Field(default=300, description="红色最大延迟（秒）")
@@ -214,7 +214,7 @@ class WarningConfig(BaseModel):
     @classmethod
     def from_env(cls) -> "WarningConfig":
         return cls(
-            cron_interval=int(os.getenv("WARNING_CRON_INTERVAL", "300")),
+            cron_interval=int(os.getenv("WARNING_CRON_INTERVAL", "7200")),
             source_timeout=int(os.getenv("WARNING_SOURCE_TIMEOUT", "30")),
             keywords_path=os.getenv("WARNING_KEYWORDS_PATH", "./config/keywords.yaml"),
             red_max_delay=int(os.getenv("WARNING_RED_MAX_DELAY", "300")),
