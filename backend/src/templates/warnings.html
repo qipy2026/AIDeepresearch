@@ -77,16 +77,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 </head>
 <body>
 
-<div class="header"><a href="/warnings" style="color:#fff;text-decoration:none;font-weight:800;font-size:14px;margin-right:12px;white-space:nowrap;">贷后监管</a><span>🚨</span>
+<div class="header"><a href="/warnings" style="color:#fff;text-decoration:none;font-weight:800;font-size:14px;margin-right:12px;white-space:nowrap;opacity:1;">● 贷后监管</a><span>🚨</span>
   <h1>预警中心</h1>
   <span id="totalBadge" class="badge red">0</span>
   
   <span class="auto-refresh" id="refreshInfo">60s后刷新</span>
   <button onclick="loadWarnings();loadStats();" style="margin-left:8px;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;cursor:pointer;font-size:11px;">🔄 立即刷新</button>  <span style="flex:1"></span>
-  <a href="/warnings" class="nav-link current">预警中心</a>
   <a href="/enterprises" class="nav-link ">贷款项目</a>
   <a href="/sources" class="nav-link ">数据源管理</a>
   <a href="/rag/upload" class="nav-link ">参考文档</a>
+  <a href="http://localhost:5174" class="nav-link " target="_blank">贷后助手</a>
 </div>
 
 <div class="container">
