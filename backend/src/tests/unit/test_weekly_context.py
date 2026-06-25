@@ -222,3 +222,70 @@ class TestValidateAndEnrich:
         assert result["industry"] == "安保服务"
         assert result["party_a_signals"] == valid_signals
         assert result["headcount_trend"]["status"] == "stable"
+
+
+class TestFetchPartyASignals:
+    """T7: _fetch_party_a_signals fetches party A data from warning_db."""
+
+    def test_returns_empty_list_when_no_parties(self):
+        """没有 debtor 指向的甲方时返回空列表。"""
+        result = ReportingService._fetch_party_a_signals("不存在的企业")
+        assert result == []
+
+    def test_returns_empty_list_when_no_matching_debtor(self, monkeypatch):
+        """有企业但无匹配 debtor 时返回空列表。"""
+        mock_ents = [
+            {"name": "乙方企业", "role": "乙方", "debtor": ""},
+            {"name": "甲方A", "role": "甲方", "debtor": "其他企业", "industry": "房地产"},
+        ]
+
+        def mock_load():
+            return mock_ents
+
+        monkeypatch.setattr(
+            ReportingService,
+            "_load_enterprises_yaml",
+            staticmethod(mock_load),
+        )
+
+        result = ReportingService._fetch_party_a_signals("乙方企业")
+        assert result == []
+
+    def test_returns_party_a_signals_from_db(self, monkeypatch):
+        """有甲方时从 warning_db 拉取信号。"""
+        mock_ents = [
+            {"name": "乙方企业", "role": "乙方", "debtor": ""},
+            {"name": "甲方A", "role": "甲方", "debtor": "乙方企业", "industry": "房地产"},
+        ]
+
+        def mock_load():
+            return mock_ents
+
+        monkeypatch.setattr(
+            ReportingService,
+            "_load_enterprises_yaml",
+            staticmethod(mock_load),
+        )
+
+        # Mock warning_db
+        mock_signals = [
+            {"severity": "red", "title": "严重违约", "detail": "债券违约"},
+        ]
+
+        class MockDB:
+            def get_signals_summary(self, enterprise, limit=20):
+                if enterprise == "甲方A":
+                    return mock_signals
+                return []
+
+        monkeypatch.setattr(
+            "warning_db.WarningDB",
+            MockDB,
+        )
+
+        result = ReportingService._fetch_party_a_signals("乙方企业")
+        assert len(result) == 1
+        assert result[0]["name"] == "甲方A"
+        assert result[0]["industry"] == "房地产"
+        assert result[0]["signal_count"] == 1
+        assert result[0]["signals"][0]["severity"] == "red"

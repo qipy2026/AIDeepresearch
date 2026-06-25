@@ -572,6 +572,41 @@ class ReportingService:
             }
 
     @staticmethod
+    def _fetch_party_a_signals(enterprise: str) -> list:
+        """从 enterprises.yaml + warning_db 获取甲方（核心企业）经营信号。
+
+        Returns:
+            [{name, industry, parent, signals, signal_count}, ...]
+        """
+        from warning_db import WarningDB
+
+        # 1. 找出所有 debtor==enterprise 且 role=="甲方" 的企业
+        ents = ReportingService._load_enterprises_yaml()
+        parties = [
+            e for e in ents
+            if e.get("debtor") == enterprise and e.get("role") == "甲方"
+        ]
+
+        if not parties:
+            return []
+
+        # 2. 对每个甲方从 warning_db 拉取信号
+        db = WarningDB()
+        result = []
+        for p in parties:
+            pname = p.get("name", "")
+            signals = db.get_signals_summary(pname, limit=10)
+            result.append({
+                "name": pname,
+                "industry": p.get("industry", ""),
+                "parent": p.get("parent", ""),
+                "signals": signals,
+                "signal_count": len(signals),
+            })
+
+        return result
+
+    @staticmethod
     def _validate_and_enrich(data: WeeklyData) -> WeeklyData:
         """校验并补全 WeeklyData 缺失字段，打日志便于运维排查。
 
