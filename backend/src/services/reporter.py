@@ -76,6 +76,14 @@ def _inject_snapshot_images(report: str, key_snapshots: list) -> str:
 
     LLM 可能忽略模板指令不复制图片链接，此函数在 LLM 输出后强制替换占位文本。
     """
+
+    # 兜底：LLM 可能照搬旧模板中的 localhost:5000，无论有无 key_snapshots 都统一替换
+    report = re.sub(
+        r"http://localhost:5000/snapshots/",
+        "/snapshots/",
+        report,
+    )
+
     if not key_snapshots:
         return report
 
@@ -99,12 +107,6 @@ def _inject_snapshot_images(report: str, key_snapshots: list) -> str:
     report = re.sub(
         r"（若上下文中包含【关键时刻截图】.*?）",
         img_block,
-        report,
-    )
-    # 兜底：LLM 可能照搬旧模板中的 localhost:5000，统一替换为本项目 /snapshots/
-    report = re.sub(
-        r"http://localhost:5000/snapshots/",
-        "/snapshots/",
         report,
     )
     return report
