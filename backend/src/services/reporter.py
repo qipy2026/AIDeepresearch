@@ -691,13 +691,18 @@ class ReportingService:
         raw_snapshots = ReportingService._read_camera_snapshots(enterprise, weeks=4)
         key_snaps = [s for s in raw_snapshots if s.get("snapshot_path")]
 
-        # Party A 运营信号（条件性）
-        party_a_signals: Optional[List[Dict[str, Any]]] = None
+        # Party A 运营信号（从 enterprises.yaml + warning_db 拉取）
+        try:
+            party_a_signals = self._fetch_party_a_signals(enterprise)
+        except Exception as _exc:
+            logger.warning("_fetch_party_a_signals failed for {}: {}", enterprise, _exc)
+            party_a_signals = []
 
         # ── 行业宏观数据（同花顺 iFinD，覆盖所有行业）──
         industry_data = self._fetch_industry_data(industry, enterprise)
 
-        return WeeklyData(
+        # 构建 WeeklyData 并通过校验层补全缺失字段
+        data = WeeklyData(
             enterprise=enterprise,
             industry=industry,
             loan_amount=loan_amount,
@@ -713,6 +718,7 @@ class ReportingService:
             party_a_signals=party_a_signals,
             industry_data=industry_data,
         )
+        return self._validate_and_enrich(data)
 
     @staticmethod
     def _format_weekly_context(data: WeeklyData) -> str:
