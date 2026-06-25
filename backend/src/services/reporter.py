@@ -863,7 +863,7 @@ class ReportingService:
 说明：行业宏观分析待获取，将使用默认行业概览
 """
 
-        # ── 运营信号：视频巡检人数趋势（T4 模板对应字段） ──
+        # ── 运营信号：视频巡检人数趋势 ──
         if headcount_trend and headcount_trend.get("status") != "insufficient":
             ctx += f"""
 【视频巡检人数趋势】
@@ -873,15 +873,6 @@ class ReportingService:
 变化幅度：{headcount_trend.get('delta_pct', 0) * 100:.1f}%
 趋势说明：{headcount_trend.get('message', '')}
 """
-            # 关键时刻截图（文本描述，不含 ![](url) —— 避免 DeepSeek 502）
-            key_snaps = data.get("key_snapshots") or []
-            if key_snaps:
-                ctx += "\n【关键时刻截图信息】\n"
-                for s in key_snaps:
-                    ctx += (f"- {s['snapshot_date']} | 人数:{s['headcount']} | "
-                            f"文件:{s['snapshot_path'].replace(chr(92),'/').split('/')[-1]}\n")
-                ctx += "\n[重要] 报告[重点时段照片记录]节请写入以下占位文本（不要改动）：\n"
-                ctx += "（占位，预备未来接入摄像头数据）\n"
         else:
             ctx += """
 【视频巡检人数趋势】
