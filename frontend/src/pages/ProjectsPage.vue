@@ -132,7 +132,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, nextTick } from "vue";
 
-const API = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8080";
+const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 const COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ef4444", "#ec4899", "#6366f1"];
 
 interface Enterprise {

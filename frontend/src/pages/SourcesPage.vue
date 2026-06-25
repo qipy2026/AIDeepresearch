@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
 
-const API = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8080";
+const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 interface Source {
   name: string;
