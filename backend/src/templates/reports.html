@@ -4,40 +4,66 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>报告管理 - 贷后监管</title>
+<link rel="stylesheet" href="/app/shared.css">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
-.header { background: linear-gradient(135deg,#1e293b,#334155); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:12px; }
-.header h1 { font-size:18px; font-weight:700; }
-.nav-link { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .2s; white-space: nowrap; }
-.nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.nav-link.current { color: #fff; background: rgba(255,255,255,0.15); font-weight: 700; }
-.container { max-width:960px; margin:0 auto; padding:24px; }
-table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.06); }
-th { background:#f8fafc; text-align:left; padding:12px 14px; font-size:12px; font-weight:700; color:#64748b; border-bottom:2px solid #e2e8f0; }
+/* 业务特有样式 */
+table { width:100%; border-collapse:collapse; background:var(--surface-card); border-radius:var(--radius-md); overflow:hidden; box-shadow:var(--shadow-card); }
+th { background:#f8fafc; text-align:left; padding:12px 14px; font-size:12px; font-weight:700; color:var(--text-subtle); border-bottom:2px solid var(--border-medium); }
 td { padding:10px 14px; font-size:13px; border-bottom:1px solid #f1f5f9; }
 tr:hover { background:#fafbfc; }
 .btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
-.btn-sm { padding:4px 8px; font-size:11px; border-radius:5px; cursor:pointer; border:1px solid #e2e8f0; background:#fff; }
+.btn-sm { padding:4px 8px; font-size:11px; border-radius:5px; cursor:pointer; border:1px solid var(--border-medium); background:var(--surface-card); }
 .btn-sm.danger { color:#dc2626; border-color:#fecaca; background:#fef2f2; }
 .empty { text-align:center; padding:60px 20px; color:#94a3b8; }
+
+.main-content > .inner { max-width:960px; }
 </style>
 </head>
 <body>
-<div class="header"><span>📊</span><h1>报告管理</h1>  <span style="flex:1"></span>
-  <a href="/warnings" class="nav-link">预警中心</a>
-  <a href="/enterprises" class="nav-link">贷款项目</a>
-  <a href="/sources" class="nav-link">数据源管理</a>
-  <a href="/rag/upload" class="nav-link">参考文档</a>
-  <a href="/reports" class="nav-link current">报告</a>
-  <a href="/app" class="nav-link">贷后助手</a>
-</div>
+<div class="layout-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="sidebar-title">贷后管理助手</h1>
+          <p class="sidebar-subtitle">监控与预警系统</p>
+        </div>
+      </div>
+    </div>
+    <hr class="sidebar-divider">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="/app/">📋 贷后助手</a>
+      <a class="sidebar-link" href="/warnings">⚠️ 预警中心</a>
+      <a class="sidebar-link" href="/enterprises">🏢 贷后项目</a>
+      <a class="sidebar-link" href="/sources">📡 数据源管理</a>
+      <a class="sidebar-link" href="/rag/upload">📄 参考文档</a>
+      <a class="sidebar-link active" href="/reports">📊 报告列表</a>
+      <a class="sidebar-link" href="/reports-edit">✏️ 编辑报告</a>
+    </nav>
+    <hr class="sidebar-divider">
+    <div class="sidebar-actions">
+      <a class="btn-new-research" href="/app/">+ 开始新调查</a>
+    </div>
+  </aside>
 
-<div class="container">
-  <table>
-    <thead><tr><th>报告名称</th><th>更新时间</th><th>大小</th><th>操作</th></tr></thead>
-    <tbody id="reportTable"></tbody>
-  </table>
+  <main class="main-content">
+    <div class="inner">
+      <div class="page-header">
+        <h2 class="page-title">📊 报告管理</h2>
+        <p class="page-subtitle">查看、编辑和管理已生成的贷后报告</p>
+      </div>
+
+      <table>
+        <thead><tr><th>报告名称</th><th>更新时间</th><th>大小</th><th>操作</th></tr></thead>
+        <tbody id="reportTable"></tbody>
+      </table>
+    </div>
+  </main>
 </div>
 
 <script>
@@ -49,13 +75,13 @@ async function load() {
   const reports = data.reports || [];
   const tbody = document.getElementById('reportTable');
   if (!reports.length) {
-    tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><p>📋</p><p>暂无报告，前往<a href="/app">贷后助手</a>生成</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><p>📋</p><p>暂无报告，前往<a href="/app" style="color:var(--color-primary-light);">贷后助手</a>生成</p></div></td></tr>';
     return;
   }
   tbody.innerHTML = reports.map(r => `
     <tr>
-      <td><a href="${API}/api/reports/${r.id}?raw=1" target="_blank" style="color:#3b82f6;text-decoration:none;font-weight:600;">${r.name}</a></td>
-      <td style="color:#64748b;">${new Date(r.updated).toLocaleString('zh-CN')}</td>
+      <td><a href="${API}/api/reports/${r.id}?raw=1" target="_blank" style="color:var(--color-primary-light);text-decoration:none;font-weight:600;">${r.name}</a></td>
+      <td style="color:var(--text-subtle);">${new Date(r.updated).toLocaleString('zh-CN')}</td>
       <td style="color:#94a3b8;">${(r.size/1024).toFixed(1)} KB</td>
       <td>
         <button class="btn-sm" onclick="editReport('${r.id}')">✏️ 编辑</button>
@@ -66,7 +92,7 @@ async function load() {
 }
 
 function editReport(id) {
-  window.open(API + '/api/reports/' + id + '?raw=1', '_blank');
+  location.href = '/reports-edit?id=' + id;
 }
 
 async function delReport(id) {

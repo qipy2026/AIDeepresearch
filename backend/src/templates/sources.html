@@ -4,26 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>数据源管理 - 贷后监管</title>
+<link rel="stylesheet" href="/app/shared.css">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
-.header { background: linear-gradient(135deg,#1e293b,#334155); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:12px; }
-.header h1 { font-size:18px; font-weight:700; }
-.nav-link { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .2s; white-space: nowrap; }
-.nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.nav-link.current { color: #fff; background: rgba(255,255,255,0.15); font-weight: 700; }
-
-a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
-.container { max-width:1100px; margin:0 auto; padding:24px; }
-
+/* 业务特有样式 */
 .toolbar { display:flex; gap:10px; margin-bottom:16px; align-items:center; }
 .btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
-.btn-primary { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; }
-.btn-outline { background:transparent; border:1px solid #e2e8f0; color:#64748b; }
-.btn-sm { padding:4px 8px; font-size:11px; border-radius:5px; cursor:pointer; border:1px solid #e2e8f0; }
+.btn-primary { background:var(--gradient-brand); color:#fff; }
+.btn-outline { background:transparent; border:1px solid var(--border-medium); color:var(--text-subtle); }
+.btn-sm { padding:4px 8px; font-size:11px; border-radius:5px; cursor:pointer; border:1px solid var(--border-medium); }
 
-table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.06); }
-th { background:#f8fafc; text-align:left; padding:12px 14px; font-size:12px; font-weight:700; color:#64748b; border-bottom:2px solid #e2e8f0; }
+table { width:100%; border-collapse:collapse; background:var(--surface-card); border-radius:var(--radius-md); overflow:hidden; box-shadow:var(--shadow-card); }
+th { background:#f8fafc; text-align:left; padding:12px 14px; font-size:12px; font-weight:700; color:var(--text-subtle); border-bottom:2px solid var(--border-medium); }
 td { padding:10px 14px; font-size:13px; border-bottom:1px solid #f1f5f9; }
 tr:hover { background:#fafbfc; }
 
@@ -39,49 +30,78 @@ tr:hover { background:#fafbfc; }
 .toggle { width:40px; height:22px; border-radius:11px; border:none; cursor:pointer; transition:background .2s; }
 .toggle.on { background:#16a34a; }
 .toggle.off { background:#cbd5e1; }
-.toggle::after { content:''; display:block; width:18px; height:18px; border-radius:50%; background:#fff; margin:2px; transition:transform .2s; }
+.toggle::after { content:''; display:block; width:18px; height:18px; border-radius:50%; background:var(--surface-card); margin:2px; transition:transform .2s; }
 .toggle.on::after { transform:translateX(18px); }
 
 .modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,.5); align-items:center; justify-content:center; padding:24px; }
 .modal.open { display:flex; }
-.modal-box { background:#fff; border-radius:16px; padding:24px; max-width:500px; width:100%; box-shadow:0 24px 64px rgba(0,0,0,.25); }
+.modal-box { background:var(--surface-card); border-radius:16px; padding:24px; max-width:500px; width:100%; box-shadow:var(--shadow-modal); }
 .modal-box h3 { margin-bottom:16px; }
 .form-row { display:flex; gap:10px; margin-bottom:10px; }
 .form-field { flex:1; }
 .form-field label { display:block; font-size:11px; font-weight:600; color:#94a3b8; margin-bottom:3px; }
-.form-field input, .form-field select { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:7px; font-size:13px; }
+.form-field input, .form-field select { width:100%; padding:7px 10px; border:1px solid var(--border-medium); border-radius:7px; font-size:13px; }
 .msg { padding:8px 14px; border-radius:8px; font-size:13px; margin-top:10px; display:none; }
 .msg.ok { display:block; background:#dcfce7; color:#166534; }
 .msg.err { display:block; background:#fee2e2; color:#991b1b; }
+
+.main-content > .inner { max-width:1100px; }
 </style>
 </head>
 <body>
-<div class="header"><a href="/warnings" style="color:#fff;text-decoration:none;font-weight:800;font-size:14px;margin-right:12px;white-space:nowrap;">贷后监管</a><span>📡</span><h1>数据源管理</h1>  <span style="flex:1"></span>
-  <a href="/enterprises" class="nav-link ">贷款项目</a>
-  <a href="/sources" class="nav-link current">数据源管理</a>
-  <a href="/rag/upload" class="nav-link ">参考文档</a>
-  <a href="/app" class="nav-link " target="_blank"><a href="/reports" class="nav-link ">报告</a>
-  <a href="/app" class="nav-link ">贷后助手</a>
+<div class="layout-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="sidebar-title">贷后管理助手</h1>
+          <p class="sidebar-subtitle">监控与预警系统</p>
+        </div>
+      </div>
+    </div>
+    <hr class="sidebar-divider">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="/app/">📋 贷后助手</a>
+      <a class="sidebar-link" href="/warnings">⚠️ 预警中心</a>
+      <a class="sidebar-link" href="/enterprises">🏢 贷后项目</a>
+      <a class="sidebar-link active" href="/sources">📡 数据源管理</a>
+      <a class="sidebar-link" href="/rag/upload">📄 参考文档</a>
+      <a class="sidebar-link" href="/reports">📊 报告列表</a>
+      <a class="sidebar-link" href="/reports-edit">✏️ 编辑报告</a>
+    </nav>
+    <hr class="sidebar-divider">
+    <div class="sidebar-actions">
+      <a class="btn-new-research" href="/app/">+ 开始新调查</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="inner">
+      <div class="page-header">
+        <h2 class="page-title">📡 数据源管理</h2>
+        <p class="page-subtitle">管理数据采集源与采集频率 <span id="statusMsg" style="margin-left:8px;"></span></p>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openAdd()">+ 新增数据源</button>
+        <button class="btn btn-outline" onclick="saveAll()">💾 保存修改</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>状态</th><th>名称</th><th>URL</th><th>分类</th><th>采集频率</th><th>builtin</th><th>操作</th></tr>
+        </thead>
+        <tbody id="sourceTable"></tbody>
+      </table>
+    </div>
+  </main>
 </div>
 
-<div class="container">
-  <div class="toolbar">
-    <button class="btn btn-primary" onclick="openAdd()">+ 新增数据源</button>
-    <button class="btn btn-outline" onclick="saveAll()">💾 保存修改</button>
-    <span style="font-size:12px;color:#94a3b8;margin-left:8px;" id="statusMsg"></span>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>状态</th><th>名称</th><th>URL</th><th>分类</th><th>采集频率</th><th>builtin</th><th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="sourceTable"></tbody>
-  </table>
-</div>
-
-<!-- 新增/编辑弹窗 -->
 <div class="modal" id="editModal">
   <div class="modal-box">
     <h3 id="modalTitle">新增数据源</h3>
@@ -89,13 +109,9 @@ tr:hover { background:#fafbfc; }
       <div class="form-field" style="flex:2"><label>名称 *</label><input id="sName"></div>
       <div class="form-field"><label>分类</label>
         <select id="sCategory">
-          <option value="宏观数据">宏观数据</option>
-          <option value="行业报告">行业报告</option>
-          <option value="舆情指数">舆情指数</option>
-          <option value="电商流量">电商流量</option>
-          <option value="影视票房">影视票房</option>
-          <option value="行业排名">行业排名</option>
-          <option value="其他">其他</option>
+          <option value="宏观数据">宏观数据</option><option value="行业报告">行业报告</option>
+          <option value="舆情指数">舆情指数</option><option value="电商流量">电商流量</option>
+          <option value="影视票房">影视票房</option><option value="行业排名">行业排名</option><option value="其他">其他</option>
         </select>
       </div>
     </div>
@@ -139,7 +155,7 @@ function render() {
     return `<tr>
       <td><button class="toggle ${s.enabled ? 'on' : 'off'}" onclick="toggleSource(${i})"></button></td>
       <td>${s.name}</td>
-      <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><a href="${s.url}" target="_blank" style="color:#3b82f6;">${s.url}</a></td>
+      <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><a href="${s.url}" target="_blank" style="color:var(--color-primary-light);">${s.url}</a></td>
       <td><span class="tag tag-${tag}">${s.category}</span></td>
       <td>${s.schedule === 'daily' ? '每日' : s.schedule === 'weekly' ? '每周' : '每月'}</td>
       <td>${builtin}</td>
@@ -186,12 +202,7 @@ function saveSource() {
     document.getElementById('editMsg').textContent = '名称和 URL 不能为空';
     return;
   }
-  const entry = {
-    name, url,
-    category: document.getElementById('sCategory').value,
-    schedule: document.getElementById('sSchedule').value,
-    enabled: true
-  };
+  const entry = { name, url, category: document.getElementById('sCategory').value, schedule: document.getElementById('sSchedule').value, enabled: true };
   if (editIndex >= 0) {
     entry.enabled = sources[editIndex].enabled;
     if (sources[editIndex].builtin) entry.builtin = true;
@@ -214,17 +225,14 @@ function deleteSource(i) {
 async function saveAll() {
   try {
     const resp = await fetch(API + '/api/sources', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({sources})
     });
     const data = await resp.json();
     if (data.status === 'ok') {
       document.getElementById('statusMsg').textContent = '✅ 保存成功，下次采集周期生效';
     }
-  } catch(e) {
-    document.getElementById('statusMsg').textContent = '保存失败';
-  }
+  } catch(e) { document.getElementById('statusMsg').textContent = '保存失败'; }
 }
 
 loadSources();

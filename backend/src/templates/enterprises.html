@@ -4,21 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>贷款项目管理 - 贷后监管</title>
+<link rel="stylesheet" href="/app/shared.css">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
-.header { background: linear-gradient(135deg,#1e293b,#334155); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:12px; }
-.header h1 { font-size:18px; font-weight:700; }
-.nav-link { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; padding: 4px 10px; border-radius: 6px; transition: all .2s; white-space: nowrap; }
-.nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.nav-link.current { color: #fff; background: rgba(255,255,255,0.15); font-weight: 700; }
-
+/* 业务特有样式 */
 a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
-.container { max-width:960px; margin:0 auto; padding:24px; }
 
 /* 项目网格 */
 .projects-grid { display:flex; flex-direction:column; gap:20px; }
-.project-card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.06); overflow:hidden; border-left:4px solid #e2e8f0; }
+.project-card { background:var(--surface-card); border-radius:var(--radius-lg); box-shadow:var(--shadow-card); overflow:hidden; border-left:4px solid #e2e8f0; }
 .project-card:nth-child(1) { border-left-color:#3b82f6; }
 .project-card:nth-child(2) { border-left-color:#8b5cf6; }
 .project-card:nth-child(3) { border-left-color:#06b6d4; }
@@ -32,12 +25,12 @@ a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
 .project-head:hover { background:#fafbfc; }
 .project-body { padding:0 22px 16px 22px; border-top:1px solid #f1f5f9; display:none; }
 .project-card.open .project-body { display:block; }
-.project-head .num { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; color:#fff; }
+.project-head .num { width:36px; height:36px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; color:#fff; }
 .project-head .info { flex:1; }
-.project-head .info .name { font-weight:700; font-size:15px; }
-.project-head .info .meta { font-size:12px; color:#64748b; display:flex; gap:12px; margin-top:3px; }
-/* 甲方行 */
-.party-row { margin-left:36px; padding:10px 14px; background:#f8fafc; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.project-head .info .name { font-weight:700; font-size:15px; color:var(--text-primary); }
+.project-head .info .meta { font-size:12px; color:var(--text-subtle); display:flex; gap:12px; margin-top:3px; }
+
+.party-row { margin-left:36px; padding:10px 14px; background:#f8fafc; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .party-row + .party-row { margin-top:6px; }
 .party-row .arrow { color:#94a3b8; margin-right:4px; }
 
@@ -49,85 +42,109 @@ a.back { color:#93c5fd; font-size:13px; text-decoration:none; }
 
 .btn-sm { padding:4px 10px; font-size:11px; border-radius:6px; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; cursor:pointer; }
 
-/* 新建项目表单 */
-.add-card { background:#fff; border-radius:14px; padding:22px 24px; box-shadow:0 2px 12px rgba(0,0,0,.06); border:2px dashed #cbd5e1; }
-.add-card h2 { font-size:16px; margin-bottom:16px; }
-.form-section { margin-bottom:14px; padding:14px; background:#f8fafc; border-radius:10px; }
-.form-section h3 { font-size:13px; font-weight:700; margin-bottom:10px; color:#475569; display:flex; align-items:center; gap:6px; }
+.add-card { background:var(--surface-card); border-radius:var(--radius-lg); padding:22px 24px; box-shadow:var(--shadow-card); border:2px dashed #cbd5e1; }
+.add-card h2 { font-size:16px; margin-bottom:16px; color:var(--text-primary); }
+.form-section { margin-bottom:14px; padding:14px; background:#f8fafc; border-radius:var(--radius-sm); }
+.form-section h3 { font-size:13px; font-weight:700; margin-bottom:10px; color:var(--text-muted); display:flex; align-items:center; gap:6px; }
 .form-row { display:flex; gap:10px; flex-wrap:wrap; }
 .form-field { flex:1; min-width:160px; }
 .form-field label { display:block; font-size:11px; font-weight:600; color:#94a3b8; margin-bottom:3px; }
-.form-field input, .form-field select { width:100%; padding:7px 10px; border:1px solid #e2e8f0; border-radius:7px; font-size:13px; background:#fff; }
-.form-field input:focus, .form-field select:focus { outline:none; border-color:#3b82f6; }
+.form-field input, .form-field select { width:100%; padding:7px 10px; border:1px solid var(--border-medium); border-radius:7px; font-size:13px; background:var(--surface-card); }
+.form-field input:focus, .form-field select:focus { outline:none; border-color:var(--color-primary-light); }
 .hint { font-size:10px; color:#cbd5e1; margin-top:2px; }
 
 .btn { padding:8px 18px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
-.btn-primary { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; }
+.btn-primary { background:var(--gradient-brand); color:#fff; }
 .btn-primary:hover { opacity:.9; }
-.btn-outline { background:transparent; border:1px solid #e2e8f0; color:#64748b; }
-.btn-outline:hover { border-color:#3b82f6; color:#3b82f6; }
+.btn-outline { background:transparent; border:1px solid var(--border-medium); color:var(--text-subtle); }
+.btn-outline:hover { border-color:var(--color-primary-light); color:var(--color-primary-light); }
 
 .msg { padding:8px 14px; border-radius:8px; font-size:13px; margin-top:10px; display:none; }
 .msg.ok { display:block; background:#dcfce7; color:#166534; }
 .msg.err { display:block; background:#fee2e2; color:#991b1b; }
 .empty { text-align:center; padding:60px 20px; color:#94a3b8; }
+
+.main-content > .inner { max-width:960px; }
 </style>
 </head>
 <body>
-
-<div class="header"><a href="/warnings" style="color:#fff;text-decoration:none;font-weight:800;font-size:14px;margin-right:12px;white-space:nowrap;">贷后监管</a><span>🏢</span><h1>贷款项目管理</h1>  <span style="flex:1"></span>
-  <a href="/enterprises" class="nav-link current">贷款项目</a>
-  <a href="/sources" class="nav-link ">数据源管理</a>
-  <a href="/rag/upload" class="nav-link ">参考文档</a>
-  <a href="/app" class="nav-link " target="_blank"><a href="/reports" class="nav-link ">报告</a>
-  <a href="/app" class="nav-link ">贷后助手</a>
-</div>
-
-<div class="container">
-  <!-- 快捷操作 -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
-    <button class="btn btn-primary" onclick="toggleAddForm()" id="addBtn">➕ 新建项目</button>
-    <button class="btn btn-outline" onclick="toggleAll()" style="font-size:12px;">展开/折叠全部</button>
-    <span style="font-size:12px;color:#94a3b8;margin-left:8px;" id="totalInfo"></span>
-  </div>
-
-  <!-- 新建项目（默认折叠） -->
-  <div class="add-card" id="addCard" style="display:none;">
-    <h2>➕ 新建贷款项目</h2>
-
-    <div class="form-section">
-      <h3>🏢 乙方 — 债务企业（借款方）</h3>
-      <div class="form-row">
-        <div class="form-field" style="flex:2"><label>企业全称 *</label><input id="debtorName" placeholder="如：四川振海保安服务有限公司"></div>
-        <div class="form-field"><label>行业</label><input id="debtorIndustry" placeholder="安保服务"></div>
-        <div class="form-field"><label>贷款金额(万元)</label><input id="debtorAmount" type="number" placeholder="1000"></div>
-        <div class="form-field" style="flex:2"><label>搜索关键词</label><input id="debtorKW" placeholder="逗号分隔"></div>
+<div class="layout-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="sidebar-title">贷后管理助手</h1>
+          <p class="sidebar-subtitle">监控与预警系统</p>
+        </div>
       </div>
     </div>
-
-    <div class="form-section">
-      <h3>📋 甲方 — 核心监管企业（可添加多个）</h3>
-      <div class="form-row">
-        <div class="form-field" style="flex:2"><label>企业全称 *</label><input id="partyName" placeholder="国家管网集团西南管道有限责任公司"></div>
-        <div class="form-field"><label>行业</label><input id="partyIndustry" placeholder="管道运输"></div>
-        <div class="form-field"><label>母公司</label><input id="partyParent" placeholder="国家管网集团"></div>
-        <div class="form-field"><label>股票/概念代码</label><input id="partyStock" placeholder="601186.SH或885692.TI"></div>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-        <button type="button" class="btn btn-outline" onclick="addParty()">+ 添加此甲方</button>
-        <span style="font-size:12px;color:#94a3b8;" id="partyCount">已添加 0 个甲方</span>
-        <span style="flex:1"></span>
-        <button type="button" class="btn btn-primary" onclick="submitProject()">创建项目</button>
-          <button type="button" class="btn btn-outline" onclick="toggleAddForm()">取消</button>
-      </div>
-      <div id="partyPreview" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;"></div>
+    <hr class="sidebar-divider">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link" href="/app/">📋 贷后助手</a>
+      <a class="sidebar-link" href="/warnings">⚠️ 预警中心</a>
+      <a class="sidebar-link active" href="/enterprises">🏢 贷后项目</a>
+      <a class="sidebar-link" href="/sources">📡 数据源管理</a>
+      <a class="sidebar-link" href="/rag/upload">📄 参考文档</a>
+      <a class="sidebar-link" href="/reports">📊 报告列表</a>
+      <a class="sidebar-link" href="/reports-edit">✏️ 编辑报告</a>
+    </nav>
+    <hr class="sidebar-divider">
+    <div class="sidebar-actions">
+      <a class="btn-new-research" href="/app/">+ 开始新调查</a>
     </div>
+  </aside>
 
-    <div id="msg" class="msg"></div>
-  </div>
+  <main class="main-content">
+    <div class="inner">
+      <div class="page-header">
+        <h2 class="page-title">🏢 贷款项目管理</h2>
+        <p class="page-subtitle">管理债务企业与核心企业关联关系 <span id="totalInfo" style="margin-left:8px;"></span></p>
+      </div>
 
-  <!-- 项目卡片列表 -->
-  <div id="projectList" class="projects-grid"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+        <button class="btn btn-primary" onclick="toggleAddForm()" id="addBtn">➕ 新建项目</button>
+        <button class="btn btn-outline" onclick="toggleAll()" style="font-size:12px;">展开/折叠全部</button>
+      </div>
+
+      <div class="add-card" id="addCard" style="display:none;">
+        <h2>➕ 新建贷款项目</h2>
+        <div class="form-section">
+          <h3>🏢 乙方 — 债务企业（借款方）</h3>
+          <div class="form-row">
+            <div class="form-field" style="flex:2"><label>企业全称 *</label><input id="debtorName" placeholder="如：四川振海保安服务有限公司"></div>
+            <div class="form-field"><label>行业</label><input id="debtorIndustry" placeholder="安保服务"></div>
+            <div class="form-field"><label>贷款金额(万元)</label><input id="debtorAmount" type="number" placeholder="1000"></div>
+            <div class="form-field" style="flex:2"><label>搜索关键词</label><input id="debtorKW" placeholder="逗号分隔"></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <h3>📋 甲方 — 核心监管企业（可添加多个）</h3>
+          <div class="form-row">
+            <div class="form-field" style="flex:2"><label>企业全称 *</label><input id="partyName" placeholder="国家管网集团西南管道有限责任公司"></div>
+            <div class="form-field"><label>行业</label><input id="partyIndustry" placeholder="管道运输"></div>
+            <div class="form-field"><label>母公司</label><input id="partyParent" placeholder="国家管网集团"></div>
+            <div class="form-field"><label>股票/概念代码</label><input id="partyStock" placeholder="601186.SH或885692.TI"></div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+            <button type="button" class="btn btn-outline" onclick="addParty()">+ 添加此甲方</button>
+            <span style="font-size:12px;color:#94a3b8;" id="partyCount">已添加 0 个甲方</span>
+            <span style="flex:1"></span>
+            <button type="button" class="btn btn-primary" onclick="submitProject()">创建项目</button>
+            <button type="button" class="btn btn-outline" onclick="toggleAddForm()">取消</button>
+          </div>
+          <div id="partyPreview" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+        <div id="msg" class="msg"></div>
+      </div>
+
+      <div id="projectList" class="projects-grid"></div>
+    </div>
+  </main>
 </div>
 
 <script>
@@ -154,10 +171,10 @@ function addParty() {
 function renderPartyPreview() {
   document.getElementById('partyCount').textContent = `已添加 ${_pendingParties.length} 个甲方`;
   document.getElementById('partyPreview').innerHTML = _pendingParties.map((p,i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff;border-radius:6px;font-size:13px;">
-      <span style="color:#64748b;">${i+1}.</span>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface-card);border-radius:6px;font-size:13px;">
+      <span style="color:var(--text-subtle);">${i+1}.</span>
       <span style="font-weight:600;">${p.name}</span>
-      ${p.industry ? `<span style="color:#64748b;font-size:11px;">🏭 ${p.industry}</span>` : ''}
+      ${p.industry ? `<span style="color:var(--text-subtle);font-size:11px;">🏭 ${p.industry}</span>` : ''}
       ${p.parent ? `<span style="color:#9d174d;font-size:11px;">母:${p.parent}</span>` : ''}
       ${p.stock ? `<span style="color:#166534;font-size:11px;">${p.stock}</span>` : ''}
       <span onclick="_pendingParties.splice(${i},1);renderPartyPreview()" style="margin-left:auto;cursor:pointer;color:#ef4444;font-size:16px;">×</span>
@@ -176,13 +193,11 @@ async function submitProject() {
   if (!_pendingParties.length) { showMsg('请至少添加一个甲方', 'err'); return; }
 
   let ok = 0;
-  // 1. 创建乙方
   try {
     const r = await fetch(API+'/api/enterprises',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({...debtor, role:'乙方'})});
     if ((await r.json()).status === 'ok') ok++;
   } catch(e) {}
-  // 2. 创建甲方
   for (const p of _pendingParties) {
     try {
       const r = await fetch(API+'/api/enterprises',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -206,7 +221,6 @@ function showMsg(text, type) {
   setTimeout(() => m.className = 'msg', 3000);
 }
 
-// ── 项目视图（乙方 + 关联甲方）──
 async function loadProjects() {
   const resp = await fetch(API + '/api/enterprises');
   const data = await resp.json();
@@ -247,7 +261,7 @@ async function loadProjects() {
               <span class="tag tag-party-a">甲方</span>
               ${p.parent ? `<span class="tag tag-parent">母公司 ${p.parent}</span>` : ''}
               ${p.parent_stock_code ? `<span class="tag tag-stock">${p.parent_stock_code}</span>` : ''}
-              <div style="font-size:12px;color:#64748b;margin-top:3px;margin-left:18px;">🏭 ${p.industry || '未填行业'}</div>
+              <div style="font-size:12px;color:var(--text-subtle);margin-top:3px;margin-left:18px;">🏭 ${p.industry || '未填行业'}</div>
             </div>
             <button class="btn btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
           </div>
@@ -256,14 +270,13 @@ async function loadProjects() {
     </div>`;
   });
 
-  // 未关联的甲方
   const unlinked = parties.filter(p => !p.debtor);
   if (unlinked.length) {
     html += `<div class="project-card open" style="border-left-color:#94a3b8;">
       <div class="project-head" onclick="this.parentElement.classList.toggle('open')">
         <div class="num" style="background:#94a3b8;">!</div>
         <div class="info">
-          <div class="name" style="color:#64748b;">📋 未关联的甲方（${unlinked.length}家）</div>
+          <div class="name" style="color:var(--text-subtle);">📋 未关联的甲方（${unlinked.length}家）</div>
           <div class="meta">缺少债务企业绑定</div>
         </div>
       </div>
@@ -274,7 +287,7 @@ async function loadProjects() {
               <span style="font-weight:600;font-size:14px;">${p.name}</span>
               <span class="tag tag-party-a">甲方</span>
               ${p.parent ? `<span class="tag tag-parent">母公司 ${p.parent}</span>` : ''}
-              <div style="font-size:12px;color:#64748b;margin-top:3px;">🏭 ${p.industry || '未填行业'}</div>
+              <div style="font-size:12px;color:var(--text-subtle);margin-top:3px;">🏭 ${p.industry || '未填行业'}</div>
             </div>
             <button class="btn btn-sm" onclick="deleteEnterprise('${p.name.replace(/'/g,"\\'")}')">删除</button>
           </div>
