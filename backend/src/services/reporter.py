@@ -8,7 +8,6 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
-import requests
 from config import Configuration
 from core.llm import invoke_llm
 from models import SummaryState
