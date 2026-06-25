@@ -31,7 +31,7 @@
               <textarea
                 v-model="form.topic"
                 placeholder="输入企业名称，或从已有项目中选择"
-                rows="3"
+                rows="5"
                 required
                 @focus="onTopicFocus"
                 @blur="onTopicBlur"
@@ -1393,6 +1393,11 @@ select {
   color: #1f2937;
   font-size: 14px;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
 }
 
 textarea:focus,
