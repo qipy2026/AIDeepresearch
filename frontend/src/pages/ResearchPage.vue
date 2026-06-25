@@ -759,14 +759,14 @@ const handleSubmit = async () => {
     return;
   }
 
-  if (currentController) {
-    currentController.abort();
-    currentController = null;
-  }
+  // 先清理前一个未完成的 SSE 连接（分层清理）
+  cancelResearch();
 
-  loading.value = true;
+  // 新 Session：递增 epoch 使旧 session 的所有回调失效
+  const epoch = ++researchEpoch.value;
+
+  researchPhase.value = 'running';
   error.value = "";
-  isExpanded.value = true;
   resetWorkflowState();
 
   const controller = new AbortController();
@@ -782,6 +782,7 @@ const handleSubmit = async () => {
       payload,
       (event: ResearchStreamEvent) => {
         if (event.type === "status") {
+          if (researchEpoch.value !== epoch) return;
           const message =
             typeof event.message === "string" && event.message.trim()
               ? event.message
@@ -798,6 +799,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "todo_list") {
+          if (researchEpoch.value !== epoch) return;
           const tasks = Array.isArray(event.tasks)
             ? (event.tasks as Record<string, unknown>[])
             : [];
@@ -857,6 +859,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "task_status") {
+          if (researchEpoch.value !== epoch) return;
           const payload = event as Record<string, unknown>;
           const task = findTask(event.task_id);
           if (!task) {
@@ -901,6 +904,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "sources") {
+          if (researchEpoch.value !== epoch) return;
           const payload = event as Record<string, unknown>;
           const task = findTask(event.task_id);
           if (!task) {
@@ -937,6 +941,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "task_summary_chunk") {
+          if (researchEpoch.value !== epoch) return;
           const payload = event as Record<string, unknown>;
           const task = findTask(event.task_id);
           if (!task) {
@@ -953,6 +958,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "tool_call") {
+          if (researchEpoch.value !== epoch) return;
           const payload = event as Record<string, unknown>;
           const eventId =
             typeof payload.event_id === "number"
@@ -1004,7 +1010,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "generating_report") {
-          generatingReport.value = true;
+          researchPhase.value = 'generating';
           const msg = typeof event.message === "string" && event.message.trim()
             ? event.message.trim() : "正在生成最终报告...";
           progressLogs.value.push(msg);
@@ -1012,7 +1018,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "final_report") {
-          generatingReport.value = false;
+          researchPhase.value = 'done';
           const report =
             typeof event.report === "string" && event.report.trim()
               ? event.report.trim()
@@ -1027,7 +1033,8 @@ const handleSubmit = async () => {
           })
           .then(r => r.json())
           .then(data => {
-            if (data && data.id) {
+            // epoch 校验：只有当前 session 才写入 savedReportId（修复 B2）
+            if (data && data.id && researchEpoch.value === epoch) {
               savedReportId.value = data.id;
             }
           })
@@ -1036,6 +1043,7 @@ const handleSubmit = async () => {
         }
 
         if (event.type === "error") {
+          researchPhase.value = 'error';
           const detail =
             typeof event.detail === "string" && event.detail.trim()
               ? event.detail
@@ -1044,7 +1052,10 @@ const handleSubmit = async () => {
           progressLogs.value.push("调查失败，已停止流程");
         }
       },
-      { signal: controller.signal }
+      {
+        signal: controller.signal,
+        onReader: (r: ReadableStreamDefaultReader<Uint8Array>) => { currentReader = r; }
+      }
     );
 
     if (!reportMarkdown.value) {
@@ -1053,23 +1064,46 @@ const handleSubmit = async () => {
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       progressLogs.value.push("已取消当前调查任务");
+      researchPhase.value = 'idle';
     } else {
+      researchPhase.value = 'error';
       error.value = err instanceof Error ? err.message : "请求失败";
     }
   } finally {
-    loading.value = false;
+    // 如果流正常结束但未收到 final_report 事件，标记为 done
+    const phase = researchPhase.value as string;
+    if (phase === 'running' || phase === 'generating') {
+      researchPhase.value = 'done';
+    }
     if (currentController === controller) {
       currentController = null;
     }
+    currentReader = null;
   }
 };
 
 const cancelResearch = () => {
-  if (!loading.value || !currentController) {
+  // 检查是否有活跃的 SSE 连接（不依赖 loading 状态，消除 B5）
+  if (!currentController && !currentReader) {
     return;
   }
-  progressLogs.value.push("正在尝试取消当前调查任务…");
-  currentController.abort();
+
+  // 分层清理（修复 B3）：
+  // 1. 先取消 reader — 释放浏览器端流缓冲
+  if (currentReader) {
+    currentReader.cancel().catch(() => {});
+    currentReader = null;
+  }
+  // 2. 再 abort fetch — 中断网络请求
+  if (currentController) {
+    currentController.abort();
+    currentController = null;
+  }
+
+  // 仅在非 idle 状态下记录取消日志
+  if (researchPhase.value !== 'idle') {
+    progressLogs.value.push("已取消当前调查任务");
+  }
 };
 
 const startNewResearch = () => {
@@ -1078,7 +1112,7 @@ const startNewResearch = () => {
   }
   resetWorkflowState();
   error.value = "";
-  isExpanded.value = false;
+  researchPhase.value = 'idle';
   form.topic = "";
   form.searchApi = "";
 };
