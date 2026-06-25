@@ -1396,6 +1396,7 @@ select {
 }
 
 textarea {
+  width: 100%;
   min-height: 100px;
   resize: vertical;
 }
