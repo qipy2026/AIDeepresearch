@@ -126,8 +126,12 @@ def create_app() -> FastAPI:
         async def _redirect_sources():
             return RedirectResponse(url="/loan/sources", status_code=301)
 
-        @app.get("/rag/upload")
+        @app.get("/upload")
         async def _redirect_upload():
+            return RedirectResponse(url="/loan/upload", status_code=301)
+
+        @app.get("/rag/upload")
+        async def _redirect_rag_upload():
             return RedirectResponse(url="/loan/upload", status_code=301)
 
         @app.get("/reports")
