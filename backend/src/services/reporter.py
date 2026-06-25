@@ -67,6 +67,7 @@ class WeeklyData(TypedDict, total=False):
     warnings_summary: Optional[Dict[str, Any]]
     headcount_trend: Optional[Dict[str, Any]]
     key_snapshots: Optional[List[Dict[str, Any]]]
+    camera_aggregated: Optional[List[Dict[str, Any]]]  # 完整小时级聚合快照数据
     party_a_signals: Optional[List[Dict[str, Any]]]
     industry_data: Optional[Dict[str, Any]]
 
