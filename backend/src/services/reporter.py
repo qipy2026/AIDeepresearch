@@ -297,12 +297,6 @@ class ReportingService:
                 enterprise, db_path, _e,
             )
             return []
-        except FileNotFoundError as _e:
-            logger.warning(
-                "摄像头 SQLite 数据库文件不存在，企业={}，DB={}，错误={}",
-                enterprise, db_path, _e,
-            )
-            return []
 
     @staticmethod
     def _compute_headcount_trend(

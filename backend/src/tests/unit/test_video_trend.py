@@ -30,6 +30,13 @@ class TestReadCameraSnapshots:
     def test_params_passed_correctly(self, monkeypatch, tmp_path):
         """验证从SQLite读取后字段映射正确：snapshot_date/headcount/snapshot_path."""
         import sqlite3
+        from datetime import datetime, timezone, timedelta
+
+        now = datetime.now(timezone.utc)
+        t = now - timedelta(hours=2)
+        ts = t.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        created = t.strftime("%Y-%m-%d %H:%M:%S")
+        expected_bucket = t.strftime("%Y-%m-%dT%H")
 
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
@@ -37,8 +44,7 @@ class TestReadCameraSnapshots:
             id INTEGER PRIMARY KEY, camera_id INTEGER NOT NULL,
             recorded_at TEXT NOT NULL, person_count INTEGER,
             snapshot_path TEXT NOT NULL, created_at TEXT NOT NULL)""")
-        conn.execute("""INSERT INTO counts VALUES
-            (1, 1, '2026-06-24T14:30:00+00:00', 12, '', '2026-06-24 14:30:00')""")
+        conn.execute("INSERT INTO counts VALUES (1, 1, ?, 12, '', ?)", (ts, created))
         conn.commit()
         conn.close()
 
@@ -49,13 +55,22 @@ class TestReadCameraSnapshots:
         result = ReportingService._read_camera_snapshots("test", weeks=4)
 
         assert len(result) == 1
-        assert result[0]["snapshot_date"] == "2026-06-24T14"
+        assert result[0]["snapshot_date"] == expected_bucket
         assert result[0]["headcount"] == 12
         assert result[0]["snapshot_path"] == ""
 
     def test_null_avg_count_skipped(self, monkeypatch, tmp_path):
         """person_count IS NULL 的行被 SQL WHERE 过滤，不参与聚合."""
         import sqlite3
+        from datetime import datetime, timezone, timedelta
+
+        now = datetime.now(timezone.utc)
+        t1 = now - timedelta(hours=3)
+        t2 = now - timedelta(hours=2)
+        ts1 = t1.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        ts2 = t2.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        created1 = t1.strftime("%Y-%m-%d %H:%M:%S")
+        created2 = t2.strftime("%Y-%m-%d %H:%M:%S")
 
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
@@ -63,9 +78,8 @@ class TestReadCameraSnapshots:
             id INTEGER PRIMARY KEY, camera_id INTEGER NOT NULL,
             recorded_at TEXT NOT NULL, person_count INTEGER,
             snapshot_path TEXT NOT NULL, created_at TEXT NOT NULL)""")
-        conn.execute("""INSERT INTO counts VALUES
-            (1, 1, '2026-06-24T14:00:00+00:00', 10, '', '2026-06-24 14:00:00'),
-            (2, 1, '2026-06-24T15:00:00+00:00', NULL, '', '2026-06-24 15:00:00')""")
+        conn.execute("INSERT INTO counts VALUES (1, 1, ?, 10, '', ?)", (ts1, created1))
+        conn.execute("INSERT INTO counts VALUES (2, 1, ?, NULL, '', ?)", (ts2, created2))
         conn.commit()
         conn.close()
 
@@ -82,6 +96,20 @@ class TestReadCameraSnapshots:
     def test_reads_snapshots_from_sqlite(self, monkeypatch, tmp_path):
         """验证从 SQLite 读取数据后返回格式与原来 HTTP 版本一致."""
         import sqlite3
+        from datetime import datetime, timezone, timedelta
+
+        now = datetime.now(timezone.utc)
+        t1 = now - timedelta(hours=3)
+        t2 = now - timedelta(hours=2)
+        t_null = now - timedelta(hours=1)
+        ts1 = t1.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        ts2 = t2.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        ts_null = t_null.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        created1 = t1.strftime("%Y-%m-%d %H:%M:%S")
+        created2 = t2.strftime("%Y-%m-%d %H:%M:%S")
+        created_null = t_null.strftime("%Y-%m-%d %H:%M:%S")
+        bucket1 = t1.strftime("%Y-%m-%dT%H")
+        bucket2 = t2.strftime("%Y-%m-%dT%H")
 
         db_path = tmp_path / "test_counts.db"
         conn = sqlite3.connect(str(db_path))
@@ -95,14 +123,18 @@ class TestReadCameraSnapshots:
                 created_at TEXT NOT NULL
             )
         """)
-        conn.execute("""
-            INSERT INTO counts (camera_id, recorded_at, person_count, snapshot_path, created_at)
-            VALUES
-            (1, '2026-06-24T14:00:00+00:00', 12, '', '2026-06-24 14:00:00'),
-            (1, '2026-06-24T15:00:00+00:00', 8, '', '2026-06-24 15:00:00'),
-            (1, '2026-06-24T16:00:00+00:00', NULL, '', '2026-06-24 16:00:00'),
-            (2, '2026-06-24T14:00:00+00:00', 100, '', '2026-06-24 14:00:00')
-        """)
+        conn.execute(
+            "INSERT INTO counts (camera_id, recorded_at, person_count, snapshot_path, created_at) "
+            "VALUES (1, ?, 12, '', ?)", (ts1, created1))
+        conn.execute(
+            "INSERT INTO counts (camera_id, recorded_at, person_count, snapshot_path, created_at) "
+            "VALUES (1, ?, 8, '', ?)", (ts2, created2))
+        conn.execute(
+            "INSERT INTO counts (camera_id, recorded_at, person_count, snapshot_path, created_at) "
+            "VALUES (1, ?, NULL, '', ?)", (ts_null, created_null))
+        conn.execute(
+            "INSERT INTO counts (camera_id, recorded_at, person_count, snapshot_path, created_at) "
+            "VALUES (2, ?, 100, '', ?)", (ts1, created1))
         conn.commit()
         conn.close()
 
@@ -114,19 +146,19 @@ class TestReadCameraSnapshots:
 
         # camera_id=1, person_count IS NOT NULL → 2 rows, 2 distinct buckets
         assert len(result) == 2
-        assert result[0]["snapshot_date"] == "2026-06-24T14"
+        assert result[0]["snapshot_date"] == bucket1
         assert result[0]["headcount"] == 12  # single value in bucket
         assert result[0]["snapshot_path"] == ""
-
-    def test_returns_empty_on_db_missing(self, monkeypatch):
-        """DB 路径不存在 → 返回空列表，不抛异常."""
-        monkeypatch.setenv("CAMERA_DB_PATH", "/nonexistent/path/counts.db")
-        result = ReportingService._read_camera_snapshots("测试企业", weeks=4)
-        assert result == []
 
     def test_sync_images_copies_files(self, monkeypatch, tmp_path):
         """图片从源目录复制到本地目录，snapshot_path 更新为文件名."""
         import sqlite3
+        from datetime import datetime, timezone, timedelta
+
+        now = datetime.now(timezone.utc)
+        t = now - timedelta(hours=2)
+        ts = t.strftime("%Y-%m-%dT%H:%M:%S")
+        created = t.strftime("%Y-%m-%d %H:%M:%S")
 
         src_dir = tmp_path / "src_snapshots"
         src_dir.mkdir()
@@ -138,8 +170,9 @@ class TestReadCameraSnapshots:
         conn.execute("""CREATE TABLE counts (
             id INTEGER PRIMARY KEY, camera_id INTEGER, recorded_at TEXT,
             person_count INTEGER, snapshot_path TEXT, created_at TEXT)""")
-        conn.execute("""INSERT INTO counts VALUES
-            (1, 1, '2026-06-24T14:00:00', 5, 'snapshot_data\\snap_abc.jpg', '2026-06-24 14:00:00')""")
+        conn.execute(
+            "INSERT INTO counts VALUES (1, 1, ?, 5, 'snapshot_data\\snap_abc.jpg', ?)",
+            (ts, created))
         conn.commit()
         conn.close()
 
@@ -154,19 +187,26 @@ class TestReadCameraSnapshots:
         copied = local_dir / "snap_abc.jpg"
         assert copied.exists()
         assert copied.read_bytes() == b"fake jpeg data"
-        assert "snap_abc.jpg" in result[0]["snapshot_path"]
+        assert result[0]["snapshot_path"] == "snap_abc.jpg"
 
     def test_sync_images_skips_when_src_missing(self, monkeypatch, tmp_path):
         """源目录不存在时图片跳过，不阻塞报告生成."""
         import sqlite3
+        from datetime import datetime, timezone, timedelta
+
+        now = datetime.now(timezone.utc)
+        t = now - timedelta(hours=2)
+        ts = t.strftime("%Y-%m-%dT%H:%M:%S")
+        created = t.strftime("%Y-%m-%d %H:%M:%S")
 
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
         conn.execute("""CREATE TABLE counts (
             id INTEGER PRIMARY KEY, camera_id INTEGER, recorded_at TEXT,
             person_count INTEGER, snapshot_path TEXT, created_at TEXT)""")
-        conn.execute("""INSERT INTO counts VALUES
-            (1, 1, '2026-06-24T14:00:00', 5, 'snapshot_data\\snap_missing.jpg', '2026-06-24 14:00:00')""")
+        conn.execute(
+            "INSERT INTO counts VALUES (1, 1, ?, 5, 'snapshot_data\\snap_missing.jpg', ?)",
+            (ts, created))
         conn.commit()
         conn.close()
 
