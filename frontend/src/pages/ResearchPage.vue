@@ -1075,7 +1075,7 @@ onMounted(() => {
   const topicParam = route.query.topic;
   if (topicParam && typeof topicParam === "string") {
     form.topic = topicParam;
-    isExpanded.value = true;
+    handleSubmit();
   }
 });
 
