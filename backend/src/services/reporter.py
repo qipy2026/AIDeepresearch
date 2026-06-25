@@ -780,6 +780,7 @@ class ReportingService:
             warnings_summary=db_warnings,
             headcount_trend=headcount_trend,
             key_snapshots=key_snaps if key_snaps else None,
+            camera_aggregated=raw_snapshots,  # 完整聚合数据，供 _build_video_inspection_section 使用
             party_a_signals=party_a_signals,
             industry_data=industry_data,
         )
