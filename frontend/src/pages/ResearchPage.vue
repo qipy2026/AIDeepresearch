@@ -1199,6 +1199,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .app-shell {
   position: relative;
+  flex: 1;
   min-height: 100vh;
   padding: 72px 24px;
   display: flex;
@@ -1264,7 +1265,7 @@ onBeforeUnmount(() => {
 }
 
 .layout-centered {
-  max-width: 600px;
+  max-width: 800px;
   justify-content: center;
   align-items: center;
 }
@@ -1294,7 +1295,7 @@ onBeforeUnmount(() => {
 
 .panel-centered {
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
   padding: 40px;
   box-shadow: 0 32px 64px rgba(15, 23, 42, 0.15);
   transform: scale(1);
