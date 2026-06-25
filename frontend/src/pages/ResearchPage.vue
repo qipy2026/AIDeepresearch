@@ -1071,14 +1071,14 @@ const handleSubmit = async () => {
     }
   } finally {
     // 如果流正常结束但未收到 final_report 事件，标记为 done
-    const phase = researchPhase.value as string;
+    const phase = researchPhase.value as ResearchPhase;
     if (phase === 'running' || phase === 'generating') {
       researchPhase.value = 'done';
     }
     if (currentController === controller) {
       currentController = null;
+      currentReader = null;
     }
-    currentReader = null;
   }
 };
 
@@ -1129,10 +1129,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onTaskModalKeydown);
   document.body.style.overflow = "";
-  if (currentController) {
-    currentController.abort();
-    currentController = null;
-  }
+  cancelResearch();
 });
 </script>
 
