@@ -13,6 +13,7 @@ export interface ResearchStreamEvent {
 
 export interface StreamOptions {
   signal?: AbortSignal;
+  onReader?: (reader: ReadableStreamDefaultReader<Uint8Array>) => void;
 }
 
 export async function runResearchStream(
@@ -43,6 +44,7 @@ export async function runResearchStream(
   }
 
   const reader = body.getReader();
+  options.onReader?.(reader);
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
 
