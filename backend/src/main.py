@@ -111,6 +111,19 @@ def create_app() -> FastAPI:
     if _vue_dist.exists():
         app.mount("/app", StaticFiles(directory=str(_vue_dist), html=True), name="vue_spa")
 
+    # 快照图片静态路由（从 search 项目复制到本地的摄像头快照）
+    _snapshot_dir = _P(__file__).parent.parent / os.getenv("CAMERA_SNAPSHOT_LOCAL", "snapshot_data")
+    _snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+    @app.get("/snapshots/{filename}")
+    def serve_snapshot(filename: str):
+        """Serve local snapshot images (copied from search project)."""
+        from fastapi.responses import FileResponse
+        file_path = _snapshot_dir / filename
+        if not file_path.exists():
+            raise HTTPException(404, f"Snapshot not found: {filename}")
+        return FileResponse(str(file_path))
+
     @app.on_event("startup")
     def log_startup_configuration() -> None:
         config = Configuration.from_env()
@@ -569,6 +582,11 @@ def create_app() -> FastAPI:
         _p = _RP(__file__).parent / "templates" / "reports.html"
         return _p.read_text(encoding="utf-8") if _p.exists() else "<h1>reports.html not found</h1>"
 
+    @app.get("/reports-edit", response_class=HTMLResponse)
+    def reports_edit_page():
+        _p = _RP(__file__).parent / "templates" / "reports-edit.html"
+        return _p.read_text(encoding="utf-8") if _p.exists() else "<h1>reports-edit.html not found</h1>"
+
     @app.get("/api/reports")
     def list_reports():
         files = sorted(_glob.glob(str(_reports_dir / "*.md")), reverse=True)
@@ -590,7 +608,16 @@ def create_app() -> FastAPI:
         if not _p.exists():
             raise HTTPException(404, "Report not found")
         content = _p.read_text(encoding="utf-8")
-        return {"status": "ok", "id": report_id, "content": content}
+        # 从文件名解析标题（格式: {title}_{timestamp}）
+        title = _p.stem
+        # 尝试去掉末尾的时间戳后缀
+        import re as _re
+        _title_match = _re.match(r"^(.+)_\d{8}_\d{6}$", title)
+        if _title_match:
+            title = _title_match.group(1).replace("_", " ")
+        else:
+            title = title.replace("_", " ")
+        return {"status": "ok", "id": report_id, "title": title, "content": content}
 
     @app.post("/api/reports")
     async def save_report(request: Request):
@@ -602,6 +629,76 @@ def create_app() -> FastAPI:
         _p = _reports_dir / filename
         _p.write_text(content, encoding="utf-8")
         return {"status": "ok", "id": _p.stem, "filename": filename}
+
+    @app.put("/api/reports/{report_id}")
+    async def update_report(report_id: str, request: Request):
+        """更新已有报告——title 变更时同步更新文件名和 # heading。"""
+        _p = _reports_dir / f"{report_id}.md"
+        if not _p.exists():
+            raise HTTPException(404, "Report not found")
+        body = await request.json()
+        new_title = body.get("title", "")[:80]
+        new_content = body.get("content", "")
+        if not new_content.strip():
+            raise HTTPException(400, "Content cannot be empty")
+
+        # 如果 title 变了，更新文件名（保留时间戳后缀）
+        import re as _re
+        _ts_match = _re.search(r"_(\d{8}_\d{6})$", report_id)
+        _ts_suffix = _ts_match.group(1) if _ts_match else _dt.now().strftime('%Y%m%d_%H%M%S')
+        if new_title:
+            safe = "".join(c if c.isalnum() or c in "._- " else "_" for c in new_title)
+            new_filename = f"{safe}_{_ts_suffix}.md"
+            new_p = _reports_dir / new_filename
+            if new_p != _p:
+                _p.rename(new_p)
+                _p = new_p
+
+        # 更新 markdown 中的第一个 # heading
+        import re as _re2
+        if new_title and new_content.startswith("# "):
+            new_content = _re2.sub(r"^# .+", f"# {new_title}", new_content, count=1)
+
+        _p.write_text(new_content, encoding="utf-8")
+        return {"status": "ok", "id": _p.stem, "title": new_title}
+
+    @app.post("/api/reports/{report_id}/send-to-feishu")
+    async def send_report_to_feishu(report_id: str, request: Request):
+        """发送报告 Markdown 到飞书群。复用 warning_dispatcher._send_markdown。"""
+        _p = _reports_dir / f"{report_id}.md"
+        if not _p.exists():
+            raise HTTPException(404, "Report not found")
+
+        body = await request.json()
+        chat_id = body.get("chat_id", "")
+        if not chat_id:
+            raise HTTPException(400, "未指定 chat_id")
+
+        content = _p.read_text(encoding="utf-8")
+        from services.warning_dispatcher import _send_markdown
+
+        # UTF-8 安全截断：4000 字节 → 段落边界
+        _max_bytes = 4000
+        _truncated = False
+        if len(content.encode("utf-8")) > _max_bytes:
+            _raw = content.encode("utf-8")[:_max_bytes]
+            # errors='ignore' 自动丢弃末尾不完整的 UTF-8 序列
+            _text = _raw.decode("utf-8", errors="ignore")
+            # 向前扫描到最近的段落边界（双换行）
+            _last_para = _text.rfind("\n\n")
+            if _last_para > len(_text) // 2:
+                _text = _text[:_last_para]
+            # 拼接报告链接
+            import os as _os
+            _base_url = _os.getenv("BASE_URL", "http://127.0.0.1:8080")
+            _text += f"\n\n---\n> [查看完整报告]({_base_url}/reports-edit?id={report_id})"
+            content = _text
+            _truncated = True
+
+        success = _send_markdown(chat_id, content)
+        if success:
+            return {"status": "ok", "chat_id": chat_id, "truncated": _truncated}
+        return {"status": "failed", "detail": "lark-cli 发送失败", "truncated": _truncated}
 
     @app.delete("/api/reports/{report_id}")
     def delete_report(report_id: str):
