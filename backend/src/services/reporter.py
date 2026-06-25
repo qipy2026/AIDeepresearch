@@ -42,6 +42,12 @@ NEGATIVE_RISK_KEYWORDS: List[str] = _load_keywords()
 HEADCOUNT_TREND_THRESHOLD: float = 0.20
 # 趋势计算所需最少有效数据周数
 MIN_TREND_WEEKS: int = 3
+# 字段默认值（缺失时优雅降级）
+FIELD_DEFAULTS: dict[str, str] = {
+    "loan_amount": "未披露",
+    "industry": "未分类",
+    "enterprise": "未知企业",
+}
 
 
 # ── 结构化数据模型 ──────────────────────────────────────
@@ -564,6 +570,52 @@ class ReportingService:
                 "macro_available": False,
                 "industry_available": False,
             }
+
+    @staticmethod
+    def _validate_and_enrich(data: WeeklyData) -> WeeklyData:
+        """校验并补全 WeeklyData 缺失字段，打日志便于运维排查。
+
+        - str 字段：空串或 "0" → FIELD_DEFAULTS 默认值
+        - Optional[List] 字段：None → []
+        - Optional[Dict] 字段：None → {"status": "unavailable"}
+        - risk dict：确保 red/orange/yellow/total 键存在
+        """
+        # str 字段
+        for field in ("loan_amount", "industry", "enterprise"):
+            val = data.get(field, "")
+            if not val or val == "0":
+                default = FIELD_DEFAULTS.get(field, "未披露")
+                logger.warning(
+                    "WeeklyData field '{}' is empty, using default: {}",
+                    field, default,
+                )
+                data[field] = default
+
+        # Optional[List] 字段
+        for field in ("party_a_signals", "warnings_signals"):
+            if data.get(field) is None:
+                logger.info(
+                    "WeeklyData field '{}' is None, setting to []", field
+                )
+                data[field] = []
+
+        # Optional[Dict] 字段
+        for field in ("headcount_trend", "industry_data"):
+            if data.get(field) is None:
+                logger.warning(
+                    "WeeklyData field '{}' is None, setting to {{'status': 'unavailable'}}",
+                    field,
+                )
+                data[field] = {"status": "unavailable"}
+
+        # risk dict 键完整性
+        risk = data.get("risk", {})
+        for key in ("red", "orange", "yellow", "total"):
+            if key not in risk:
+                risk[key] = 0
+        data["risk"] = risk
+
+        return data
 
     # ── 周报结构化数据构建（T3: dict 模式） ─────────────────
 

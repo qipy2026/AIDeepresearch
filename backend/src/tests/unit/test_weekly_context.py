@@ -81,13 +81,17 @@ class TestBuildWeeklyData:
         assert "party_a_signals" in data
         assert data["enterprise"] == "四川振海保安服务有限公司"
 
-    def test_headcount_trend_has_correct_structure(self):
+    def test_headcount_trend_has_correct_structure(self, monkeypatch):
+        # mock _read_camera_snapshots to return [] (no data available)
+        def _mock_empty(*args, **kwargs):
+            return []
+        monkeypatch.setattr(ReportingService, "_read_camera_snapshots", _mock_empty)
         svc = ReportingService.__new__(ReportingService)
         data = svc._build_weekly_data("测试企业", [])
         trend = data["headcount_trend"]
         assert isinstance(trend, dict)
         assert "status" in trend
-        assert trend["status"] == "insufficient"  # stub returns []
+        assert trend["status"] == "insufficient"  # no data → fallback
 
     def test_party_a_signals_is_none_by_default(self):
         svc = ReportingService.__new__(ReportingService)
@@ -162,3 +166,59 @@ class TestFormatWeeklyContext:
         )
         ctx = ReportingService._format_weekly_context(data)
         assert "重要参考信息" in ctx
+
+
+class TestValidateAndEnrich:
+    """T7: _validate_and_enrich fills missing fields with defaults."""
+
+    def test_enriches_empty_str_fields(self):
+        from services.reporter import FIELD_DEFAULTS
+        data = WeeklyData(
+            enterprise="测试企业",
+            industry="",
+            loan_amount="0",
+            risk={"red": 0, "orange": 0, "yellow": 0, "total": 0},
+        )
+        result = ReportingService._validate_and_enrich(data)
+        assert result["loan_amount"] == FIELD_DEFAULTS["loan_amount"]
+        assert result["industry"] == FIELD_DEFAULTS["industry"]
+
+    def test_enriches_none_list_fields(self):
+        data = WeeklyData(
+            enterprise="测试企业",
+            loan_amount="1000.0",
+            risk={"red": 0, "orange": 0, "yellow": 0, "total": 0},
+            party_a_signals=None,
+            warnings_signals=None,
+        )
+        result = ReportingService._validate_and_enrich(data)
+        assert result["party_a_signals"] == []
+        assert result["warnings_signals"] == []
+
+    def test_enriches_none_dict_fields(self):
+        data = WeeklyData(
+            enterprise="测试企业",
+            loan_amount="1000.0",
+            risk={"red": 0, "orange": 0, "yellow": 0, "total": 0},
+            headcount_trend=None,
+            industry_data=None,
+        )
+        result = ReportingService._validate_and_enrich(data)
+        assert result["headcount_trend"] == {"status": "unavailable"}
+        assert result["industry_data"] == {"status": "unavailable"}
+
+    def test_does_not_overwrite_valid_data(self):
+        valid_signals = [{"name": "甲方A", "signals": [{"severity": "red"}], "signal_count": 1}]
+        data = WeeklyData(
+            enterprise="测试企业",
+            industry="安保服务",
+            loan_amount="1000.0",
+            risk={"red": 1, "orange": 2, "yellow": 3, "total": 6},
+            headcount_trend={"status": "stable", "current_avg": 15.0},
+            party_a_signals=valid_signals,
+        )
+        result = ReportingService._validate_and_enrich(data)
+        assert result["loan_amount"] == "1000.0"
+        assert result["industry"] == "安保服务"
+        assert result["party_a_signals"] == valid_signals
+        assert result["headcount_trend"]["status"] == "stable"
