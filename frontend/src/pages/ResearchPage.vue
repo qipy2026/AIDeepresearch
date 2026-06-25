@@ -1065,6 +1065,7 @@ const startNewResearch = () => {
     cancelResearch();
   }
   resetWorkflowState();
+  error.value = "";
   isExpanded.value = false;
   form.topic = "";
   form.searchApi = "";

@@ -204,7 +204,15 @@ function onEditorInput() {
 async function loadReport(id: string) {
   try {
     const resp = await fetch(`${API}/api/reports/${id}`);
-    if (!resp.ok) throw new Error("not found");
+    if (!resp.ok) {
+      if (resp.status === 404) {
+        notFound.value = true;
+      } else {
+        showBanner("error", `加载失败，服务器返回 ${resp.status}`);
+      }
+      loading.value = false;
+      return;
+    }
     const data = await resp.json();
     reportTitle.value = data.title;
     editorContent.value = data.content || "";
@@ -213,7 +221,7 @@ async function loadReport(id: string) {
     reportLoaded.value = true;
   } catch {
     loading.value = false;
-    notFound.value = true;
+    showBanner("error", "网络连接失败，请检查后端服务是否运行");
   }
 }
 
