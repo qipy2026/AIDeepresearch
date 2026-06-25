@@ -26,12 +26,30 @@
         <form class="form" @submit.prevent="handleSubmit">
           <label class="field">
             <span>债务企业</span>
-            <textarea
-              v-model="form.topic"
-              placeholder="例如：四川振海保安服务有限公司"
-              rows="4"
-              required
-            ></textarea>
+            <div class="combobox-wrapper">
+              <textarea
+                v-model="form.topic"
+                placeholder="输入企业名称，或从已有项目中选择"
+                rows="3"
+                required
+                @focus="onTopicFocus"
+                @blur="onTopicBlur"
+                @input="showEnterpriseDropdown = true"
+              ></textarea>
+              <ul
+                v-if="showEnterpriseDropdown && filteredEnterprises.length"
+                class="combobox-dropdown"
+              >
+                <li
+                  v-for="name in filteredEnterprises"
+                  :key="name"
+                  class="combobox-option"
+                  @mousedown.prevent="selectEnterprise(name)"
+                >
+                  {{ name }}
+                </li>
+              </ul>
+            </div>
           </label>
 
           <section class="options">
@@ -409,6 +427,10 @@ const generatingReport = computed(() => researchPhase.value === 'generating');
 // --- Session 隔离 ---
 const researchEpoch = ref(0);
 
+// --- 企业选择（F1）---
+const enterprises = ref<string[]>([]);
+const showEnterpriseDropdown = ref(false);
+
 // --- SSE 资源 ---
 let currentController: AbortController | null = null;
 let currentReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -460,6 +482,28 @@ const TASK_STATUS_LABEL: Record<string, string> = {
 
 function formatTaskStatus(status: string): string {
   return TASK_STATUS_LABEL[status] ?? status;
+}
+
+// F1：模糊匹配已有乙方企业
+const filteredEnterprises = computed(() => {
+  const query = form.topic.trim();
+  if (!query) return enterprises.value;
+  const lower = query.toLowerCase();
+  return enterprises.value.filter(name => name.toLowerCase().includes(lower));
+});
+
+function selectEnterprise(name: string) {
+  form.topic = name;
+  showEnterpriseDropdown.value = false;
+}
+
+function onTopicFocus() {
+  showEnterpriseDropdown.value = enterprises.value.length > 0;
+}
+
+function onTopicBlur() {
+  // 延迟关闭，让 click 事件先触发
+  setTimeout(() => { showEnterpriseDropdown.value = false; }, 150);
 }
 
 const totalTasks = computed(() => todoTasks.value.length);
@@ -1130,6 +1174,18 @@ const startNewResearch = () => {
 
 onMounted(() => {
   window.addEventListener("keydown", onTaskModalKeydown);
+
+  // F1：加载乙方企业列表（失败不影响正常使用）
+  fetch(`${BASE}/api/enterprises`)
+    .then(r => r.json())
+    .then(data => {
+      const all: { name: string; role: string }[] = data.enterprises || [];
+      enterprises.value = all
+        .filter(e => e.role === "乙方")
+        .map(e => e.name);
+    })
+    .catch(() => { /* 加载失败时下拉为空，用户手打不受影响 */ });
+
   const topicParam = route.query.topic;
   if (topicParam && typeof topicParam === "string") {
     form.topic = topicParam;
@@ -2763,5 +2819,37 @@ select:focus {
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* F1：债务企业 Combobox */
+.combobox-wrapper {
+  position: relative;
+}
+.combobox-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 6px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+.combobox-option {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #1f2937;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.combobox-option:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: #1d4ed8;
 }
 </style>
