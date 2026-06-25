@@ -730,6 +730,7 @@ class ReportingService:
         enterprise = data.get("enterprise", "未知")
         industry = data.get("industry", "未知")
         loan_amount = data.get("loan_amount", "未知")
+        loan_display = loan_amount if loan_amount and loan_amount not in ("0", "未披露") else "未披露"
         report_date = data.get("report_date", date.today().isoformat())
         p_start = data.get("report_period_start", "")
         p_end = data.get("report_period_end", "")
@@ -745,7 +746,7 @@ class ReportingService:
 【企业信息】（来源：参考文档 / 默认值）
 企业名称：{enterprise}
 所属行业：{industry}
-发放金额：{loan_amount} 万元
+发放金额：{loan_display} 万元
 """
         if ref_text:
             ctx += f"\n【参考文档】\n{ref_text}\n"
@@ -824,11 +825,22 @@ class ReportingService:
 
         # ── 运营信号：甲方经营信号（T5 模板对应字段） ──
         if party_a_signals:
-            ctx += "\n【甲方经营信号】\n"
-            for sig in party_a_signals:
-                ctx += f"- {sig.get('name', '')}: {sig.get('value', '')} ({sig.get('status', '')})\n"
+            ctx += "\n【甲方经营信号】（来源：企查查/百度舆情/同花顺）\n"
+            ctx += "| 甲方名称 | 所属行业 | 预警信号数 | 最高风险等级 |\n"
+            ctx += "|---------|---------|----------|------------|\n"
+            for p in party_a_signals:
+                name = p.get("name", "")
+                industry = p.get("industry", "")
+                count = p.get("signal_count", 0)
+                signals = p.get("signals", [])
+                sevs = [s.get("severity", "normal") for s in signals]
+                max_sev = "🔴" if "red" in sevs else ("🟠" if "orange" in sevs else ("🟡" if "yellow" in sevs else "🟢"))
+                ctx += f"| {name} | {industry} | {count} | {max_sev} |\n"
+            # 注入甲方名称列表供 prompt 模板使用
+            party_names = "、".join(p.get("name", "") for p in party_a_signals)
+            ctx += f"\n（以上 {len(party_a_signals)} 家甲方核心企业的预警信号，请填入报告【二、核心企业监管】对应章节。甲方名称列表：{party_names}）\n"
         else:
-            ctx += "\n【甲方经营信号】\n无相关内容\n"
+            ctx += "\n【甲方经营信号】\n暂无甲方经营信号数据，后续将通过招标数据或工商变更频率补充。\n"
 
         return ctx
 
@@ -990,10 +1002,15 @@ class ReportingService:
         lines.append("")
         party_a = wd.get("party_a_signals") or []
         if party_a:
-            for sig in party_a:
-                lines.append(f"- {sig.get('name', '')}: {sig.get('value', '')} ({sig.get('status', '')})")
+            for p in party_a:
+                name = p.get("name", "")
+                count = p.get("signal_count", 0)
+                signals = p.get("signals", [])
+                sevs = [s.get("severity", "normal") for s in signals]
+                max_sev = "🔴红" if "red" in sevs else ("🟠橙" if "orange" in sevs else ("🟡黄" if "yellow" in sevs else "🟢正常"))
+                lines.append(f"- {name}（{p.get('industry', '')}）：{count} 条预警，最高风险 {max_sev}")
         else:
-            lines.append("无相关内容")
+            lines.append("暂无甲方经营信号数据，后续将通过招标数据或工商变更频率补充。")
         lines.append("")
 
         # 参考来源
