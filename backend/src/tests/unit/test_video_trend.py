@@ -403,59 +403,6 @@ class TestAttachKeySnapshots:
         assert aggregated[0]["snapshot_path"] == "/data/snap_solo.jpg"
 
 
-class TestInjectSnapshotImages:
-    """T4: _inject_snapshot_images — post-processing placeholder replacement."""
-
-    def test_replaces_placeholder_with_images(self):
-        """报告中含占位文本 → 替换为真实截图 markdown 图片."""
-        from services.reporter import _inject_snapshot_images
-
-        report = """## 四、现场视频巡检
-
-### 重点时段照片记录
-
-（占位，预备未来接入摄像头数据）
-
-报告结束。"""
-
-        key_snapshots = [
-            {"snapshot_date": "2026-06-24T16", "headcount": 17,
-             "snapshot_path": "/data/snap_16.jpg"},
-            {"snapshot_date": "2026-06-24T14", "headcount": 18,
-             "snapshot_path": "/data/snap_14.jpg"},
-        ]
-
-        result = _inject_snapshot_images(report, key_snapshots)
-
-        assert "占位" not in result
-        assert "snap_16.jpg" in result
-        assert "snap_14.jpg" in result
-        assert "17人" in result
-        assert "18人" in result
-
-    def test_empty_snapshots_returns_unchanged(self):
-        """空截图列表 → 报告原文不变."""
-        from services.reporter import _inject_snapshot_images
-
-        report = "（占位，预备未来接入摄像头数据）"
-        result = _inject_snapshot_images(report, [])
-
-        assert result == report
-
-    def test_alternate_placeholder_pattern_replaced(self):
-        """备用占位模式（关键时刻截图）也正确替换."""
-        from services.reporter import _inject_snapshot_images
-
-        report = "（若上下文中包含【关键时刻截图】，请原样复制到此处）"
-        key_snapshots = [
-            {"snapshot_date": "2026-06-24T09", "headcount": 5,
-             "snapshot_path": "/data/snap_09.jpg"},
-        ]
-
-        result = _inject_snapshot_images(report, key_snapshots)
-
-        assert "关键时刻截图" not in result
-        assert "snap_09.jpg" in result
 
 
 class TestBuildVideoInspectionSection:

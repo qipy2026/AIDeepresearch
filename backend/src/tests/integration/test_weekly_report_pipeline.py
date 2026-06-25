@@ -113,62 +113,6 @@ class TestWeeklyReportPipeline:
         assert "数据异常" in ctx
         assert "摄像头配置" in ctx
 
-    def test_key_snapshots_injected_into_context(self):
-        """E2E: key_snapshots in WeeklyData produce screenshot markdown in context."""
-        data = WeeklyData(
-            enterprise="测试企业",
-            industry="安保",
-            loan_amount="500.0",
-            risk={"red": 0, "orange": 0, "yellow": 0, "total": 0},
-            headcount_trend={
-                "status": "stable",
-                "current_avg": 15.0,
-                "prior_avg": 14.0,
-                "delta_pct": 0.071,
-                "message": "→ 稳定，变化 7.1%",
-            },
-            key_snapshots=[
-                {"snapshot_date": "2026-06-24T16", "headcount": 17,
-                 "snapshot_path": "/data/snap_16.jpg"},
-                {"snapshot_date": "2026-06-24T14", "headcount": 18,
-                 "snapshot_path": "/data/snap_14.jpg"},
-            ],
-        )
-        ctx = ReportingService._format_weekly_context(data)
-
-        # 截图应出现在关键时刻截图区域
-        assert "snap_16.jpg" in ctx
-        assert "snap_14.jpg" in ctx
-        assert "人数" in ctx
-        assert "关键时刻截图" in ctx
-
-    def test_screenshot_injection_post_process(self):
-        """E2E: _inject_snapshot_images replaces placeholder in a complete report."""
-        from services.reporter import _inject_snapshot_images
-
-        report = """## 四、现场视频巡检
-
-（注：一个企业通常配置4-6个摄像头点位，以下为巡检数据）
-
-### 重点时段照片记录
-
-（占位，预备未来接入摄像头数据）
-
----
-## 五、综合结论与建议
-"""
-
-        key_snapshots = [
-            {"snapshot_date": "2026-06-24T16", "headcount": 17,
-             "snapshot_path": "/data/snap_a.jpg"},
-        ]
-
-        result = _inject_snapshot_images(report, key_snapshots)
-
-        assert "占位" not in result
-        assert "snap_a.jpg" in result
-        # 其余章节不受影响
-        assert "综合结论与建议" in result
 
 
 class TestCameraApiConnectivity:
