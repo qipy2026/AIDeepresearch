@@ -1108,28 +1108,16 @@ class ReportingService:
             lines.append("暂无搜索任务结果。")
             lines.append("")
 
-        # 三、视频巡检（从格式化上下文提取）
-        lines.append("## 三、现场视频巡检")
-        lines.append("")
-
-        headcount = wd.get("headcount_trend", {}) or {}
-        if headcount:
-            lines.append(f"- 趋势状态：{headcount.get('status', 'unknown')}")
-            lines.append(f"- 本周日均人数：{headcount.get('current_avg', 'N/A')}")
-            lines.append(f"- 前3周日均人数：{headcount.get('prior_avg', 'N/A')}")
-            if headcount.get('delta_pct') is not None:
-                lines.append(f"- 变化幅度：{headcount['delta_pct'] * 100:.1f}%")
-            lines.append(f"- 趋势说明：{headcount.get('message', '')}")
-            lines.append("")
-
-        lines.append("### 重点时段照片记录")
-        lines.append("")
-        key_snaps = wd.get("key_snapshots") or []
-        if key_snaps:
-            lines.append("（占位，预备未来接入摄像头数据）")
-        else:
-            lines.append("暂无快照数据")
-        lines.append("")
+        # 三、视频巡检（由代码从数据库数据生成）
+        _aggregated = wd.get("camera_aggregated") or []
+        _key_snaps = wd.get("key_snapshots") or []
+        _trend = wd.get("headcount_trend")
+        video_section = ReportingService._build_video_inspection_section(
+            _aggregated, _key_snaps, _trend
+        )
+        # fallback report 使用不同的章节编号，将"## 四"修正为"## 三"
+        video_section = video_section.replace("## 四、现场视频巡检", "## 三、现场视频巡检")
+        lines.append(video_section)
 
         # 四、甲方经营信号
         lines.append("## 四、甲方经营信号")
