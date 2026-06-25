@@ -1046,15 +1046,6 @@ class ReportingService:
             if notes_block:
                 prompt += f"\n任务笔记摘录：\n{''.join(notes_block)}\n"
             prompt += "\n请整合以上搜索任务总结、结构化数据和参考来源，严格按贷后监管综合周报模板生成报告。"
-
-            # 截图后处理: LLM 只需生成占位文本，_inject_snapshot_images 负责替换为真实图片
-            # 不在 prompt 中嵌入 ![](url) —— DeepSeek 等文本模型会因此 502
-            _key_snaps = weekly_data.get("key_snapshots") or []
-            if _key_snaps:
-                prompt += (
-                    "\n\n[重要] 报告[重点时段照片记录]节请写入以下占位文本（不要改动）：\n"
-                    "（占位，预备未来接入摄像头数据）\n"
-                )
         else:
             system_prompt = report_writer_instructions.strip()
             prompt = (
@@ -1082,10 +1073,22 @@ class ReportingService:
             report_text = strip_thinking_tokens(report_text)
         report_text = strip_tool_calls(report_text).strip() or "报告生成失败，请检查输入。"
 
-        # 后处理：注入关键时刻截图到报告 + 清理残留 localhost:5000 URL
+        # 后处理：用代码生成的视频巡检章节替换占位标记
         if self._style == "weekly":
+            _aggregated = weekly_data.get("camera_aggregated") or []
             _key_snaps = weekly_data.get("key_snapshots") or []
-            report_text = _inject_snapshot_images(report_text, _key_snaps)
+            _trend = weekly_data.get("headcount_trend")
+            video_section = ReportingService._build_video_inspection_section(
+                _aggregated, _key_snaps, _trend
+            )
+            if "<!-- VIDEO_INSPECTION_PLACEHOLDER -->" in report_text:
+                report_text = report_text.replace(
+                    "<!-- VIDEO_INSPECTION_PLACEHOLDER -->", video_section
+                )
+            else:
+                # 降级：LLM 未输出占位标记（极端情况），追加到末尾
+                logger.warning("报告中未找到 VIDEO_INSPECTION_PLACEHOLDER，追加到末尾")
+                report_text += "\n" + video_section
 
         # 兜底：无条件清理 LLM 可能照搬旧模板生成的 localhost:5000 URL
         report_text = re.sub(
