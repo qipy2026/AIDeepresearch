@@ -20,7 +20,7 @@ from typing import Any, Dict, Iterator, Optional
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, FileResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -105,7 +105,6 @@ def create_app() -> FastAPI:
     )
 
     # 挂载 Vue SPA 静态文件（贷后助手）
-    from fastapi.staticfiles import StaticFiles
     from pathlib import Path as _P
     _vue_dist = _P(__file__).parent.parent.parent / "frontend" / "dist"
     if _vue_dist.exists():
@@ -139,7 +138,20 @@ def create_app() -> FastAPI:
         async def _redirect_reports_edit():
             return RedirectResponse(url="/loan/reports", status_code=301)
 
-        app.mount("/loan", StaticFiles(directory=str(_vue_dist), html=True), name="vue_spa")
+        @app.get("/loan")
+        @app.get("/loan/")
+        async def _serve_loan_root():
+            """Serve Vue SPA index.html at the loan root."""
+            return FileResponse(_vue_dist / "index.html")
+
+        @app.get("/loan/{path:path}")
+        async def _serve_loan_spa(path: str):
+            """Serve Vue SPA static files, falling back to index.html for client-side routes."""
+            file_path = _vue_dist / path
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(file_path)
+            # SPA fallback: serve index.html for all non-file paths (client-side routing)
+            return FileResponse(_vue_dist / "index.html")
 
     # 快照图片静态路由（从 search 项目复制到本地的摄像头快照）
     _snapshot_dir = _P(__file__).parent.parent / os.getenv("CAMERA_SNAPSHOT_LOCAL", "snapshot_data")

@@ -229,7 +229,8 @@ interface PushData {
 }
 
 // ── Constants ──────────────────────────────────────────
-const API = "http://127.0.0.1:8080/api/warnings";
+const BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8080";
+const API = `${BASE}/api/warnings`;
 
 const SOURCE_MAP: Record<string, string> = {
   qichacha: "企查查",
@@ -486,7 +487,7 @@ async function loadStats() {
 
 async function loadIndustryBoard() {
   try {
-    const resp = await fetch("http://127.0.0.1:8080/api/industry/sectors");
+    const resp = await fetch(`${BASE}/api/industry/sectors`);
     const data = await resp.json();
     if (data.status === "ok") {
       industryData.value = {
@@ -701,7 +702,7 @@ async function showFactorDetail(enterprise: string, factor: string, tool: string
   detailHtml.value = "";
   try {
     const params = new URLSearchParams({ enterprise, tool, factor });
-    const resp = await fetch("http://127.0.0.1:8080/api/warnings/factor?" + params);
+    const resp = await fetch(`${BASE}/api/warnings/factor?` + params);
     const data = await resp.json();
     detailHtml.value = `
       <p style="font-size:13px;color:var(--text-subtle);margin:0 0 12px;">${escapeHtml(data.factor)}: <b>${count}条</b> · 数据源: ${escapeHtml(data.tool)}</p>
@@ -725,7 +726,7 @@ function closeDetail() {
 // ── Push Modal ─────────────────────────────────────────
 async function loadChats() {
   try {
-    const resp = await fetch("http://127.0.0.1:8080/api/feishu/chats");
+    const resp = await fetch(`${BASE}/api/feishu/chats`);
     const data = await resp.json();
     chatList.value = data.chats || [];
   } catch {
@@ -780,7 +781,7 @@ async function sendPush() {
         severity: pushData.value.severity,
         summary: pushSummary.value,
         action: pushAction.value,
-        detail_url: "http://127.0.0.1:8080/warnings",
+        detail_url: `${BASE}/warnings`,
       }),
     });
     const data = await resp.json();

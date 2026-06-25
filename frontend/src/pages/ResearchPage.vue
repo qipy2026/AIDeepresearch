@@ -345,6 +345,8 @@ import {
   type ResearchStreamEvent
 } from "../services/api";
 
+const BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8080";
+
 marked.setOptions({ gfm: true, breaks: true });
 
 function escapeHtml(text: string): string {
@@ -1007,7 +1009,7 @@ const handleSubmit = async () => {
           pulse(reportHighlight);
           progressLogs.value.push("最终报告已生成");
           // 自动保存到后端并捕获 report ID
-          fetch('http://127.0.0.1:8080/api/reports', {
+          fetch(`${BASE}/api/reports`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({title: form.topic, content: reportMarkdown.value})
           })
