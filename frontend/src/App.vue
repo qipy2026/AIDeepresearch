@@ -164,6 +164,18 @@
             </svg>
             数据源管理
           </a>
+          <a class="sidebar-link" href="/reports">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2 4h2v-2H8v2zm0-6h8v-2H8v2z" fill="currentColor"/>
+            </svg>
+            报告列表
+          </a>
+          <a class="sidebar-link" href="/reports-edit">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+            </svg>
+            编辑报告
+          </a>
         </div>
       </aside>
 
@@ -185,6 +197,17 @@
         </header>
 
         <div class="result-main">
+          <!-- 快捷操作栏：报告生成后显示 -->
+          <div v-if="reportMarkdown && !generatingReport" class="quick-actions">
+            <span class="quick-actions-label">✅ 报告已生成</span>
+            <a v-if="savedReportId" class="btn-primary" :href="'/reports-edit?id=' + savedReportId" style="padding:8px 18px;font-size:13px;">
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+              </svg>
+              编辑报告
+            </a>
+            <a class="btn-secondary" href="/reports" style="padding:8px 18px;font-size:13px;">📋 报告列表</a>
+          </div>
           <div
             v-if="reportMarkdown || generatingReport"
             class="report-block report-block--final"
@@ -465,6 +488,7 @@ const todoTasks = ref<TodoTaskView[]>([]);
 const activeTaskId = ref<number | null>(null);
 const taskDetailOpen = ref(false);
 const reportMarkdown = ref("");
+const savedReportId = ref("");
 
 const reportHtml = computed(() => {
   const md = reportMarkdown.value?.trim() ?? "";
@@ -761,6 +785,7 @@ function resetWorkflowState() {
   taskDetailOpen.value = false;
   document.body.style.overflow = "";
   reportMarkdown.value = "";
+  savedReportId.value = "";
   progressLogs.value = [];
   summaryHighlight.value = false;
   sourcesHighlight.value = false;
@@ -1062,11 +1087,18 @@ const handleSubmit = async () => {
           reportMarkdown.value = report || "报告生成失败，未获得有效内容";
           pulse(reportHighlight);
           progressLogs.value.push("最终报告已生成");
-          // 自动保存到后端
+          // 自动保存到后端并捕获 report ID
           fetch('http://127.0.0.1:8080/api/reports', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({title: form.topic, content: reportMarkdown.value})
-          }).catch(() => {});
+          })
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.id) {
+              savedReportId.value = data.id;
+            }
+          })
+          .catch(() => {});
           return;
         }
 
@@ -2656,8 +2688,8 @@ select:focus {
 
 /* 侧边栏样式 */
 .sidebar {
-  width: 400px;
-  min-width: 400px;
+  width: 280px;
+  min-width: 280px;
   height: 100vh;
   background: rgba(255, 255, 255, 0.98);
   border-right: 1px solid rgba(148, 163, 184, 0.2);
@@ -2931,8 +2963,8 @@ select:focus {
 
 @media (max-width: 1024px) {
   .sidebar {
-    width: 320px;
-    min-width: 320px;
+    width: 280px;
+    min-width: 280px;
   }
 }
 
@@ -2951,5 +2983,35 @@ select:focus {
   .layout-fullscreen .panel-result {
     height: 60vh;
   }
+}
+
+/* 快捷操作栏动画 */
+.quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(124, 58, 237, 0.06));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  animation: fadeSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.quick-actions-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  flex: 1;
+}
+
+:deep(.quick-actions .btn-primary),
+:deep(.quick-actions .btn-secondary) {
+  text-decoration: none;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 </style>
