@@ -79,13 +79,14 @@ def _inject_snapshot_images(report: str, key_snapshots: list) -> str:
     if not key_snapshots:
         return report
 
-    api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
     img_lines = []
     for s in key_snapshots:
-        fname = s["snapshot_path"].replace("\\", "/").split("/")[-1]
+        fname = s.get("snapshot_path", "").replace("\\", "/").split("/")[-1]
+        if not fname:
+            continue
         img_lines.append(
             f"![{s['snapshot_date']} {s['headcount']}人]"
-            f"({api_url}/snapshots/{fname})"
+            f"(/snapshots/{fname})"
         )
     img_block = "\n".join(img_lines) + "\n"
 
