@@ -982,9 +982,9 @@ class ReportingService:
             report_text = strip_thinking_tokens(report_text)
         report_text = strip_tool_calls(report_text).strip() or "报告生成失败，请检查输入。"
 
-        # 后处理：注入关键时刻截图到报告
-        _key_snaps = weekly_data.get("key_snapshots") if self._style == "weekly" else None
-        if _key_snaps:
+        # 后处理：注入关键时刻截图到报告 + 清理残留 localhost:5000 URL
+        if self._style == "weekly":
+            _key_snaps = weekly_data.get("key_snapshots") or []
             report_text = _inject_snapshot_images(report_text, _key_snaps)
 
         return report_text
