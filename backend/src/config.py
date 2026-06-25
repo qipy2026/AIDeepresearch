@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # 加载 backend/.env（与 src 同级目录）；override=True 使 .env 覆盖系统里残留的旧 LLM_* 变量
 _backend_root = Path(__file__).resolve().parent.parent
@@ -115,6 +115,40 @@ class Configuration(BaseModel):
         title="LLM HTTP timeout seconds",
         description="OpenAI client timeout (per request)",
     )
+
+    @model_validator(mode="after")
+    def _fill_from_env(self) -> "Configuration":
+        """裸 Configuration() 时从环境变量回填关键字段，避免回退到 Pydantic 默认值。
+
+        生产代码走 from_env() 不受影响；此处作为安全网，防止测试/脚本中误用 Configuration()
+        导致 provider=ollama 连本地超时。
+        """
+        _env_map = {
+            "llm_provider": "LLM_PROVIDER",
+            "llm_api_key": "LLM_API_KEY",
+            "llm_model_id": "LLM_MODEL_ID",
+            "llm_base_url": "LLM_BASE_URL",
+            "llm_max_tokens": "LLM_MAX_TOKENS",
+            "llm_max_retries": "LLM_MAX_RETRIES",
+            "llm_timeout": "LLM_TIMEOUT",
+        }
+        for field_name, env_key in _env_map.items():
+            env_val = os.getenv(env_key)
+            if env_val is None:
+                continue
+            current = getattr(self, field_name)
+            # 只在值为默认值（None 或空字符串或默认 provider）时才覆盖
+            field_info = self.model_fields[field_name]
+            default = field_info.default
+            if current == default or (current is None and default is None):
+                if field_name in ("llm_max_tokens", "llm_max_retries", "llm_timeout"):
+                    try:
+                        object.__setattr__(self, field_name, int(env_val))
+                    except ValueError:
+                        pass
+                else:
+                    object.__setattr__(self, field_name, env_val.strip())
+        return self
 
     @classmethod
     def from_env(cls, overrides: Optional[dict[str, Any]] = None) -> "Configuration":
