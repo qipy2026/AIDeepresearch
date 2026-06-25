@@ -716,7 +716,6 @@ function resetWorkflowState() {
   todoTasks.value = [];
   activeTaskId.value = null;
   taskDetailOpen.value = false;
-  document.body.style.overflow = "";
   reportMarkdown.value = "";
   savedReportId.value = "";
   progressLogs.value = [];
@@ -1107,12 +1106,24 @@ const cancelResearch = () => {
 };
 
 const startNewResearch = () => {
-  if (loading.value) {
-    cancelResearch();
+  // 1. 确认对话框（修复 B1）—— 只有存在实质数据时才弹窗
+  const hasContent = reportMarkdown.value.trim() !== "" || todoTasks.value.length > 0;
+  if (hasContent && !window.confirm("当前调查结果将在开启新调查后丢失，确认继续？")) {
+    return;
   }
+
+  // 2. 废弃旧 session —— 让所有异步回调立即失效（修复 B2）
+  ++researchEpoch.value;
+
+  // 3. 清理 SSE 连接（修复 B3/B5）—— 不依赖 loading 状态
+  cancelResearch();
+
+  // 4. 先切回表单布局（数据还在但不可见 —— 修复 B7 空白闪烁）
+  researchPhase.value = 'idle';
+
+  // 5. 再清空数据（此时 v-if="researchPhase === 'idle'" 已生效，清数据不会渲染空白）
   resetWorkflowState();
   error.value = "";
-  researchPhase.value = 'idle';
   form.topic = "";
   form.searchApi = "";
 };
