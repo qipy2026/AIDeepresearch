@@ -234,6 +234,113 @@ class ReportingService:
             s["snapshot_path"] = fname
 
     @staticmethod
+    def _build_video_inspection_section(
+        aggregated: List[Dict[str, Any]],
+        key_snapshots: List[Dict[str, Any]],
+        headcount_trend: Optional[Dict[str, Any]],
+    ) -> str:
+        """纯代码生成"四、现场视频巡检"章节的 Markdown。
+
+        不依赖 LLM——所有数据直接从已读取的摄像头数据库拼装。
+        图片复制已在 _sync_snapshot_images 中完成，snapshot_path 此时为纯文件名。
+        """
+        lines = ["## 四、现场视频巡检", ""]
+        lines.append("（注：一个企业通常配置4-6个摄像头点位，以下为巡检数据）")
+        lines.append("")
+
+        # ── 子节 1：重点时段统计 ──
+        lines.append("### 重点时段统计")
+        lines.append("")
+        if not aggregated:
+            lines.append("| 时段 | 时间戳 | 人数 | 场景 | 备注情况 |")
+            lines.append("|------|--------|------|------|---------|")
+            lines.append("| [暂无巡检数据] | | | | |")
+            lines.append("")
+        else:
+            # 按日期分组，提取 09:00 和 14:00 人数
+            from collections import defaultdict
+            daily: Dict[str, Dict[int, int]] = defaultdict(dict)
+            for s in aggregated:
+                bucket = s.get("snapshot_date", "")  # "YYYY-MM-DDTHH"
+                if "T" not in bucket:
+                    continue
+                date_str, hour_str = bucket.split("T", 1)
+                hour = int(hour_str) if hour_str.isdigit() else None
+                hc = s.get("headcount", 0)
+                if hour is not None:
+                    daily[date_str][hour] = hc
+
+            lines.append("| 日期 | 09:00 人数 | 14:00 人数 | 日均人数 |")
+            lines.append("|------|-----------|-----------|---------|")
+            for day in sorted(daily.keys()):
+                h9 = daily[day].get(9)
+                h14 = daily[day].get(14)
+                all_vals = list(daily[day].values())
+                avg = round(sum(all_vals) / len(all_vals)) if all_vals else 0
+                s9 = str(h9) if h9 is not None else "—"
+                s14 = str(h14) if h14 is not None else "—"
+                lines.append(f"| {day} | {s9} | {s14} | {avg} |")
+            lines.append("")
+
+        # ── 子节 2：历史对比 ──
+        lines.append("### 历史对比")
+        lines.append("")
+        if headcount_trend and headcount_trend.get("status") not in ("insufficient", None):
+            current_avg = headcount_trend.get("current_avg")
+            prior_avg = headcount_trend.get("prior_avg")
+            delta_pct = headcount_trend.get("delta_pct")
+            message = headcount_trend.get("message", "")
+
+            from datetime import date, timedelta
+            today = date.today()
+            # 本周范围
+            week_start = today - timedelta(days=today.weekday())
+            week_end = week_start + timedelta(days=6)
+
+            lines.append("| 周次 | 日期范围 | 日均人数 | 变化 |")
+            lines.append("|------|---------|---------|------|")
+            cur_str = f"{current_avg:.1f}" if current_avg is not None else "N/A"
+            lines.append(
+                f"| 本周 | {week_start.strftime('%m-%d')} ~ {week_end.strftime('%m-%d')} "
+                f"| {cur_str} | — |"
+            )
+            if prior_avg is not None and delta_pct is not None:
+                prior_start = week_start - timedelta(days=7)
+                prior_end = week_start - timedelta(days=1)
+                prior_str = f"{prior_avg:.1f}"
+                direction = "+" if delta_pct > 0 else ""
+                pct_str = f"{direction}{delta_pct * 100:.1f}%"
+                lines.append(
+                    f"| 前3周 | {prior_start.strftime('%m-%d')} ~ {prior_end.strftime('%m-%d')} "
+                    f"| {prior_str} | {pct_str} |"
+                )
+            lines.append("")
+            lines.append(f"趋势说明：{message}")
+            lines.append("")
+        else:
+            lines.append("暂无历史对比数据")
+            lines.append("")
+
+        # ── 子节 3：重点时段照片记录 ──
+        lines.append("### 重点时段照片记录")
+        lines.append("")
+        if key_snapshots:
+            for s in key_snapshots:
+                fname = s.get("snapshot_path", "").replace("\\", "/").split("/")[-1]
+                if not fname:
+                    continue
+                lines.append(
+                    f"![{s.get('snapshot_date', '')} {s.get('headcount', '?')}人]"
+                    f"(/snapshots/{fname})"
+                )
+            lines.append("")
+        else:
+            lines.append("暂无快照数据")
+            lines.append("")
+
+        return "\n".join(lines) + "\n"
+
+    @staticmethod
     def _read_camera_snapshots(enterprise: str, weeks: int = 4) -> List[Dict[str, Any]]:
         """读取企业指定周数内的摄像头快照人数数据。
 

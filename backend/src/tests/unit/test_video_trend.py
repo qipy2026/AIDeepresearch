@@ -456,3 +456,81 @@ class TestInjectSnapshotImages:
 
         assert "关键时刻截图" not in result
         assert "snap_09.jpg" in result
+
+
+class TestBuildVideoInspectionSection:
+    """T5: _build_video_inspection_section — code-generated video inspection chapter."""
+
+    def test_full_data_generates_all_subsections(self):
+        """有完整聚合数据和关键时刻截图 → 三个子节全部生成."""
+        from services.reporter import ReportingService
+
+        aggregated = [
+            {"snapshot_date": "2026-06-20T14", "headcount": 7, "snapshot_path": "snap_20_14.jpg"},
+            {"snapshot_date": "2026-06-24T09", "headcount": 4, "snapshot_path": "snap_24_09.jpg"},
+            {"snapshot_date": "2026-06-24T14", "headcount": 8, "snapshot_path": "snap_24_14.jpg"},
+        ]
+        key_snaps = [
+            {"snapshot_date": "2026-06-24T14", "headcount": 8,
+             "snapshot_path": "snap_24_14.jpg"},
+            {"snapshot_date": "2026-06-24T09", "headcount": 4,
+             "snapshot_path": "snap_24_09.jpg"},
+        ]
+        headcount_trend = {
+            "status": "stable",
+            "current_avg": 6.0,
+            "prior_avg": 6.5,
+            "delta_pct": -0.077,
+            "message": "→ 稳定，变化 7.7%",
+        }
+
+        result = ReportingService._build_video_inspection_section(
+            aggregated, key_snaps, headcount_trend
+        )
+
+        assert "## 四、现场视频巡检" in result
+        assert "### 重点时段统计" in result
+        assert "### 历史对比" in result
+        assert "### 重点时段照片记录" in result
+        assert "snap_24_14.jpg" in result
+        assert "snap_24_09.jpg" in result
+        assert "8人" in result
+
+    def test_empty_data_shows_fallback_text(self):
+        """无聚合数据 → 各子节显示降级文本."""
+        from services.reporter import ReportingService
+
+        result = ReportingService._build_video_inspection_section([], [], None)
+
+        assert "## 四、现场视频巡检" in result
+        assert "暂无巡检数据" in result
+        assert "暂无历史对比数据" in result
+        assert "暂无快照数据" in result
+
+    def test_partial_data_shows_dash_for_missing_hours(self):
+        """某天只有14:00数据 → 09:00显示 '—'."""
+        from services.reporter import ReportingService
+
+        aggregated = [
+            {"snapshot_date": "2026-06-24T14", "headcount": 5, "snapshot_path": ""},
+        ]
+        result = ReportingService._build_video_inspection_section(
+            aggregated, [], None
+        )
+
+        assert "2026-06-24" in result
+        assert "| — |" in result  # 09:00 missing
+        assert "| 5 |" in result  # 14:00 present
+
+    def test_no_trend_data_shows_fallback_in_history(self):
+        """无趋势数据 → 历史对比显示降级文本."""
+        from services.reporter import ReportingService
+
+        aggregated = [
+            {"snapshot_date": "2026-06-24T14", "headcount": 5, "snapshot_path": ""},
+        ]
+        result = ReportingService._build_video_inspection_section(
+            aggregated, [], None
+        )
+
+        assert "暂无历史对比数据" in result
