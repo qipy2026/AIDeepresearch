@@ -52,21 +52,6 @@
             </div>
           </label>
 
-          <section class="options">
-            <label class="field option">
-              <span>搜索引擎</span>
-              <select v-model="form.searchApi">
-                <option value="">沿用后端配置</option>
-                <option
-                  v-for="option in searchOptions"
-                  :key="option"
-                  :value="option"
-                >
-                  {{ option }}
-                </option>
-              </select>
-            </label>
-          </section>
 
           <div class="form-actions">
             <button class="submit" type="submit" :disabled="loading">
@@ -465,13 +450,6 @@ const sourcesHighlight = ref(false);
 const reportHighlight = ref(false);
 const toolHighlight = ref(false);
 
-const searchOptions = [
-  "advanced",
-  "duckduckgo",
-  "tavily",
-  "perplexity",
-  "searxng"
-];
 
 const TASK_STATUS_LABEL: Record<string, string> = {
   pending: "待执行",
