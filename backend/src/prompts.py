@@ -243,7 +243,7 @@ weekly_report_writer_instructions = """
 **重要指令：在上方的【结构化数据】中查找【关键时刻截图】小节。如果存在，你必须将其中的每一条 `![](图片URL)` 原样复制粘贴到下方，一行一张。禁止省略、禁止改写为文字描述、禁止使用"占位"二字。**
 
 示例格式：
-![](http://localhost:5000/snapshots/snap_xxx.jpg)
+![](/snapshots/snap_xxx.jpg)
 （若【关键时刻截图】不存在则写"暂无快照数据"）
 
 ---

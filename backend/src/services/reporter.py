@@ -101,6 +101,12 @@ def _inject_snapshot_images(report: str, key_snapshots: list) -> str:
         img_block,
         report,
     )
+    # 兜底：LLM 可能照搬旧模板中的 localhost:5000，统一替换为本项目 /snapshots/
+    report = re.sub(
+        r"http://localhost:5000/snapshots/",
+        "/snapshots/",
+        report,
+    )
     return report
 
 
