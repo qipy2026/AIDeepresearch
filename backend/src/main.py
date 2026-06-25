@@ -20,7 +20,7 @@ from typing import Any, Dict, Iterator, Optional
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -109,7 +109,37 @@ def create_app() -> FastAPI:
     from pathlib import Path as _P
     _vue_dist = _P(__file__).parent.parent.parent / "frontend" / "dist"
     if _vue_dist.exists():
-        app.mount("/app", StaticFiles(directory=str(_vue_dist), html=True), name="vue_spa")
+        # 旧路径 301 重定向 → /loan/（必须在 mount 之前注册，否则会被 SPA fallback 拦截）
+        @app.get("/app/{path:path}")
+        async def _redirect_app_legacy(path: str = ""):
+            """重定向旧 /app/ 路径到 /loan/"""
+            return RedirectResponse(url=f"/loan/{path}", status_code=301)
+
+        @app.get("/warnings")
+        async def _redirect_warnings():
+            return RedirectResponse(url="/loan/warnings", status_code=301)
+
+        @app.get("/enterprises")
+        async def _redirect_enterprises():
+            return RedirectResponse(url="/loan/", status_code=301)
+
+        @app.get("/sources")
+        async def _redirect_sources():
+            return RedirectResponse(url="/loan/sources", status_code=301)
+
+        @app.get("/rag/upload")
+        async def _redirect_upload():
+            return RedirectResponse(url="/loan/upload", status_code=301)
+
+        @app.get("/reports")
+        async def _redirect_reports():
+            return RedirectResponse(url="/loan/reports", status_code=301)
+
+        @app.get("/reports-edit")
+        async def _redirect_reports_edit():
+            return RedirectResponse(url="/loan/reports", status_code=301)
+
+        app.mount("/loan", StaticFiles(directory=str(_vue_dist), html=True), name="vue_spa")
 
     # 快照图片静态路由（从 search 项目复制到本地的摄像头快照）
     _snapshot_dir = _P(__file__).parent.parent / os.getenv("CAMERA_SNAPSHOT_LOCAL", "snapshot_data")
