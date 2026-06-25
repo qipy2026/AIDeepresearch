@@ -15,83 +15,168 @@ from services.reporter import (
 class TestReadCameraSnapshots:
     """T1: _read_camera_snapshots HTTP integration."""
 
-    def test_graceful_degradation_on_connection_error(self, monkeypatch):
-        """搜索服务不可达 → 返回空列表,优雅降级为'数据不足'."""
-        import requests as _requests
-
-        def _mock_get(*args, **kwargs):
-            raise _requests.ConnectionError("搜索服务不可达")
-
-        monkeypatch.setattr(_requests, "get", _mock_get)
+    def test_graceful_degradation_on_db_missing(self, monkeypatch):
+        """DB路径不存在 → 返回空列表,优雅降级."""
+        monkeypatch.setenv("CAMERA_DB_PATH", "/nonexistent/path/counts.db")
         result = ReportingService._read_camera_snapshots("测试企业", weeks=4)
         assert result == []
 
-    def test_params_passed_correctly(self, monkeypatch):
-        """验证 fields mapped correctly from aggregated response."""
-        call_count = [0]
+    def test_graceful_degradation_on_camera_db_path_unset(self, monkeypatch):
+        """CAMERA_DB_PATH 未设置 → 返回空列表,优雅降级."""
+        monkeypatch.delenv("CAMERA_DB_PATH", raising=False)
+        result = ReportingService._read_camera_snapshots("测试企业", weeks=4)
+        assert result == []
 
-        class _AggResp:
-            status_code = 200
-            @staticmethod
-            def raise_for_status(): pass
-            @staticmethod
-            def json():
-                return {"bucket": "1h", "camera_id": 1, "data": [
-                    {"bucket": "2026-06-24T14", "avg_count": 12.5,
-                     "min_count": 8, "max_count": 18, "sample_count": 4}]}
+    def test_params_passed_correctly(self, monkeypatch, tmp_path):
+        """验证从SQLite读取后字段映射正确：snapshot_date/headcount/snapshot_path."""
+        import sqlite3
 
-        class _RawResp:
-            status_code = 200
-            @staticmethod
-            def raise_for_status(): pass
-            @staticmethod
-            def json():
-                return {"bucket": "raw", "camera_id": 1, "data": []}
+        db_path = tmp_path / "test.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("""CREATE TABLE IF NOT EXISTS counts (
+            id INTEGER PRIMARY KEY, camera_id INTEGER NOT NULL,
+            recorded_at TEXT NOT NULL, person_count INTEGER,
+            snapshot_path TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        conn.execute("""INSERT INTO counts VALUES
+            (1, 1, '2026-06-24T14:30:00+00:00', 12, '', '2026-06-24 14:30:00')""")
+        conn.commit()
+        conn.close()
 
-        def _mock_get(url, **kwargs):
-            call_count[0] += 1
-            return _AggResp() if call_count[0] == 1 else _RawResp()
+        monkeypatch.setenv("CAMERA_DB_PATH", str(db_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_SRC", str(tmp_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_LOCAL", str(tmp_path / "local"))
 
-        monkeypatch.setattr("services.reporter.requests.get", _mock_get)
         result = ReportingService._read_camera_snapshots("test", weeks=4)
 
         assert len(result) == 1
         assert result[0]["snapshot_date"] == "2026-06-24T14"
-        assert result[0]["headcount"] == 12  # round(12.5) -> 12 (banker's rounding)
+        assert result[0]["headcount"] == 12
         assert result[0]["snapshot_path"] == ""
 
-    def test_null_avg_count_skipped(self, monkeypatch):
-        """avg_count is None bucket skipped, not crashed."""
-        call_count = [0]
+    def test_null_avg_count_skipped(self, monkeypatch, tmp_path):
+        """person_count IS NULL 的行被 SQL WHERE 过滤，不参与聚合."""
+        import sqlite3
 
-        class _AggResp:
-            status_code = 200
-            @staticmethod
-            def raise_for_status(): pass
-            @staticmethod
-            def json():
-                return {"bucket": "1h", "camera_id": 1, "data": [
-                    {"bucket": "2026-06-24T14", "avg_count": 10.0,
-                     "min_count": 8, "max_count": 12, "sample_count": 4},
-                    {"bucket": "2026-06-24T15", "avg_count": None,
-                     "min_count": 0, "max_count": 0, "sample_count": 0}]}
+        db_path = tmp_path / "test.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("""CREATE TABLE IF NOT EXISTS counts (
+            id INTEGER PRIMARY KEY, camera_id INTEGER NOT NULL,
+            recorded_at TEXT NOT NULL, person_count INTEGER,
+            snapshot_path TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        conn.execute("""INSERT INTO counts VALUES
+            (1, 1, '2026-06-24T14:00:00+00:00', 10, '', '2026-06-24 14:00:00'),
+            (2, 1, '2026-06-24T15:00:00+00:00', NULL, '', '2026-06-24 15:00:00')""")
+        conn.commit()
+        conn.close()
 
-        class _RawResp:
-            status_code = 200
-            @staticmethod
-            def raise_for_status(): pass
-            @staticmethod
-            def json():
-                return {"bucket": "raw", "camera_id": 1, "data": []}
+        monkeypatch.setenv("CAMERA_DB_PATH", str(db_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_SRC", str(tmp_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_LOCAL", str(tmp_path / "local"))
 
-        def _mock_get(url, **kwargs):
-            call_count[0] += 1
-            return _AggResp() if call_count[0] == 1 else _RawResp()
-
-        monkeypatch.setattr("services.reporter.requests.get", _mock_get)
         result = ReportingService._read_camera_snapshots("test", weeks=4)
         assert len(result) == 1  # null bucket skipped
         assert result[0]["headcount"] == 10
+
+    # ── 新增：SQLite 直读 + 图片同步 ──────────────────────
+
+    def test_reads_snapshots_from_sqlite(self, monkeypatch, tmp_path):
+        """验证从 SQLite 读取数据后返回格式与原来 HTTP 版本一致."""
+        import sqlite3
+
+        db_path = tmp_path / "test_counts.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS counts (
+                id INTEGER PRIMARY KEY,
+                camera_id INTEGER NOT NULL,
+                recorded_at TEXT NOT NULL,
+                person_count INTEGER,
+                snapshot_path TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            INSERT INTO counts (camera_id, recorded_at, person_count, snapshot_path, created_at)
+            VALUES
+            (1, '2026-06-24T14:00:00+00:00', 12, '', '2026-06-24 14:00:00'),
+            (1, '2026-06-24T15:00:00+00:00', 8, '', '2026-06-24 15:00:00'),
+            (1, '2026-06-24T16:00:00+00:00', NULL, '', '2026-06-24 16:00:00'),
+            (2, '2026-06-24T14:00:00+00:00', 100, '', '2026-06-24 14:00:00')
+        """)
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setenv("CAMERA_DB_PATH", str(db_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_SRC", str(tmp_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_LOCAL", str(tmp_path / "local_snapshots"))
+
+        result = ReportingService._read_camera_snapshots("测试企业", weeks=4)
+
+        # camera_id=1, person_count IS NOT NULL → 2 rows, 2 distinct buckets
+        assert len(result) == 2
+        assert result[0]["snapshot_date"] == "2026-06-24T14"
+        assert result[0]["headcount"] == 12  # single value in bucket
+        assert result[0]["snapshot_path"] == ""
+
+    def test_returns_empty_on_db_missing(self, monkeypatch):
+        """DB 路径不存在 → 返回空列表，不抛异常."""
+        monkeypatch.setenv("CAMERA_DB_PATH", "/nonexistent/path/counts.db")
+        result = ReportingService._read_camera_snapshots("测试企业", weeks=4)
+        assert result == []
+
+    def test_sync_images_copies_files(self, monkeypatch, tmp_path):
+        """图片从源目录复制到本地目录，snapshot_path 更新为文件名."""
+        import sqlite3
+
+        src_dir = tmp_path / "src_snapshots"
+        src_dir.mkdir()
+        img_file = src_dir / "snap_abc.jpg"
+        img_file.write_bytes(b"fake jpeg data")
+
+        db_path = tmp_path / "test.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("""CREATE TABLE counts (
+            id INTEGER PRIMARY KEY, camera_id INTEGER, recorded_at TEXT,
+            person_count INTEGER, snapshot_path TEXT, created_at TEXT)""")
+        conn.execute("""INSERT INTO counts VALUES
+            (1, 1, '2026-06-24T14:00:00', 5, 'snapshot_data\\snap_abc.jpg', '2026-06-24 14:00:00')""")
+        conn.commit()
+        conn.close()
+
+        local_dir = tmp_path / "local_snapshots"
+
+        monkeypatch.setenv("CAMERA_DB_PATH", str(db_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_SRC", str(src_dir))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_LOCAL", str(local_dir))
+
+        result = ReportingService._read_camera_snapshots("test", weeks=4)
+
+        copied = local_dir / "snap_abc.jpg"
+        assert copied.exists()
+        assert copied.read_bytes() == b"fake jpeg data"
+        assert "snap_abc.jpg" in result[0]["snapshot_path"]
+
+    def test_sync_images_skips_when_src_missing(self, monkeypatch, tmp_path):
+        """源目录不存在时图片跳过，不阻塞报告生成."""
+        import sqlite3
+
+        db_path = tmp_path / "test.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("""CREATE TABLE counts (
+            id INTEGER PRIMARY KEY, camera_id INTEGER, recorded_at TEXT,
+            person_count INTEGER, snapshot_path TEXT, created_at TEXT)""")
+        conn.execute("""INSERT INTO counts VALUES
+            (1, 1, '2026-06-24T14:00:00', 5, 'snapshot_data\\snap_missing.jpg', '2026-06-24 14:00:00')""")
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setenv("CAMERA_DB_PATH", str(db_path))
+        monkeypatch.setenv("CAMERA_SNAPSHOT_SRC", "/nonexistent/src_dir")
+        monkeypatch.setenv("CAMERA_SNAPSHOT_LOCAL", str(tmp_path / "local"))
+
+        result = ReportingService._read_camera_snapshots("test", weeks=4)
+        assert len(result) == 1
+        assert result[0]["snapshot_path"] == ""
 
 
 class TestComputeHeadcountTrend:

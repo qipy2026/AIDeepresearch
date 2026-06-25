@@ -177,68 +177,130 @@ class ReportingService:
                     break  # 一个桶只匹配一张截图
 
     @staticmethod
+    def _sync_snapshot_images(snapshots: List[Dict[str, Any]]) -> None:
+        """将快照图片从 search 项目目录按需复制到本项目本地目录。
+
+        仅复制尚不存在的文件；源不可达或复制失败时清空该记录的 snapshot_path，
+        不阻塞报告生成。
+        """
+        import shutil
+
+        src_dir = os.getenv("CAMERA_SNAPSHOT_SRC", "")
+        local_dir = os.getenv("CAMERA_SNAPSHOT_LOCAL", "./snapshot_data")
+
+        if not src_dir:
+            logger.warning("CAMERA_SNAPSHOT_SRC 未配置，跳过图片同步")
+            for s in snapshots:
+                s["snapshot_path"] = ""
+            return
+
+        # 确保本地目录存在
+        Path(local_dir).mkdir(parents=True, exist_ok=True)
+
+        for s in snapshots:
+            sp = s.get("snapshot_path", "")
+            if not sp:
+                continue
+
+            # 提取文件名（兼容 Windows \ 和 POSIX /）
+            fname = sp.replace("\\", "/").split("/")[-1]
+            src_path = Path(src_dir) / fname
+
+            if not src_path.exists():
+                logger.warning("快照图片源文件不存在: {}，跳过", src_path)
+                s["snapshot_path"] = ""
+                continue
+
+            dst_path = Path(local_dir) / fname
+            if not dst_path.exists():
+                try:
+                    shutil.copy2(str(src_path), str(dst_path))
+                    logger.debug("快照图片已复制: {} -> {}", src_path, dst_path)
+                except (OSError, shutil.Error) as _e:
+                    logger.warning("快照图片复制失败: {} -> {}, 错误={}", src_path, dst_path, _e)
+                    s["snapshot_path"] = ""
+                    continue
+
+            # 更新为可 serve 的路径（只要文件名，路由会拼接本地目录）
+            s["snapshot_path"] = fname
+
+    @staticmethod
     def _read_camera_snapshots(enterprise: str, weeks: int = 4) -> List[Dict[str, Any]]:
         """读取企业指定周数内的摄像头快照人数数据。
 
-        通过 HTTP 调用 search 项目（摄像头 + YOLO 人数检测）的 /api/counts/timeseries
-        端点获取真实人数时序数据。search 服务不可达时优雅降级，返回空列表。
+        从 search 项目的 SQLite 数据库（counts.db）直接读取，
+        不再依赖 search 项目 HTTP API。DB 不可用或配置缺失时优雅降级，返回空列表。
 
         enterprise 参数当前未使用——单摄场景下所有企业共享同一摄像头数据。
         保留此参数以便后续多摄像头对应多企业时按 enterprise 筛选 camera_id。
         """
-        api_url = os.getenv("CAMERA_API_URL", "http://localhost:5000")
-        try:
-            # 1. 聚合数据（趋势计算用）
-            resp = requests.get(
-                f"{api_url}/api/counts/timeseries",
-                params={"camera_id": 1, "days": weeks * 7},
-                timeout=5,
-            )
-            resp.raise_for_status()
-            raw = resp.json()
-            rows = raw.get("data", []) if isinstance(raw, dict) else raw
-            result = [
-                {
-                    "snapshot_date": row["bucket"],
-                    "headcount": round(row["avg_count"]),
-                    "snapshot_path": "",
-                }
-                for row in rows
-                if row.get("avg_count") is not None
-            ]
+        import sqlite3
+        from contextlib import closing
 
-            # 2. 原始记录（关键时刻截图用）
-            try:
+        db_path = os.getenv("CAMERA_DB_PATH", "")
+        if not db_path:
+            logger.warning("CAMERA_DB_PATH 未配置，摄像头数据不可用")
+            return []
+
+        try:
+            with closing(sqlite3.connect(db_path)) as conn:
+                conn.row_factory = sqlite3.Row
+
+                # 1. 聚合时序数据（替代 /api/counts/timeseries?camera_id=1&days=N）
+                rows = conn.execute(
+                    """SELECT
+                         strftime('%Y-%m-%dT%H', recorded_at) AS bucket,
+                         AVG(person_count) AS avg_count
+                       FROM counts
+                       WHERE camera_id = 1
+                         AND recorded_at >= datetime('now', '-' || ? || ' days')
+                         AND person_count IS NOT NULL
+                       GROUP BY bucket
+                       ORDER BY bucket""",
+                    (weeks * 7,),
+                ).fetchall()
+
+                result = [
+                    {
+                        "snapshot_date": row["bucket"],
+                        "headcount": round(row["avg_count"]),
+                        "snapshot_path": "",
+                    }
+                    for row in rows
+                ]
+
+                # 2. 原始快照记录（替代 /api/counts/timeseries?bucket=raw&from=...）
                 from datetime import datetime as _dt, timedelta as _td, timezone as _tz
                 from_ts = (_dt.now(_tz.utc) - _td(days=weeks * 7)).strftime("%Y-%m-%d")
-                raw_resp = requests.get(
-                    f"{api_url}/api/counts/timeseries",
-                    params={"camera_id": 1, "bucket": "raw", "from": from_ts},
-                    timeout=5,
-                )
-                raw_resp.raise_for_status()
-                raw_data = raw_resp.json()
-                raw_rows = raw_data.get("data", []) if isinstance(raw_data, dict) else []
-                # 过滤掉无快照的记录
-                snapshots = [
-                    r for r in raw_rows
-                    if r.get("snapshot_path") and r.get("person_count") is not None
-                ]
-                if snapshots:
-                    ReportingService._attach_key_snapshots(result, snapshots)
-            except (requests.RequestException, ValueError, KeyError) as _e:
-                logger.warning(
-                    "摄像头截图数据获取失败，企业={}，错误={}",
-                    enterprise,
-                    _e,
-                )
+                raw_rows = conn.execute(
+                    """SELECT recorded_at AS timestamp, person_count, snapshot_path
+                       FROM counts
+                       WHERE camera_id = 1
+                         AND recorded_at >= ?
+                         AND snapshot_path != ''
+                         AND person_count IS NOT NULL
+                       ORDER BY recorded_at DESC""",
+                    (from_ts,),
+                ).fetchall()
 
-            return result
-        except (requests.RequestException, ValueError, KeyError) as _e:
+                if raw_rows:
+                    snapshots = [dict(r) for r in raw_rows]
+                    ReportingService._attach_key_snapshots(result, snapshots)
+
+                    # 3. 图片按需同步
+                    ReportingService._sync_snapshot_images(result)
+
+                return result
+        except (sqlite3.Error, sqlite3.DatabaseError) as _e:
             logger.warning(
-                "摄像头快照API不可达，企业={}，错误={}，降级为空数据",
-                enterprise,
-                _e,
+                "摄像头 SQLite 数据库读取失败，企业={}，DB={}，错误={}，降级为空数据",
+                enterprise, db_path, _e,
+            )
+            return []
+        except FileNotFoundError as _e:
+            logger.warning(
+                "摄像头 SQLite 数据库文件不存在，企业={}，DB={}，错误={}",
+                enterprise, db_path, _e,
             )
             return []
 
