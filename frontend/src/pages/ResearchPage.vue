@@ -6,8 +6,9 @@
       <span></span>
     </div>
 
+    <Transition name="form-exit">
     <!-- 初始状态：居中输入卡片 -->
-    <div v-if="!isExpanded" class="layout layout-centered">
+    <div v-if="researchPhase === 'idle'" class="layout layout-centered">
       <section class="panel panel-form panel-centered">
         <header class="panel-head">
           <div class="logo">
@@ -91,9 +92,24 @@
         </p>
       </section>
     </div>
+    </Transition>
 
     <!-- 全屏状态：结果面板 -->
-    <div v-else class="layout layout-fullscreen">
+    <Transition name="result-enter">
+    <div v-if="researchPhase !== 'idle'" class="layout layout-fullscreen">
+      <!-- 启动遮罩（F3 Step 2）-->
+      <Transition name="startup-overlay">
+        <div
+          v-if="researchPhase === 'running' && !todoTasks.length && !reportMarkdown"
+          class="startup-overlay"
+        >
+          <div class="startup-content">
+            <div class="startup-spinner"></div>
+            <p>正在启动调查引擎…</p>
+          </div>
+        </div>
+      </Transition>
+
       <section
         class="panel panel-result"
         v-if="todoTasks.length || reportMarkdown || progressLogs.length"
@@ -334,6 +350,7 @@
       </Teleport>
 
     </div>
+    </Transition>
   </main>
 </template>
 
@@ -2829,5 +2846,80 @@ select:focus {
 .combobox-option:hover {
   background: rgba(59, 130, 246, 0.08);
   color: #1d4ed8;
+}
+
+/* F3：过渡动画 */
+/* Step 1: 表单退出 */
+.form-exit-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.form-exit-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Step 3: 结果页进入 */
+.result-enter-enter-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.result-enter-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* 新调查切回表单时，结果页退出 */
+.result-enter-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.result-enter-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* 表单重新进入 */
+.form-exit-enter-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.form-exit-enter-from {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Step 2: 启动遮罩 */
+.startup-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, #f8fafc, #dbeafe 60%);
+  border-radius: inherit;
+}
+.startup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+.startup-content p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e40af;
+}
+.startup-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #bfdbfe;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.startup-overlay-leave-active {
+  transition: opacity 0.25s ease;
+}
+.startup-overlay-leave-to {
+  opacity: 0;
 }
 </style>
