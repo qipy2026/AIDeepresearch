@@ -397,11 +397,25 @@ const form = reactive({
   searchApi: ""
 });
 
-const loading = ref(false);
+// --- 状态机 ---
+type ResearchPhase = 'idle' | 'running' | 'generating' | 'done' | 'error';
+const researchPhase = ref<ResearchPhase>('idle');
+
+// 向后兼容 computed（模板中 loading/isExpanded/generatingReport 引用不变）
+const loading = computed(() => researchPhase.value === 'running' || researchPhase.value === 'generating');
+const isExpanded = computed(() => researchPhase.value !== 'idle');
+const generatingReport = computed(() => researchPhase.value === 'generating');
+
+// --- Session 隔离 ---
+const researchEpoch = ref(0);
+
+// --- SSE 资源 ---
+let currentController: AbortController | null = null;
+let currentReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+// --- 其他状态（不变）---
 const error = ref("");
 const progressLogs = ref<string[]>([]);
-const isExpanded = ref(false);
-const generatingReport = ref(false);
 const reportCollapsed = ref(false);
 const tasksCollapsed = ref(false);
 
@@ -428,8 +442,6 @@ const summaryHighlight = ref(false);
 const sourcesHighlight = ref(false);
 const reportHighlight = ref(false);
 const toolHighlight = ref(false);
-
-let currentController: AbortController | null = null;
 
 const searchOptions = [
   "advanced",
