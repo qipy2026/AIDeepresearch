@@ -29,7 +29,7 @@ class TestWeeklyReportPipeline:
         assert "数据不足" in ctx
         assert "暂无法生成趋势" in ctx
         # Party A signals also default
-        assert "无相关内容" in ctx
+        assert "暂无甲方经营信号数据" in ctx
 
     def test_context_contains_all_sections(self):
         """Formatted context has all required structured sections."""

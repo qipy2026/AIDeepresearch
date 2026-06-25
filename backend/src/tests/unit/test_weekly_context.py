@@ -93,10 +93,11 @@ class TestBuildWeeklyData:
         assert "status" in trend
         assert trend["status"] == "insufficient"  # no data → fallback
 
-    def test_party_a_signals_is_none_by_default(self):
+    def test_party_a_signals_is_empty_list_by_default(self):
+        """没有配置甲方时 party_a_signals 应为空列表（非 None）。"""
         svc = ReportingService.__new__(ReportingService)
         data = svc._build_weekly_data("测试企业", [])
-        assert data["party_a_signals"] is None
+        assert data["party_a_signals"] == []
 
 
 class TestFormatWeeklyContext:
@@ -129,7 +130,7 @@ class TestFormatWeeklyContext:
         assert "14.5" in ctx  # prior_avg
         assert "3.5%" in ctx   # delta_pct formattederov
         assert "稳定" in ctx
-        assert "无相关内容" in ctx  # Party A signals fallback
+        assert "暂无甲方经营信号数据" in ctx  # Party A signals fallback
 
     def test_insufficient_trend_shows_fallback(self):
         data = WeeklyData(
@@ -154,7 +155,7 @@ class TestFormatWeeklyContext:
         data = WeeklyData()
         ctx = ReportingService._format_weekly_context(data)
         assert "未知" in ctx
-        assert "无相关内容" in ctx
+        assert "暂无甲方经营信号数据" in ctx
 
     def test_ref_text_included_when_present(self):
         data = WeeklyData(
@@ -166,6 +167,43 @@ class TestFormatWeeklyContext:
         )
         ctx = ReportingService._format_weekly_context(data)
         assert "重要参考信息" in ctx
+
+    def test_format_weekly_context_with_party_a_signals(self):
+        """有甲方信号时上下文包含甲方名称和信号信息。"""
+        data = WeeklyData(
+            enterprise="乙方测试企业",
+            industry="物业管理",
+            loan_amount="500.0",
+            risk={"red": 0, "orange": 1, "yellow": 2, "total": 3},
+            party_a_signals=[
+                {
+                    "name": "甲方A",
+                    "industry": "房地产开发",
+                    "parent": "母公司集团",
+                    "signals": [
+                        {"severity": "red", "title": "严重违约", "detail": "债券违约"},
+                        {"severity": "yellow", "title": "经营异常", "detail": "工商变更频繁"},
+                    ],
+                    "signal_count": 2,
+                },
+            ],
+        )
+        ctx = ReportingService._format_weekly_context(data)
+        assert "甲方A" in ctx
+        assert "房地产开发" in ctx
+        assert "2" in ctx  # signal_count
+        assert "🔴" in ctx  # max severity
+
+    def test_format_weekly_context_missing_loan_amount(self):
+        """loan_amount 为空时显示未披露。"""
+        data = WeeklyData(
+            enterprise="测试企业",
+            loan_amount="未披露",  # 经 _validate_and_enrich 处理后的值
+            risk={"red": 0, "orange": 0, "yellow": 0, "total": 0},
+        )
+        ctx = ReportingService._format_weekly_context(data)
+        assert "未披露" in ctx
+        assert "发放金额" in ctx
 
 
 class TestValidateAndEnrich:
