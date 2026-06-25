@@ -987,6 +987,13 @@ class ReportingService:
             _key_snaps = weekly_data.get("key_snapshots") or []
             report_text = _inject_snapshot_images(report_text, _key_snaps)
 
+        # 兜底：无条件清理 LLM 可能照搬旧模板生成的 localhost:5000 URL
+        report_text = re.sub(
+            r"http://localhost:5000/snapshots/",
+            "/snapshots/",
+            report_text,
+        )
+
         return report_text
 
     def _build_fallback_report(
