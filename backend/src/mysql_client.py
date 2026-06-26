@@ -1,9 +1,12 @@
 """MySQL client — short connection mode, open/close per operation"""
 from __future__ import annotations
 
+import logging
 import os
 import pymysql
 from pymysql.cursors import DictCursor
+
+logger = logging.getLogger(__name__)
 
 
 class MySQLClient:
@@ -50,12 +53,16 @@ class MySQLClient:
             conn.close()
 
     def health(self) -> bool:
-        """Health check"""
+        """Health check — returns True if MySQL is reachable"""
+        conn = None
         try:
             conn = self._connect()
             with conn.cursor() as cursor:
                 cursor.execute("SELECT 1")
-            conn.close()
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("mysql health check failed: %s", e)
             return False
+        finally:
+            if conn:
+                conn.close()
