@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 
-const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API = import.meta.env.VITE_API_BASE_URL || "";
 
 interface Report {
   id: string;

@@ -1,5 +1,4 @@
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "";
 
 export interface ResearchRequest {
   topic: string;
@@ -65,6 +64,8 @@ export async function runResearchStream(
             onEvent(event);
 
             if (event.type === "error" || event.type === "done") {
+              // 释放 reader 锁，避免遗弃的 reader 在浏览器清理时触发意外 abort
+              reader.cancel().catch(() => {});
               return;
             }
           } catch (error) {

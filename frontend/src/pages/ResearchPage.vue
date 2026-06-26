@@ -382,7 +382,7 @@ import {
   type ResearchStreamEvent
 } from "../services/api";
 
-const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -1140,6 +1140,8 @@ const handleSubmit = async () => {
       reportMarkdown.value = "暂无生成的报告";
     }
   } catch (err) {
+    // epoch 守卫：只处理当前 session 的错误（修复 B6：旧 session 的 abort 不应影响当前状态）
+    if (researchEpoch.value !== epoch) return;
     if (err instanceof DOMException && err.name === "AbortError") {
       progressLogs.value.push("已取消当前调查任务");
       researchPhase.value = 'idle';
@@ -1148,10 +1150,12 @@ const handleSubmit = async () => {
       error.value = err instanceof Error ? err.message : "请求失败";
     }
   } finally {
-    // 如果流正常结束但未收到 final_report 事件，标记为 done
-    const phase = researchPhase.value as ResearchPhase;
-    if (phase === 'running' || phase === 'generating') {
-      researchPhase.value = 'done';
+    // 如果流正常结束但未收到 final_report 事件，标记为 done（仅当前 session）
+    if (researchEpoch.value === epoch) {
+      const phase = researchPhase.value as ResearchPhase;
+      if (phase === 'running' || phase === 'generating') {
+        researchPhase.value = 'done';
+      }
     }
     if (currentController === controller) {
       currentController = null;
