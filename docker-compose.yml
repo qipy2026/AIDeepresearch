@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  aideepresearch:
+    image: aideepresearch:latest
+    container_name: aideepresearch
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      # ── LLM 配置 ──
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-custom}
+      - LLM_MODEL_ID=${LLM_MODEL_ID:-deepseek-v4-flash}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-120}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-8192}
+      - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-3}
+
+      # ── 搜索配置 ──
+      - SEARCH_API=${SEARCH_API:-baidu}
+      # - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      # - SEARXNG_URL=${SEARXNG_URL:-}
+
+      # ── 研究流程 ──
+      - MAX_WEB_RESEARCH_LOOPS=${MAX_WEB_RESEARCH_LOOPS:-3}
+      - FETCH_FULL_PAGE=${FETCH_FULL_PAGE:-True}
+
+      # ── HTTP 服务 ──
+      - HOST=0.0.0.0
+      - PORT=8080
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174}
+
+      # ── 贷后监管 ──
+      - DATABASE_URL=sqlite:///./postloan.db
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-false}
+      - WEEKLY_REPORT_CRON=${WEEKLY_REPORT_CRON:-0 17 * * 5}
+      - POSTLOAN_CONFIG_DIR=./src/postloan/config_files
+      - REPORT_OUTPUT_DIR=./reports
+      - WARNING_CRON_INTERVAL=${WARNING_CRON_INTERVAL:-300}
+      - INDUSTRY_SCAN_CRON=${INDUSTRY_SCAN_CRON:-0 9,14 * * 1-5}
+      - WARNING_API_KEY=${WARNING_API_KEY:-warning-dev-key-2026}
+
+      # ── 摄像头 ──
+      - CAMERA_DB_PATH=${CAMERA_DB_PATH:-}
+      - CAMERA_SNAPSHOT_SRC=${CAMERA_SNAPSHOT_SRC:-}
+      - CAMERA_SNAPSHOT_LOCAL=./snapshot_data
+
+      # ── 数据源 ──
+      - QICHACHA_MCP_TOKEN=${QICHACHA_MCP_TOKEN:-}
+      - DM_USERNAME=${DM_USERNAME:-}
+      - DM_PASSWORD=${DM_PASSWORD:-}
+      - THS_REFRESH_TOKEN=${THS_REFRESH_TOKEN:-}
+      - BAIDU_ACCESS_TOKEN=${BAIDU_ACCESS_TOKEN:-}
+
+      # ── HuggingFace 镜像 ──
+      - HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
+
+      # ── 飞书集成（可选） ──
+      # - FEISHU_APP_ID=${FEISHU_APP_ID:-}
+      # - FEISHU_APP_SECRET=${FEISHU_APP_SECRET:-}
+      # - FEISHU_BOT_WEBHOOK_URL=${FEISHU_BOT_WEBHOOK_URL:-}
+
+    volumes:
+      # 持久化数据（覆盖镜像中的初始数据）
+      - ./data/postloan.db:/app/postloan.db
+      - ./data/chroma_db:/app/chroma_db
+      - ./data/snapshot_data:/app/snapshot_data
+      - ./data/reports:/app/reports
+      # 配置文件
+      - ./backend/.env:/app/.env:ro
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G

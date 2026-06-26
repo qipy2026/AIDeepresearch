@@ -603,25 +603,24 @@ class ReportingService:
 
     @staticmethod
     def _fetch_industry_data(industry: str, enterprise: str = "") -> Dict[str, Any]:
-        """从已有采集数据中提取行业宏观信息。
+        """百度实时搜索 + 行业板块扫描 → 行业宏观数据。
 
-        三路数据源，无需额外 API 调用：
-        1. warning_log (ths_macro) → 宏观经济指标（GDP/PMI/工业增加值/固投）
-        2. industry_scanner 缓存 → 行业板块涨跌（东财80板块+THS27概念）
-        3. warning_log (baidu_search) → 行业舆情/政策
-        覆盖所有行业，不限于债务企业或核心监管企业所在行业。
+        数据源（全行业覆盖，不限于债务企业所在行业）：
+        1. 行业板块扫描 → 东财80板块+THS27概念涨跌
+        2. 百度实时搜索 → 5 维度行业 query（政策/趋势/风险/规模/舆情）
         """
+
+        def _safe_baidu_search(query: str, max_results: int = 5) -> list[str]:
+            try:
+                from services.web_search import _search_baidu
+                results = _search_baidu(query, max_results=max_results)
+                return [r.get("title", "") for r in results if r.get("title")]
+            except Exception:
+                return []
+
         try:
-            from warning_db import WarningDB
-            db = WarningDB()
-
-            # 1. 宏观经济指标（已由定时采集写入 warning_log）
-            macro_warnings = db.list_warnings(
-                source="ths_macro", limit=10)
-            indicators = [w["title"] for w in macro_warnings] if macro_warnings else []
-
-            # 2. 行业板块扫描（东财+THS 缓存）
-            sector_events = []
+            # 1. 行业板块扫描（东财+THS 缓存）
+            sector_events: list[str] = []
             try:
                 from services.industry_scanner import scan_and_match
                 import yaml
@@ -639,53 +638,62 @@ class ReportingService:
             except Exception:
                 pass
 
-            # 3. 行业舆情/政策（百度搜索已采集入库）
-            policy_warnings = db.list_warnings(
-                source="baidu_search", limit=50)
-            policy_events = [
-                w["title"] for w in policy_warnings
-                if any(kw in (w.get("title", "") + w.get("detail", ""))
-                       for kw in ["政策", "监管", "新规", "发展", "趋势", "风险"])
-            ][:5] if policy_warnings else []
+            # 2. 百度实时搜索：5 维度行业 query（每次必执行，全行业覆盖）
+            industry_queries = [
+                (f"{industry} 行业 政策 监管 2026", "policy"),
+                (f"{industry} 行业 发展 趋势 2026", "trend"),
+                (f"{industry} 行业 风险 挑战", "risk"),
+                (f"{industry} 市场 规模 分析", "market"),
+                (f"{industry} 行业 新闻 舆情", "news"),
+            ]
 
-            # 百度实时补充（仅在无缓存数据时）
-            if not policy_events:
-                try:
-                    from services.web_search import _search_baidu
-                    baidu_results = _search_baidu(
-                        f"{industry} 行业 发展 政策 2026", max_results=5)
-                    policy_events = [r.get("title", "") for r in baidu_results[:3]]
-                except Exception:
-                    pass
+            industry_baidu_titles: list[str] = []
+            policy_titles: list[str] = []
+            risk_titles: list[str] = []
 
-            has_macro = bool(indicators)
+            for q, category in industry_queries:
+                titles = _safe_baidu_search(q, max_results=5)
+                industry_baidu_titles.extend(titles[:3])
+                if category == "policy":
+                    policy_titles = titles[:3]
+                elif category == "risk":
+                    risk_titles = titles[:3]
+
+            # 补充一次全行业政策搜索（不限企业所在行业）
+            global_policy = _safe_baidu_search("2026 行业 监管 政策 新规", max_results=5)
+            if global_policy:
+                policy_titles.extend(global_policy[:2])
+
             has_sector = bool(sector_events)
+            has_baidu = bool(industry_baidu_titles)
 
             return {
                 "industry": industry,
                 "industry_status": (
-                    "全行业覆盖" if (has_macro or has_sector)
-                    else ("百度补充" if policy_events else "暂无数据")
+                    "全行业覆盖（板块扫描+百度实时搜索）"
+                    if (has_sector or has_baidu)
+                    else "暂无数据"
                 ),
                 "key_indicators": (
-                    "; ".join(indicators[:5]) if indicators
-                    else f"宏观经济指标待采集（{industry}行业）"
+                    "; ".join(industry_baidu_titles[:6]) if industry_baidu_titles
+                    else f"行业数据分析待获取（{industry}行业）"
                 ),
-                "major_events": sector_events + policy_events,
+                "major_events": sector_events + industry_baidu_titles[:8],
                 "policy_direction": "中性",
                 "policy_detail": (
-                    "; ".join(policy_events[:3]) if policy_events
+                    "; ".join(policy_titles[:5]) if policy_titles
                     else "暂无最新政策信息"
                 ),
                 "risk_warning": (
-                    "行业板块存在下跌信号" if any(
+                    "; ".join(risk_titles[:3]) if risk_titles
+                    else ("行业板块存在下跌信号" if any(
                         "📉" in e for e in sector_events)
-                    else "未发现明显行业风险"
+                    else "未发现明显行业风险")
                 ),
                 "signals": [],
-                "source": "已有采集数据（宏观+行业扫描+百度舆情）",
-                "macro_available": has_macro,
-                "industry_available": has_sector or bool(policy_events),
+                "source": "百度实时搜索+行业板块扫描",
+                "macro_available": has_baidu,
+                "industry_available": has_sector or has_baidu,
             }
         except Exception as e:
             logger.warning(f"行业数据提取失败 ({industry}): {e}")
