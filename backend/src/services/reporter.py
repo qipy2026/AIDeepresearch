@@ -602,12 +602,16 @@ class ReportingService:
     # ── 行业宏观数据采集 ──────────────────────────────────
 
     @staticmethod
-    def _fetch_industry_data(industry: str, enterprise: str = "") -> Dict[str, Any]:
-        """百度实时搜索 + 行业板块扫描 → 行业宏观数据。
+    def _fetch_industry_data(
+        debtor_industry: str = "",
+        related_industries: list[str] | None = None,
+    ) -> Dict[str, Any]:
+        """三层百度实时搜索 + 行业板块扫描 → 真正全行业覆盖的宏观数据。
 
-        数据源（全行业覆盖，不限于债务企业所在行业）：
-        1. 行业板块扫描 → 东财80板块+THS27概念涨跌
-        2. 百度实时搜索 → 5 维度行业 query（政策/趋势/风险/规模/舆情）
+        层1: 宏观经济大盘（4 query，不限行业）
+        层2: 主体行业聚焦（3 query，债务企业所在行业）
+        层3: 供应链相关行业（每行业 2 query，甲方的行业）
+        板块扫描: 东财80板块+THS27概念涨跌
         """
 
         def _safe_baidu_search(query: str, max_results: int = 5) -> list[str]:
@@ -619,7 +623,52 @@ class ReportingService:
                 return []
 
         try:
-            # 1. 行业板块扫描（东财+THS 缓存）
+            all_titles: list[str] = []
+            policy_titles: list[str] = []
+            risk_titles: list[str] = []
+
+            # ═══ 层1: 宏观经济大盘（不限行业） ═══
+            macro_queries = [
+                "2026 中国经济 宏观 政策 趋势",
+                "2026 重点行业 监管 政策 新规",
+                "2026 行业 发展 风险 机遇 热点",
+                "2026 消费 地产 制造 科技 经济 趋势",
+            ]
+            for q in macro_queries:
+                titles = _safe_baidu_search(q, max_results=5)
+                all_titles.extend(titles[:3])
+                policy_titles.extend(titles[:2])
+
+            # ═══ 层2: 主体行业聚焦（债务企业所在行业） ═══
+            if debtor_industry:
+                debtor_queries = [
+                    f"{debtor_industry} 行业 政策 监管 2026",
+                    f"{debtor_industry} 行业 风险 趋势 2026",
+                    f"{debtor_industry} 市场 规模 分析 2026",
+                ]
+                for q in debtor_queries:
+                    titles = _safe_baidu_search(q, max_results=5)
+                    all_titles.extend(titles[:3])
+                    if "风险" in q:
+                        risk_titles.extend(titles[:3])
+                    if "政策" in q:
+                        policy_titles.extend(titles[:2])
+
+            # ═══ 层3: 供应链相关行业（甲方所在行业） ═══
+            for rel_ind in (related_industries or []):
+                if rel_ind == debtor_industry:
+                    continue  # 去重：与主体行业相同则跳过
+                rel_queries = [
+                    f"{rel_ind} 行业 动态 风险 2026",
+                    f"{rel_ind} 行业 政策 趋势 2026",
+                ]
+                for q in rel_queries:
+                    titles = _safe_baidu_search(q, max_results=3)
+                    all_titles.extend(titles[:2])
+                    if "风险" in q:
+                        risk_titles.extend(titles[:2])
+
+            # ═══ 行业板块扫描（东财+THS 缓存） ═══
             sector_events: list[str] = []
             try:
                 from services.industry_scanner import scan_and_match
@@ -638,47 +687,30 @@ class ReportingService:
             except Exception:
                 pass
 
-            # 2. 百度实时搜索：5 维度行业 query（每次必执行，全行业覆盖）
-            industry_queries = [
-                (f"{industry} 行业 政策 监管 2026", "policy"),
-                (f"{industry} 行业 发展 趋势 2026", "trend"),
-                (f"{industry} 行业 风险 挑战", "risk"),
-                (f"{industry} 市场 规模 分析", "market"),
-                (f"{industry} 行业 新闻 舆情", "news"),
-            ]
-
-            industry_baidu_titles: list[str] = []
-            policy_titles: list[str] = []
-            risk_titles: list[str] = []
-
-            for q, category in industry_queries:
-                titles = _safe_baidu_search(q, max_results=5)
-                industry_baidu_titles.extend(titles[:3])
-                if category == "policy":
-                    policy_titles = titles[:3]
-                elif category == "risk":
-                    risk_titles = titles[:3]
-
-            # 补充一次全行业政策搜索（不限企业所在行业）
-            global_policy = _safe_baidu_search("2026 行业 监管 政策 新规", max_results=5)
-            if global_policy:
-                policy_titles.extend(global_policy[:2])
+            # 去重
+            seen: set[str] = set()
+            unique_titles: list[str] = []
+            for t in all_titles:
+                if t not in seen:
+                    seen.add(t)
+                    unique_titles.append(t)
 
             has_sector = bool(sector_events)
-            has_baidu = bool(industry_baidu_titles)
+            has_baidu = bool(unique_titles)
 
+            industry_label = debtor_industry or "全行业"
             return {
-                "industry": industry,
+                "industry": industry_label,
                 "industry_status": (
-                    "全行业覆盖（板块扫描+百度实时搜索）"
+                    "全行业覆盖（宏观大盘+主体行业+供应链+板块扫描）"
                     if (has_sector or has_baidu)
                     else "暂无数据"
                 ),
                 "key_indicators": (
-                    "; ".join(industry_baidu_titles[:6]) if industry_baidu_titles
-                    else f"行业数据分析待获取（{industry}行业）"
+                    "; ".join(unique_titles[:10]) if unique_titles
+                    else f"行业数据分析待获取（{industry_label}）"
                 ),
-                "major_events": sector_events + industry_baidu_titles[:8],
+                "major_events": sector_events + unique_titles[:12],
                 "policy_direction": "中性",
                 "policy_detail": (
                     "; ".join(policy_titles[:5]) if policy_titles
@@ -691,22 +723,22 @@ class ReportingService:
                     else "未发现明显行业风险")
                 ),
                 "signals": [],
-                "source": "百度实时搜索+行业板块扫描",
+                "source": "三层百度实时搜索（宏观+主体行业+供应链）+ 板块扫描",
                 "macro_available": has_baidu,
                 "industry_available": has_sector or has_baidu,
             }
         except Exception as e:
-            logger.warning(f"行业数据提取失败 ({industry}): {e}")
+            logger.warning(f"行业数据提取失败: {e}")
             return {
-                "industry": industry,
+                "industry": debtor_industry or "全行业",
                 "industry_status": "暂无数据",
-                "key_indicators": f"行业数据分析待获取（{industry}行业）",
+                "key_indicators": "行业数据分析待获取",
                 "major_events": [],
                 "policy_direction": "中性",
                 "policy_detail": "暂无最新政策信息",
                 "risk_warning": "未发现明显负面信号",
                 "signals": [],
-                "source": "已有采集数据",
+                "source": "百度实时搜索",
                 "macro_available": False,
                 "industry_available": False,
             }
@@ -838,8 +870,18 @@ class ReportingService:
             logger.warning("_fetch_party_a_signals failed for {}: {}", enterprise, _exc)
             party_a_signals = []
 
-        # ── 行业宏观数据（同花顺 iFinD，覆盖所有行业）──
-        industry_data = self._fetch_industry_data(industry, enterprise)
+        # 提取供应链相关行业（甲方所在行业，去重）
+        related_industries: list[str] = []
+        for p in party_a_signals:
+            p_ind = p.get("industry", "")
+            if p_ind and p_ind != industry:
+                related_industries.append(p_ind)
+        # 去重保序
+        seen_ind: set[str] = set()
+        related_industries = [i for i in related_industries if not (i in seen_ind or seen_ind.add(i))]  # type: ignore[arg-type]
+
+        # ── 行业宏观数据（三层百度搜索：宏观大盘+主体行业+供应链）──
+        industry_data = self._fetch_industry_data(industry, related_industries)
 
         # 构建 WeeklyData 并通过校验层补全缺失字段
         data = WeeklyData(
