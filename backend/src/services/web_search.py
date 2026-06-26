@@ -7,6 +7,8 @@ import os
 import re
 from typing import Any, List, Optional, Tuple
 
+import requests
+
 from config import Configuration
 from utils import get_config_value
 
@@ -79,6 +81,24 @@ def _search_local(
     return results
 
 
+def _search_duckduckgo(query: str, max_results: int = 5) -> List[dict]:
+    """DuckDuckGo 搜索。使用 ddgs 库（已在 pyproject.toml 依赖中）。"""
+    try:
+        from ddgs import DDGS
+        results = []
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=max_results):
+                results.append({
+                    "title": r.get("title", ""),
+                    "url": r.get("href", ""),
+                    "content": r.get("body", ""),
+                })
+        return results
+    except Exception as exc:
+        logger.warning("DuckDuckGo搜索失败: %s", exc)
+        return []
+
+
 def _search_baidu(query: str, max_results: int = 5) -> List[dict]:
     """百度千帆 AI 搜索。需要 BAIDU_ACCESS_TOKEN 环境变量。"""
     token = os.getenv("BAIDU_ACCESS_TOKEN", "")
@@ -86,21 +106,28 @@ def _search_baidu(query: str, max_results: int = 5) -> List[dict]:
         logger.warning("BAIDU_ACCESS_TOKEN 未配置，百度搜索不可用")
         return []
     try:
-        from search.api import BaiduSearchClient
-        from search.config import Settings as BaiduSettings
-        from search.models import SearchParams
-
-        settings = BaiduSettings(access_token=token)
-        client = BaiduSearchClient(settings)
-        result = client.search(SearchParams(q=query))
+        resp = requests.post(
+            "https://qianfan.baidubce.com/v2/ai_search",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "messages": [{"content": query, "role": "user"}],
+                "search_source": "baidu_search_v2",
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
         results = []
-        for r in result.results:
+        for r in (data.get("search_results") or [])[:max_results]:
             results.append({
-                "title": r.title,
-                "url": r.url,
-                "content": r.abstract or "",
+                "title": r.get("title", ""),
+                "url": r.get("url", ""),
+                "content": r.get("abstract") or r.get("content", ""),
             })
-        return results[:max_results]
+        return results
     except Exception as exc:
         logger.warning("百度搜索失败: %s", exc)
         return []
@@ -152,6 +179,9 @@ def dispatch_search(
         elif search_api == "tavily":
             results, answer_text = _search_tavily(query, max_results)
             backend_label = "tavily"
+        elif search_api == "duckduckgo":
+            results = _search_duckduckgo(query, max_results=max_results)
+            backend_label = "duckduckgo"
         else:
             # 兜底：其他后端走 local
             results = _search_local(query, enterprise=enterprise, max_results=max_results)
