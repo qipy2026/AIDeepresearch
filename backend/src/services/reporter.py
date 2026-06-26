@@ -606,11 +606,12 @@ class ReportingService:
         debtor_industry: str = "",
         related_industries: list[str] | None = None,
     ) -> Dict[str, Any]:
-        """三层百度实时搜索 + 行业板块扫描 → 真正全行业覆盖的宏观数据。
+        """四层百度实时搜索 + 行业板块扫描 → 全行业覆盖 + 结构化宏观指标。
 
-        层1: 宏观经济大盘（4 query，不限行业）
-        层2: 主体行业聚焦（3 query，债务企业所在行业）
-        层3: 供应链相关行业（每行业 2 query，甲方的行业）
+        层0: 结构化宏观指标（8 query，GDP/PMI/CPI/M2/工业/固投/社融/外贸）
+        层1: 宏观经济大盘（6 query，不限行业）
+        层2: 主体行业聚焦（5 query，债务企业所在行业）
+        层3: 供应链相关行业（每行业 3 query，甲方所在行业）
         板块扫描: 东财80板块+THS27概念涨跌
         """
 
@@ -622,29 +623,59 @@ class ReportingService:
             except Exception:
                 return []
 
+        def _dedup(items: list[str]) -> list[str]:
+            seen: set[str] = set()
+            out: list[str] = []
+            for t in items:
+                if t not in seen:
+                    seen.add(t)
+                    out.append(t)
+            return out
+
         try:
             all_titles: list[str] = []
             policy_titles: list[str] = []
             risk_titles: list[str] = []
+            macro_indicators: list[str] = []
 
-            # ═══ 层1: 宏观经济大盘（不限行业） ═══
+            # ═══ 层0: 结构化宏观指标 ═══
+            macro_indicator_queries = [
+                ("2026年 PMI 制造业采购经理指数 最新", "PMI"),
+                ("2026年 CPI 居民消费价格 同比 涨幅", "CPI"),
+                ("2026年 GDP 增速 国内生产总值 增长", "GDP"),
+                ("2026年 M2 货币供应量 增速 央行", "M2"),
+                ("2026年 工业增加值 同比 增速", "工业"),
+                ("2026年 固定资产投资 同比 增速", "固投"),
+                ("2026年 社会融资规模 增量 社融", "社融"),
+                ("2026年 进出口 贸易 总额 外贸 数据", "外贸"),
+            ]
+            for q, label in macro_indicator_queries:
+                titles = _safe_baidu_search(q, max_results=3)
+                for t in titles:
+                    macro_indicators.append(f"[{label}] {t}")
+
+            # ═══ 层1: 宏观经济大盘（不限行业，6 query） ═══
             macro_queries = [
                 "2026 中国经济 宏观 政策 趋势",
                 "2026 重点行业 监管 政策 新规",
                 "2026 行业 发展 风险 机遇 热点",
                 "2026 消费 地产 制造 科技 经济 趋势",
+                "2026 财政政策 货币政策 稳增长",
+                "2026 产业政策 新质生产力 数字经济",
             ]
             for q in macro_queries:
                 titles = _safe_baidu_search(q, max_results=5)
                 all_titles.extend(titles[:3])
                 policy_titles.extend(titles[:2])
 
-            # ═══ 层2: 主体行业聚焦（债务企业所在行业） ═══
+            # ═══ 层2: 主体行业聚焦（债务企业所在行业，5 query） ═══
             if debtor_industry:
                 debtor_queries = [
                     f"{debtor_industry} 行业 政策 监管 2026",
                     f"{debtor_industry} 行业 风险 趋势 2026",
                     f"{debtor_industry} 市场 规模 分析 2026",
+                    f"{debtor_industry} 发展 前景 竞争 格局",
+                    f"{debtor_industry} 行业 新闻 舆情 2026",
                 ]
                 for q in debtor_queries:
                     titles = _safe_baidu_search(q, max_results=5)
@@ -654,13 +685,14 @@ class ReportingService:
                     if "政策" in q:
                         policy_titles.extend(titles[:2])
 
-            # ═══ 层3: 供应链相关行业（甲方所在行业） ═══
+            # ═══ 层3: 供应链相关行业（甲方所在行业，每行业 3 query） ═══
             for rel_ind in (related_industries or []):
                 if rel_ind == debtor_industry:
-                    continue  # 去重：与主体行业相同则跳过
+                    continue
                 rel_queries = [
                     f"{rel_ind} 行业 动态 风险 2026",
                     f"{rel_ind} 行业 政策 趋势 2026",
+                    f"{rel_ind} 行业 发展 新闻 2026",
                 ]
                 for q in rel_queries:
                     titles = _safe_baidu_search(q, max_results=3)
@@ -687,29 +719,32 @@ class ReportingService:
             except Exception:
                 pass
 
-            # 去重
-            seen: set[str] = set()
-            unique_titles: list[str] = []
-            for t in all_titles:
-                if t not in seen:
-                    seen.add(t)
-                    unique_titles.append(t)
+            unique_titles = _dedup(all_titles)
+            macro_indicators = _dedup(macro_indicators)
+            policy_titles = _dedup(policy_titles)
+            risk_titles = _dedup(risk_titles)
 
             has_sector = bool(sector_events)
-            has_baidu = bool(unique_titles)
+            has_baidu = bool(unique_titles) or bool(macro_indicators)
 
             industry_label = debtor_industry or "全行业"
+
+            # 组装 key_indicators：宏观指标排前 + 行业新闻标题排后
+            key_parts: list[str] = []
+            key_parts.extend(macro_indicators[:8])
+            key_parts.extend(unique_titles[:8])
+            if not key_parts:
+                key_parts.append(f"行业数据分析待获取（{industry_label}）")
+
             return {
                 "industry": industry_label,
                 "industry_status": (
-                    "全行业覆盖（宏观大盘+主体行业+供应链+板块扫描）"
+                    "全行业覆盖（结构化宏观指标+宏观大盘+主体行业+供应链+板块扫描）"
                     if (has_sector or has_baidu)
                     else "暂无数据"
                 ),
-                "key_indicators": (
-                    "; ".join(unique_titles[:10]) if unique_titles
-                    else f"行业数据分析待获取（{industry_label}）"
-                ),
+                "key_indicators": "; ".join(key_parts),
+                "macro_indicators": macro_indicators[:8],
                 "major_events": sector_events + unique_titles[:12],
                 "policy_direction": "中性",
                 "policy_detail": (
@@ -723,7 +758,7 @@ class ReportingService:
                     else "未发现明显行业风险")
                 ),
                 "signals": [],
-                "source": "三层百度实时搜索（宏观+主体行业+供应链）+ 板块扫描",
+                "source": "四层百度实时搜索（宏观指标+宏观大盘+主体行业+供应链）+ 板块扫描",
                 "macro_available": has_baidu,
                 "industry_available": has_sector or has_baidu,
             }
@@ -959,10 +994,14 @@ class ReportingService:
         # ── 行业宏观数据（同花顺 iFinD，覆盖所有行业）──
         industry_data = data.get("industry_data")
         if industry_data:
+            macro_items = industry_data.get("macro_indicators", [])
+            macro_block = "\n".join(f"  - {m}" for m in macro_items) if macro_items else "暂无结构化宏观数据"
             ctx += f"""
 【行业宏观数据】（来源：{industry_data.get('source', '暂无')}）
 行业名称：{industry_data.get('industry', '未知')}
 行业状态：{industry_data.get('industry_status', '暂无数据')}
+结构化宏观指标：
+{macro_block}
 关键指标：{industry_data.get('key_indicators', '暂无行业指标数据')}
 政策方向：{industry_data.get('policy_direction', '中性')}
 政策详情：{industry_data.get('policy_detail', '暂无最新政策信息')}
