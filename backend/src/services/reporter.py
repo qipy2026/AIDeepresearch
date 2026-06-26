@@ -537,7 +537,7 @@ class ReportingService:
     @staticmethod
     def _rag_match(field_key: str, ref_text: str, enterprise: str = "") -> str | None:
         """查询 ChromaDB 向量库。不再使用关键词匹配文本文件。"""
-        from services.rag_store import query as rag_query
+        from services.rag_service import query as rag_query
 
         result = rag_query(field_key, enterprise, n_results=1)
         return result if result else None

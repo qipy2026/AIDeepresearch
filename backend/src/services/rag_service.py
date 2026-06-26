@@ -151,3 +151,27 @@ class RagService:
             return "\n".join(page.extract_text() or "" for page in reader.pages)
         else:
             return content.decode("utf-8", errors="replace")
+
+
+# ── 模块级单例，兼容旧 rag_store 调用方 ──
+
+_instance: RagService | None = None
+
+
+def set_rag_service(svc: RagService) -> None:
+    """注册 RagService 实例（main.py 启动时调用）"""
+    global _instance
+    _instance = svc
+
+
+def _get_rag_service() -> RagService | None:
+    """获取已注册的 RagService 实例"""
+    return _instance
+
+
+def query(field_key: str, enterprise: str = "", n_results: int = 3) -> str:
+    """模块级查询函数，委托给已注册的 RagService 实例"""
+    svc = _get_rag_service()
+    if svc is None:
+        return ""
+    return svc.query(field_key, enterprise, n_results)

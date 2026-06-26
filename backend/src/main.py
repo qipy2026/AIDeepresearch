@@ -117,7 +117,7 @@ def create_app() -> FastAPI:
     from services.chroma_store import ChromaStore
     from services.chunker import Chunker
     from services.rag_repo import RagRepo
-    from services.rag_service import RagService
+    from services.rag_service import RagService, set_rag_service
     from mysql_client import MySQLClient
 
     _mysql = MySQLClient()
@@ -138,6 +138,7 @@ def create_app() -> FastAPI:
         chroma_store=_rag_chroma,
         chunker=_rag_chunker,
     )
+    set_rag_service(_rag)
 
     # 挂载 Vue SPA 静态文件（贷后助手）
     from pathlib import Path as _P

@@ -355,7 +355,7 @@ class DeepResearchAgent:
 
         if not all_results:
             # ── 搜索无结果 → RAG 回退 ──
-            from services.rag_store import query as rag_query
+            from services.rag_service import query as rag_query
             rag_text = rag_query(task.intent or task.title, "", n_results=3)
             if rag_text:
                 task.summary = f"[参考文档] {rag_text[:500]}"
