@@ -24,16 +24,16 @@ class TestSearchBaidu:
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
-            "search_results": [
+            "references": [
                 {
                     "title": "百度搜索修复方案",
                     "url": "https://example.com/1",
-                    "abstract": "这是摘要内容",
+                    "content": "这是摘要内容",
                 },
                 {
                     "title": "第二条结果",
                     "url": "https://example.com/2",
-                    "abstract": "第二条摘要",
+                    "content": "第二条摘要",
                 },
             ]
         }
@@ -53,7 +53,7 @@ class TestSearchBaidu:
         # 验证调用了正确的 API
         mock_requests.post.assert_called_once()
         call_args = mock_requests.post.call_args
-        assert call_args[0][0] == "https://qianfan.baidubce.com/v2/ai_search"
+        assert call_args[0][0] == "https://qianfan.baidubce.com/v2/ai_search/web_search"
         assert call_args[1]["headers"]["Authorization"] == "Bearer test-token"
         assert call_args[1]["json"]["messages"][0]["content"] == "测试查询"
         assert call_args[1]["json"]["search_source"] == "baidu_search_v2"
@@ -75,8 +75,8 @@ class TestSearchBaidu:
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
-            "search_results": [
-                {"title": f"结果{i}", "url": f"https://e/{i}", "abstract": f"摘要{i}"}
+            "references": [
+                {"title": f"结果{i}", "url": f"https://e/{i}", "content": f"摘要{i}"}
                 for i in range(10)
             ]
         }
@@ -89,10 +89,10 @@ class TestSearchBaidu:
 
     @patch("services.web_search.requests")
     def test_empty_search_results(self, mock_requests):
-        """API 返回空 search_results 时返回空列表。"""
+        """API 返回空 references 时返回空列表。"""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
-        mock_resp.json.return_value = {"search_results": None}
+        mock_resp.json.return_value = {"references": None}
 
         with patch.dict("os.environ", {"BAIDU_ACCESS_TOKEN": "test-token"}):
             results = _search_baidu("测试查询")
@@ -100,12 +100,12 @@ class TestSearchBaidu:
         assert results == []
 
     @patch("services.web_search.requests")
-    def test_missing_abstract_falls_back_to_content(self, mock_requests):
-        """无 abstract 字段时回退取 content 字段。"""
+    def test_content_field(self, mock_requests):
+        """正常解析 content 字段。"""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
-            "search_results": [
+            "references": [
                 {"title": "标题", "url": "https://e.com/1", "content": "正文内容"},
             ]
         }

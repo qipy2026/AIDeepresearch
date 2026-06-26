@@ -107,7 +107,7 @@ def _search_baidu(query: str, max_results: int = 5) -> List[dict]:
         return []
     try:
         resp = requests.post(
-            "https://qianfan.baidubce.com/v2/ai_search",
+            "https://qianfan.baidubce.com/v2/ai_search/web_search",
             headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
@@ -121,11 +121,11 @@ def _search_baidu(query: str, max_results: int = 5) -> List[dict]:
         resp.raise_for_status()
         data = resp.json()
         results = []
-        for r in (data.get("search_results") or [])[:max_results]:
+        for r in (data.get("references") or [])[:max_results]:
             results.append({
                 "title": r.get("title", ""),
                 "url": r.get("url", ""),
-                "content": r.get("abstract") or r.get("content", ""),
+                "content": r.get("content", ""),
             })
         return results
     except Exception as exc:
