@@ -53,6 +53,14 @@ class ResearchRequest(BaseModel):
         default=None,
         description="Override the default search backend configured via env",
     )
+    enterprise: str = Field(
+        default="",
+        description="Optional enterprise name for RAG context injection",
+    )
+    use_rag: bool = Field(
+        default=False,
+        description="Whether to attach RAG reference documents as research context",
+    )
 
 
 class ResearchResponse(BaseModel):
@@ -414,9 +422,19 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+        # 如果启用 RAG，检索相关文档注入 prompt
+        topic = payload.topic
+        if payload.use_rag and payload.enterprise:
+            try:
+                rag_context = _rag.query(payload.topic, payload.enterprise, n_results=5)
+                if rag_context:
+                    topic = f"{payload.topic}\n\n参考企业文档：\n{rag_context}"
+            except Exception as e:
+                logger.warning("RAG query failed for %s: %s", payload.enterprise, e)
+
         def event_iterator() -> Iterator[str]:
             try:
-                for event in agent.run_stream(payload.topic):
+                for event in agent.run_stream(topic):
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
             except Exception as exc:  # pragma: no cover - defensive guardrail
                 logger.exception("Streaming research failed")

@@ -53,6 +53,23 @@
             </div>
           </label>
 
+          <div class="rag-controls">
+            <div class="rag-row">
+              <label class="rag-label">关联企业：</label>
+              <select v-model="selectedEnterprise" class="rag-select">
+                <option value="">不关联</option>
+                <option v-for="e in ragEnterprises" :key="e.name" :value="e.name">
+                  {{ e.name }} ({{ e.doc_count }} 文档)
+                </option>
+              </select>
+            </div>
+            <div v-if="selectedEnterprise" class="rag-row">
+              <label class="rag-check">
+                <input type="checkbox" v-model="useRag" />
+                附加 RAG 参考文档作为研究上下文
+              </label>
+            </div>
+          </div>
 
           <div class="form-actions">
             <button class="submit" type="submit" :disabled="loading">
@@ -433,6 +450,27 @@ const researchEpoch = ref(0);
 const enterprises = ref<string[]>([]);
 const showEnterpriseDropdown = ref(false);
 
+// RAG 企业选择
+interface RagEnterprise {
+  name: string;
+  doc_count: number;
+  chunk_count: number;
+}
+
+const ragEnterprises = ref<RagEnterprise[]>([]);
+const selectedEnterprise = ref("");
+const useRag = ref(false);
+
+async function loadRagEnterprises() {
+  try {
+    const resp = await fetch("/rag/enterprises");
+    const data = await resp.json();
+    ragEnterprises.value = data.enterprises || [];
+  } catch {
+    ragEnterprises.value = [];
+  }
+}
+
 // --- SSE 资源 ---
 let currentController: AbortController | null = null;
 let currentReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -812,7 +850,9 @@ const handleSubmit = async () => {
 
   const payload = {
     topic: form.topic.trim(),
-    search_api: form.searchApi || undefined
+    search_api: form.searchApi || undefined,
+    enterprise: selectedEnterprise.value || undefined,
+    use_rag: useRag.value && !!selectedEnterprise.value,
   };
 
   try {
@@ -1180,6 +1220,8 @@ onMounted(() => {
         .map(e => e.name);
     })
     .catch(() => { /* 加载失败时下拉为空，用户手打不受影响 */ });
+
+  loadRagEnterprises();
 
   const topicParam = route.query.topic;
   if (topicParam && typeof topicParam === "string") {
@@ -2621,6 +2663,16 @@ select:focus {
 .hint.muted {
   color: #64748b;
 }
+
+/* RAG 控件 */
+.rag-controls { margin: 12px 0; }
+.rag-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rag-label { font-size: 13px; color: #64748b; white-space: nowrap; }
+.rag-select {
+  flex: 1; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px;
+  font-size: 13px; background: #fff;
+}
+.rag-check { font-size: 13px; color: #64748b; display: flex; align-items: center; gap: 6px; cursor: pointer; }
 
 @keyframes float {
   0% {
