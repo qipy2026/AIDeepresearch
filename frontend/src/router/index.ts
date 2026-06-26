@@ -8,6 +8,11 @@ const routes = [
   { path: "/upload",        name: "upload",    component: () => import("../pages/UploadPage.vue") },
   { path: "/reports",       name: "reports",   component: () => import("../pages/ReportsPage.vue") },
   { path: "/reports/:id/edit", name: "report-edit", component: () => import("../pages/ReportEditPage.vue") },
+  {
+    path: "/upload/:enterprise",
+    name: "upload-detail",
+    component: () => import("../pages/UploadDetailPage.vue"),
+  },
 ];
 
 const router = createRouter({

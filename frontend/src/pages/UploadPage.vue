@@ -69,7 +69,11 @@
         <div v-else class="ent-list">
           <div v-for="ent in enterprises" :key="ent.name" class="ent-row">
             <div>
-              <div class="ent-name">{{ ent.name }}</div>
+              <div class="ent-name">
+                <router-link :to="'/upload/' + encodeURIComponent(ent.name)" class="ent-link">
+                  {{ ent.name }}
+                </router-link>
+              </div>
               <div class="ent-meta">{{ ent.doc_count }} 个文档 · {{ ent.chunk_count }} 块 · {{ ent.last_upload }}</div>
             </div>
             <button class="btn-del" @click="deleteEnt(ent.name)">删除</button>
@@ -425,6 +429,8 @@ onMounted(() => {
   font-weight: 500;
   color: #0f172a;
 }
+.ent-link { color: #2563eb; text-decoration: none; }
+.ent-link:hover { text-decoration: underline; }
 
 .btn-del {
   padding: 4px 12px;
