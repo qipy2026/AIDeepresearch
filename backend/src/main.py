@@ -18,7 +18,7 @@ if sys.platform == "win32":
 
 from typing import Any, Dict, Iterator, Optional
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Query, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, FileResponse
 from loguru import logger
@@ -102,6 +102,33 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+
+    # ── RAG Service 初始化 ──
+    from services.embedding import EmbeddingEngine
+    from services.chroma_store import ChromaStore
+    from services.chunker import Chunker
+    from services.rag_repo import RagRepo
+    from services.rag_service import RagService
+    from mysql_client import MySQLClient
+
+    _mysql = MySQLClient()
+    _rag_repo = RagRepo(_mysql)
+    try:
+        _rag_repo.init_tables()  # 幂等建表
+    except Exception:
+        pass  # MySQL 不可用时忽略，health 会报告
+    _rag_embedding = EmbeddingEngine(
+        model_name=os.getenv("EMBEDDING_MODEL", "minilm")
+    )
+    _rag_chroma = ChromaStore(embedding_engine=_rag_embedding)
+    _rag_chunker = Chunker(
+        chunk_size=int(os.getenv("CHUNK_SIZE", "500"))
+    )
+    _rag = RagService(
+        repo=_rag_repo,
+        chroma_store=_rag_chroma,
+        chunker=_rag_chunker,
     )
 
     # 挂载 Vue SPA 静态文件（贷后助手）
@@ -407,7 +434,6 @@ def create_app() -> FastAPI:
 
     # ── RAG 文件上传路由 ─────────────────────────────────
     from pathlib import Path
-    from services.rag_store import upload_text, list_enterprises, delete_enterprise
     from services.minio_storage import upload_bytes
 
     @app.get("/rag/upload", response_class=HTMLResponse)
@@ -421,22 +447,10 @@ def create_app() -> FastAPI:
             raise HTTPException(400, "企业名称不能为空")
         if not req.content.strip():
             raise HTTPException(400, "文件内容不能为空")
-        result = upload_text(req.content, req.enterprise.strip())
-        return {"status": "ok", "enterprise": req.enterprise, "chunks": result["chunks"]}
-
-    def _extract_text(content: bytes, filename: str) -> str:
-        """根据文件后缀提取文本内容。"""
-        name = filename.lower()
-        if name.endswith(".docx"):
-            from docx import Document
-            doc = Document(BytesIO(content))
-            return "\n".join(p.text for p in doc.paragraphs)
-        elif name.endswith(".pdf"):
-            from pypdf import PdfReader
-            reader = PdfReader(BytesIO(content))
-            return "\n".join(page.extract_text() or "" for page in reader.pages)
-        else:
-            return content.decode("utf-8", errors="replace")
+        result = _rag.upload_file(req.enterprise.strip(), "manual_upload.txt", req.content.encode("utf-8"))
+        if result["status"] == "error":
+            raise HTTPException(400, result.get("error", "上传失败"))
+        return result
 
     @app.post("/rag/upload/file")
     def rag_upload_file(
@@ -446,30 +460,36 @@ def create_app() -> FastAPI:
         if not enterprise.strip():
             raise HTTPException(400, "企业名称不能为空")
         raw = file.file.read()
-        text = _extract_text(raw, file.filename or "upload")
-        if not text.strip():
-            raise HTTPException(400, "文件内容为空")
-        # 保存到 MinIO（可选，失败不影响向量嵌入）
-        object_name = f"{enterprise.strip()}/{file.filename or 'upload'}"
-        try:
-            upload_bytes(raw, object_name)
-        except Exception:
-            object_name = None
-        # 嵌入向量库
-        result = upload_text(text, enterprise.strip(), source=file.filename or "upload")
-        resp = {"status": "ok", "enterprise": enterprise, "chunks": result["chunks"]}
-        if object_name:
-            resp["minio"] = object_name
-        return resp
+        result = _rag.upload_file(enterprise.strip(), file.filename or "upload", raw)
+        if result["status"] == "error":
+            raise HTTPException(400, result.get("error", "上传失败"))
+        return result
 
     @app.get("/rag/enterprises")
     def rag_enterprises():
-        return {"enterprises": list_enterprises()}
+        return {"enterprises": _rag.list_enterprises()}
 
     @app.delete("/rag/enterprise/{name:path}")
     def rag_delete_enterprise(name: str):
-        delete_enterprise(name)
-        return {"status": "ok", "enterprise": name}
+        result = _rag.delete_enterprise(name)
+        return result
+
+    @app.get("/rag/health")
+    def rag_health():
+        return _rag.health()
+
+    @app.get("/rag/documents")
+    def rag_documents(enterprise: str = Query(...)):
+        if not enterprise.strip():
+            raise HTTPException(400, "企业名称不能为空")
+        return {"documents": _rag.get_documents(enterprise.strip())}
+
+    @app.post("/rag/admin/reindex")
+    def rag_reindex():
+        return {
+            "status": "not_implemented",
+            "message": "reindex endpoint reserved for future use"
+        }
 
     @app.get("/warnings", response_class=HTMLResponse)
     def warning_page():
@@ -1287,10 +1307,9 @@ def create_app() -> FastAPI:
 
         # 票交所 RAG 查询
         try:
-            from services.rag_store import query as rag_query
             for ent in _ents:
                 for kw in ["商票", "承兑", "逾期", "拒付", "票据"]:
-                    result = rag_query(kw, ent["name"], n_results=1)
+                    result = _rag.query(kw, ent["name"], n_results=1)
                     if result:
                         _collect_source("rag", result, db, cls, ent["name"], "piaojiaosuo")
         except Exception as e:
