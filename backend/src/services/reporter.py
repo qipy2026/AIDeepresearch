@@ -632,6 +632,15 @@ class ReportingService:
                     out.append(t)
             return out
 
+        # 噪声关键词：标题包含这些词的条目会被过滤掉
+        NOISE_KEYWORDS = [
+            "排名", "律师", "养老金", "涨吗", "多涨", "广告业",
+            "家居出海", "律师事务所", "打二板", "打板",
+        ]
+
+        def _filter_noise(titles: list[str]) -> list[str]:
+            return [t for t in titles if not any(kw in t for kw in NOISE_KEYWORDS)]
+
         try:
             all_titles: list[str] = []
             policy_titles: list[str] = []
@@ -640,18 +649,19 @@ class ReportingService:
 
             # ═══ 层0: 结构化宏观指标 ═══
             macro_indicator_queries = [
-                ("2026年 PMI 制造业采购经理指数 最新", "PMI"),
-                ("2026年 CPI 居民消费价格 同比 涨幅", "CPI"),
-                ("2026年 GDP 增速 国内生产总值 增长", "GDP"),
-                ("2026年 M2 货币供应量 增速 央行", "M2"),
-                ("2026年 工业增加值 同比 增速", "工业"),
-                ("2026年 固定资产投资 同比 增速", "固投"),
-                ("2026年 社会融资规模 增量 社融", "社融"),
-                ("2026年 进出口 贸易 总额 外贸 数据", "外贸"),
+                ("2026年 PMI 制造业采购经理指数 数据 最新", "PMI"),
+                ("2026年 CPI 居民消费价格 同比 数据 最新", "CPI"),
+                ("2026年 中国 GDP 增速 数据 最新", "GDP"),
+                ("2026年 M2 货币供应量 增速 数据", "M2"),
+                ("2026年 工业增加值 同比 增速 数据", "工业"),
+                ("2026年 固定资产投资 同比 增速 数据", "固投"),
+                ("2026年 社会融资规模 增量 数据 最新", "社融"),
+                ("2026年 进出口 贸易 总额 数据 最新", "外贸"),
             ]
             for q, label in macro_indicator_queries:
-                titles = _safe_baidu_search(q, max_results=3)
-                for t in titles:
+                titles = _safe_baidu_search(q, max_results=4)
+                titles = _filter_noise(titles)
+                for t in titles[:2]:
                     macro_indicators.append(f"[{label}] {t}")
 
             # ═══ 层1: 宏观经济大盘（不限行业，6 query） ═══
@@ -719,10 +729,10 @@ class ReportingService:
             except Exception:
                 pass
 
-            unique_titles = _dedup(all_titles)
+            unique_titles = _dedup(_filter_noise(all_titles))
             macro_indicators = _dedup(macro_indicators)
-            policy_titles = _dedup(policy_titles)
-            risk_titles = _dedup(risk_titles)
+            policy_titles = _dedup(_filter_noise(policy_titles))
+            risk_titles = _dedup(_filter_noise(risk_titles))
 
             has_sector = bool(sector_events)
             has_baidu = bool(unique_titles) or bool(macro_indicators)
