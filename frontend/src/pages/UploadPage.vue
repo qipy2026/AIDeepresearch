@@ -44,16 +44,35 @@
           :class="msg.type"
         >{{ msg.text }}</div>
 
+        <!-- 错误banner -->
+        <div v-if="errorType === 'network'" class="error-banner warn">
+          ⚠️ 网络异常，显示的是上次缓存数据
+          <button class="btn-retry" @click="refreshList">重试</button>
+        </div>
+        <div v-else-if="errorType === 'server'" class="error-banner err">
+          ❌ 服务异常，请稍后重试
+        </div>
+
+        <!-- 上传结果明细 -->
+        <div v-if="uploadResults.length > 0" class="upload-results">
+          <div v-for="r in uploadResults" :key="r.filename" class="upload-result-row">
+            <span class="ur-name">{{ r.filename }}</span>
+            <span v-if="r.ok" class="ur-ok">✅ {{ r.chunks }} 块</span>
+            <span v-else class="ur-err">❌ {{ r.error }}</span>
+          </div>
+        </div>
+
         <!-- 已上传企业列表 -->
         <div class="section-title">已上传企业</div>
         <div v-if="loading" class="empty">加载中...</div>
-        <div v-else-if="enterprises.length === 0" class="empty">暂无已上传企业</div>
+        <div v-else-if="enterprises.length === 0 && !errorType" class="empty">暂无已上传企业</div>
         <div v-else class="ent-list">
-          <div v-for="ent in enterprises" :key="ent" class="ent-row">
+          <div v-for="ent in enterprises" :key="ent.name" class="ent-row">
             <div>
-              <div class="ent-name">{{ ent }}</div>
+              <div class="ent-name">{{ ent.name }}</div>
+              <div class="ent-meta">{{ ent.doc_count }} 个文档 · {{ ent.chunk_count }} 块 · {{ ent.last_upload }}</div>
             </div>
-            <button class="btn-del" @click="deleteEnt(ent)">删除</button>
+            <button class="btn-del" @click="deleteEnt(ent.name)">删除</button>
           </div>
         </div>
       </div>
@@ -79,8 +98,25 @@ const progressText = ref("上传中...");
 
 const msg = reactive({ text: "", type: "" });
 
-const enterprises = ref<string[]>([]);
+interface Enterprise {
+  name: string;
+  doc_count: number;
+  chunk_count: number;
+  last_upload: string;
+}
+
+interface UploadResult {
+  filename: string;
+  ok: boolean;
+  error?: string;
+  chunks?: number;
+}
+
+const enterprises = ref<Enterprise[]>([]);
+const uploadResults = ref<UploadResult[]>([]);
+const errorType = ref<"network" | "server" | null>(null);
 const loading = ref(true);
+let lastGoodData: Enterprise[] = [];
 
 // --- Helper ---
 function extractEnterprise(filename: string): string {
@@ -133,6 +169,7 @@ async function handleFiles(files: FileList) {
   hasFile.value = true;
   progressActive.value = true;
   showMsg("", "");
+  uploadResults.value = [];
   let ok = 0;
   let err = 0;
 
@@ -150,12 +187,17 @@ async function handleFiles(files: FileList) {
     try {
       const resp = await fetch("/rag/upload/file", { method: "POST", body: fd });
       if (resp.ok) {
+        const data = await resp.json();
         ok++;
+        uploadResults.value.push({ filename: file.name, ok: true, chunks: data.chunks });
       } else {
+        const data = await resp.json();
         err++;
+        uploadResults.value.push({ filename: file.name, ok: false, error: data.detail || `HTTP ${resp.status}` });
       }
-    } catch {
+    } catch (e: any) {
       err++;
+      uploadResults.value.push({ filename: file.name, ok: false, error: e.message || "网络错误" });
     }
   }
 
@@ -172,10 +214,21 @@ async function handleFiles(files: FileList) {
 async function refreshList() {
   try {
     const resp = await fetch("/rag/enterprises");
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-    enterprises.value = data.enterprises || [];
-  } catch {
-    enterprises.value = [];
+    lastGoodData = data.enterprises || [];
+    enterprises.value = lastGoodData;
+    errorType.value = null;
+    showMsg("", "");
+  } catch (e: any) {
+    if (e instanceof TypeError || e.message?.includes("fetch")) {
+      errorType.value = "network";
+    } else {
+      errorType.value = "server";
+    }
+    if (lastGoodData.length > 0) {
+      enterprises.value = lastGoodData;
+    }
   } finally {
     loading.value = false;
   }
@@ -394,4 +447,33 @@ onMounted(() => {
   text-align: center;
   padding: 20px;
 }
+
+.ent-meta {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.error-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.error-banner.warn { background: #fef3c7; color: #92400e; }
+.error-banner.err { background: #fee2e2; color: #991b1b; }
+.btn-retry {
+  padding: 2px 10px; border-radius: 4px;
+  border: 1px solid #92400e; background: #fff;
+  color: #92400e; font-size: 12px; cursor: pointer;
+}
+.upload-results { margin: 12px 0; display: flex; flex-direction: column; gap: 4px; }
+.upload-result-row {
+  display: flex; justify-content: space-between; font-size: 13px;
+  padding: 4px 8px; border-radius: 4px; background: #f8fafc;
+}
+.ur-ok { color: #166534; }
+.ur-err { color: #dc2626; }
 </style>
