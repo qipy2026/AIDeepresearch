@@ -483,3 +483,66 @@ class TestBuildVideoInspectionSection:
         )
 
         assert "暂无历史对比数据" in result
+
+
+class TestSnapshotLocalDir:
+    """T9: SNAPSHOT_LOCAL_DIR 解析正确性."""
+
+    def test_resolves_to_backend_snapshot_data(self):
+        """SNAPSHOT_LOCAL_DIR 应解析到 backend/snapshot_data/."""
+        from services.reporter import SNAPSHOT_LOCAL_DIR
+
+        resolved = str(SNAPSHOT_LOCAL_DIR.resolve())
+        assert resolved.endswith("snapshot_data")
+        assert "backend" in resolved
+
+    def test_uses_env_var_does_not_override_constant(self, monkeypatch, tmp_path):
+        """CAMERA_SNAPSHOT_LOCAL 环境变量不可动态覆盖模块常量.
+
+        说明：SNAPSHOT_LOCAL_DIR 在模块 import 时即已求值，
+        monkeypatch.setenv 无法影响已求值的常量。此测试验证该行为特性。
+        """
+        from services.reporter import SNAPSHOT_LOCAL_DIR
+
+        custom_dir = tmp_path / "custom_snapshots"
+        monkeypatch.setenv("CAMERA_SNAPSHOT_LOCAL", str(custom_dir))
+
+        # 常量已在 import 时求值，不受 monkeypatch 影响
+        resolved = str(SNAPSHOT_LOCAL_DIR.resolve())
+        # 解析为 backend/snapshot_data/，而非 monkeypatch 后的 custom_dir
+        assert "backend" in resolved
+        assert "snapshot_data" in resolved
+
+
+class TestComputeHeadcountTrendWithSnapshots:
+    """T10: _compute_headcount_trend 接受预读取 snapshots 参数."""
+
+    def test_uses_provided_snapshots(self):
+        """传入 snapshots 参数时应跳过 DB 读取，直接用传入数据."""
+        from datetime import date, timedelta
+
+        today = date.today()
+        snapshots = []
+        for i in range(28):
+            day = today - timedelta(days=i)
+            bucket = day.strftime("%Y-%m-%dT09")
+            snapshots.append({
+                "snapshot_date": bucket,
+                "headcount": 10 if i < 7 else 5,
+                "snapshot_path": "",
+            })
+
+        result = ReportingService._compute_headcount_trend(
+            "测试企业", snapshots=snapshots
+        )
+
+        assert result["status"] == "growth"
+        assert result["current_avg"] == 10.0
+        assert result["prior_avg"] == 5.0
+        assert result["delta_pct"] == 1.0
+
+    def test_falls_back_to_db_when_none(self, monkeypatch):
+        """不传 snapshots 时走原有 DB 读取路径."""
+        monkeypatch.setenv("CAMERA_DB_PATH", "/nonexistent/path.db")
+        result = ReportingService._compute_headcount_trend("测试企业")
+        assert result["status"] == "insufficient"
