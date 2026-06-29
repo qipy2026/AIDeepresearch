@@ -213,6 +213,23 @@
         </div>
       </section>
 
+      <!-- 错误状态：调查失败且无结果可展示时居中显示 -->
+      <div v-if="researchPhase === 'error' && error" class="error-fullscreen">
+        <section class="panel panel-form panel-centered" style="max-width:520px">
+          <div style="text-align:center">
+            <p class="error-chip">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M10 3.2c-.3 0-.6.2-.8.5L3.4 15c-.4.7.1 1.6.8 1.6h11.6c.7 0 1.2-.9.8-1.6L10.8 3.7c-.2-.3-.5-.5-.8-.5Zm0 4.3c.4 0 .7.3.7.7v4c0 .4-.3.7-.7.7s-.7-.3-.7-.7V8.2c0-.4.3-.7.7-.7Zm0 6.6a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/>
+              </svg>
+              {{ error }}
+            </p>
+            <div style="margin-top:20px">
+              <button class="submit" @click="researchPhase = 'idle'; error = ''">返回重试</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
       <Teleport to="body">
         <div
           v-if="taskDetailOpen && currentTask"
@@ -2909,6 +2926,16 @@ select:focus {
 .combobox-option:hover {
   background: rgba(59, 130, 246, 0.08);
   color: #1d4ed8;
+}
+
+/* 全屏错误状态 */
+.error-fullscreen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
 }
 
 /* F3：过渡动画 */
