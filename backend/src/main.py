@@ -194,6 +194,8 @@ def create_app() -> FastAPI:
             return FileResponse(_vue_dist / "index.html")
 
     # 快照图片静态路由（从 search 项目复制到本地的摄像头快照）
+    # NOTE: 此路径解析须与 reporter.py 中 SNAPSHOT_LOCAL_DIR 保持一致，
+    #       两者均解析到 backend/snapshot_data/，不依赖 CWD。
     _snapshot_dir = _P(__file__).parent.parent / os.getenv("CAMERA_SNAPSHOT_LOCAL", "snapshot_data")
     _snapshot_dir.mkdir(parents=True, exist_ok=True)
 
