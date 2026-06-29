@@ -20,6 +20,11 @@ from utils import strip_thinking_tokens
 
 REFS_DIR = Path(__file__).resolve().parent.parent.parent / "references"
 
+# 快照图片本地存储目录，解析到 backend/snapshot_data/（不依赖 CWD）
+SNAPSHOT_LOCAL_DIR = Path(__file__).resolve().parent.parent.parent / os.getenv(
+    "CAMERA_SNAPSHOT_LOCAL", "snapshot_data"
+)
+
 # ── 可调优常量 ──────────────────────────────────────────
 
 
@@ -155,7 +160,6 @@ class ReportingService:
         import shutil
 
         src_dir = os.getenv("CAMERA_SNAPSHOT_SRC", "")
-        local_dir = os.getenv("CAMERA_SNAPSHOT_LOCAL", "./snapshot_data")
 
         if not src_dir:
             logger.warning("CAMERA_SNAPSHOT_SRC 未配置，跳过图片同步")
@@ -163,8 +167,8 @@ class ReportingService:
                 s["snapshot_path"] = ""
             return
 
-        # 确保本地目录存在
-        Path(local_dir).mkdir(parents=True, exist_ok=True)
+        # 确保本地目录存在（路径已解析到 backend/snapshot_data/，不依赖 CWD）
+        SNAPSHOT_LOCAL_DIR.mkdir(parents=True, exist_ok=True)
 
         for s in snapshots:
             sp = s.get("snapshot_path", "")
@@ -180,7 +184,7 @@ class ReportingService:
                 s["snapshot_path"] = ""
                 continue
 
-            dst_path = Path(local_dir) / fname
+            dst_path = SNAPSHOT_LOCAL_DIR / fname
             if not dst_path.exists():
                 try:
                     shutil.copy2(str(src_path), str(dst_path))

@@ -176,18 +176,20 @@ class TestReadCameraSnapshots:
         conn.commit()
         conn.close()
 
-        local_dir = tmp_path / "local_snapshots"
-
         monkeypatch.setenv("CAMERA_DB_PATH", str(db_path))
         monkeypatch.setenv("CAMERA_SNAPSHOT_SRC", str(src_dir))
-        monkeypatch.setenv("CAMERA_SNAPSHOT_LOCAL", str(local_dir))
+        # SNAPSHOT_LOCAL_DIR 是模块常量（import 时求值），monkeypatch 无法覆盖；
+        # 验证文件写入 SNAPSHOT_LOCAL_DIR 即可。
+
+        from services.reporter import SNAPSHOT_LOCAL_DIR
 
         result = ReportingService._read_camera_snapshots("test", weeks=4)
 
-        copied = local_dir / "snap_abc.jpg"
+        copied = SNAPSHOT_LOCAL_DIR / "snap_abc.jpg"
         assert copied.exists()
         assert copied.read_bytes() == b"fake jpeg data"
         assert result[0]["snapshot_path"] == "snap_abc.jpg"
+        copied.unlink()  # 清理
 
     def test_sync_images_skips_when_src_missing(self, monkeypatch, tmp_path):
         """源目录不存在时图片跳过，不阻塞报告生成."""
