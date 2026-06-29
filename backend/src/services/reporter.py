@@ -380,12 +380,16 @@ class ReportingService:
 
     @staticmethod
     def _compute_headcount_trend(
-        enterprise: str, weeks: int = 4
+        enterprise: str,
+        weeks: int = 4,
+        snapshots: List[Dict[str, Any]] | None = None,
     ) -> Dict[str, Any]:
         """计算企业视频巡检人数趋势。
 
         从 CameraSnapshot 读取最近指定周数的人数数据，
         对比本周均值与前 3 周均值的百分比变化。
+
+        若 snapshots 参数已传入（由调用方预先读取），跳过内部 DB 读取。
 
         Returns:
             {
@@ -397,7 +401,8 @@ class ReportingService:
                 "message": str,
             }
         """
-        snapshots = ReportingService._read_camera_snapshots(enterprise, weeks)
+        if snapshots is None:
+            snapshots = ReportingService._read_camera_snapshots(enterprise, weeks)
 
         # 数据不足
         if len(snapshots) < MIN_TREND_WEEKS:
@@ -906,10 +911,9 @@ class ReportingService:
                        or self._get_enterprise_field(enterprise, "loan_amount"))
 
         # ── 运营信号 ──
-        headcount_trend = self._compute_headcount_trend(enterprise)
-
-        # 关键时刻截图（含 snapshot_path 的原始记录）
+        # 一次读取 camera_snapshots，同时用于趋势计算和关键截图提取
         raw_snapshots = ReportingService._read_camera_snapshots(enterprise, weeks=4)
+        headcount_trend = self._compute_headcount_trend(enterprise, snapshots=raw_snapshots)
         key_snaps = [s for s in raw_snapshots if s.get("snapshot_path")]
 
         # Party A 运营信号（从 enterprises.yaml + warning_db 拉取）
