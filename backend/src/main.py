@@ -751,7 +751,11 @@ def create_app() -> FastAPI:
 
     @app.post("/api/reports/{report_id}/send-to-feishu")
     async def send_report_to_feishu(report_id: str, request: Request):
-        """发送报告 Markdown 到飞书群。复用 warning_dispatcher._send_markdown。"""
+        """发送报告 Word (.docx) 到飞书群。"""
+        import shutil
+        import tempfile
+        import os as _os
+
         _p = _reports_dir / f"{report_id}.md"
         if not _p.exists():
             raise HTTPException(404, "Report not found")
@@ -761,31 +765,44 @@ def create_app() -> FastAPI:
         if not chat_id:
             raise HTTPException(400, "未指定 chat_id")
 
-        content = _p.read_text(encoding="utf-8")
-        from services.warning_dispatcher import _send_markdown
+        # 1. Markdown → Word
+        try:
+            from convert_to_docx import convert_md_to_docx_bytes
+            docx_buf = convert_md_to_docx_bytes(str(_p))
+        except Exception as e:
+            logger.exception("Word generation failed for %s", report_id)
+            raise HTTPException(500, f"Word 生成失败: {e}")
 
-        # UTF-8 安全截断：4000 字节 → 段落边界
-        _max_bytes = 4000
-        _truncated = False
-        if len(content.encode("utf-8")) > _max_bytes:
-            _raw = content.encode("utf-8")[:_max_bytes]
-            # errors='ignore' 自动丢弃末尾不完整的 UTF-8 序列
-            _text = _raw.decode("utf-8", errors="ignore")
-            # 向前扫描到最近的段落边界（双换行）
-            _last_para = _text.rfind("\n\n")
-            if _last_para > len(_text) // 2:
-                _text = _text[:_last_para]
-            # 拼接报告链接
-            import os as _os
-            _base_url = _os.getenv("BASE_URL", "http://127.0.0.1:8080")
-            _text += f"\n\n---\n> [查看完整报告]({_base_url}/reports-edit?id={report_id})"
-            content = _text
-            _truncated = True
+        # 2. 写入临时文件
+        tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
+        tmp.write(docx_buf.read())
+        tmp.close()
+        docx_buf.close()
 
-        success = _send_markdown(chat_id, content)
-        if success:
-            return {"status": "ok", "chat_id": chat_id, "truncated": _truncated}
-        return {"status": "failed", "detail": "lark-cli 发送失败", "truncated": _truncated}
+        # 3. 发送文件到飞书群
+        _lark = shutil.which("lark-cli") or "lark-cli"
+        try:
+            result = subprocess.run(
+                [_lark, "im", "+messages-send",
+                 "--chat-id", chat_id,
+                 "--file", tmp.name,
+                 "--as", "bot",
+                 "--format", "json"],
+                capture_output=True, text=True, encoding="utf-8", timeout=30,
+            )
+            if result.returncode != 0:
+                err = (result.stderr or result.stdout)[:200]
+                logger.error("Feishu send failed: %s", err)
+                raise HTTPException(502, f"飞书发送失败: {err}")
+            return {"status": "ok", "chat_id": chat_id}
+        except subprocess.TimeoutExpired:
+            raise HTTPException(502, "飞书发送超时，请重试")
+        finally:
+            # 4. 清理临时文件
+            try:
+                _os.unlink(tmp.name)
+            except OSError:
+                pass
 
     @app.delete("/api/reports/{report_id}")
     def delete_report(report_id: str):
