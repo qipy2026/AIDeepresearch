@@ -773,22 +773,25 @@ def create_app() -> FastAPI:
             logger.exception("Word generation failed for %s", report_id)
             raise HTTPException(500, f"Word 生成失败: {e}")
 
-        # 2. 写入临时文件
+        # 2. 写入临时文件（仅文件名，lark-cli --file 要求相对路径）
         tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
         tmp.write(docx_buf.read())
         tmp.close()
         docx_buf.close()
+        tmp_dir = _os.path.dirname(tmp.name)
+        tmp_filename = _os.path.basename(tmp.name)
 
-        # 3. 发送文件到飞书群
+        # 3. 发送文件到飞书群（cd 到临时目录后使用相对路径）
         _lark = shutil.which("lark-cli") or "lark-cli"
         try:
             result = subprocess.run(
                 [_lark, "im", "+messages-send",
                  "--chat-id", chat_id,
-                 "--file", tmp.name,
+                 "--file", tmp_filename,
                  "--as", "bot",
                  "--format", "json"],
                 capture_output=True, text=True, encoding="utf-8", timeout=30,
+                cwd=tmp_dir,
             )
             if result.returncode != 0:
                 err = (result.stderr or result.stdout)[:200]

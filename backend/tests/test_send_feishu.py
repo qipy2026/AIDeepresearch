@@ -25,7 +25,9 @@ class TestSendReportToFeishu:
 
     @patch("subprocess.run")
     def test_sends_docx_file_via_lark_cli(self, mock_run, reports_dir):
-        """验证端点调用 lark-cli --file 发送 .docx。"""
+        """验证端点调用 lark-cli --file 使用相对路径 + cwd。"""
+        import os as _os
+
         # Setup: 创建测试报告
         report_id = "test_report_20260624_120000"
         self._make_report(reports_dir, f"{report_id}.md",
@@ -46,6 +48,8 @@ class TestSendReportToFeishu:
         tmp.write(docx_buf.read())
         tmp.close()
         docx_buf.close()
+        tmp_dir = _os.path.dirname(tmp.name)
+        tmp_filename = _os.path.basename(tmp.name)
 
         import shutil
         _lark = shutil.which("lark-cli") or "lark-cli"
@@ -54,22 +58,26 @@ class TestSendReportToFeishu:
             result = subprocess.run(
                 [_lark, "im", "+messages-send",
                  "--chat-id", "oc_test123",
-                 "--file", tmp.name,
+                 "--file", tmp_filename,
                  "--as", "bot",
                  "--format", "json"],
                 capture_output=True, text=True, encoding="utf-8", timeout=30,
+                cwd=tmp_dir,
             )
             assert result.returncode == 0
-            # 验证调用了 lark-cli
+            # 验证 lark-cli 调用使用了相对路径和 cwd
             mock_run.assert_called_once()
-            call_args = mock_run.call_args[0][0]
-            assert "im" in call_args
-            assert "+messages-send" in call_args
-            assert "--file" in call_args
-            assert call_args[call_args.index("--file") + 1].endswith(".docx")
+            call_args = mock_run.call_args
+            assert "--file" in call_args[0][0]
+            file_idx = list(call_args[0][0]).index("--file") + 1
+            passed_file = call_args[0][0][file_idx]
+            assert not _os.path.isabs(passed_file), f"Expected relative path, got {passed_file}"
+            assert passed_file.endswith(".docx")
+            # 验证传了 cwd
+            assert "cwd" in call_args[1]
         finally:
             try:
-                os.unlink(tmp.name)
+                _os.unlink(tmp.name)
             except OSError:
                 pass
 
