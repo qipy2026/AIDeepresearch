@@ -25,7 +25,7 @@ class TestSendReportToFeishu:
 
     @patch("subprocess.run")
     def test_sends_docx_file_via_lark_cli(self, mock_run, reports_dir):
-        """验证端点调用 lark-cli --file 使用相对路径 + cwd。"""
+        """验证端点使用报告名作为文件名 + 相对路径 + cwd。"""
         import os as _os
 
         # Setup: 创建测试报告
@@ -44,12 +44,18 @@ class TestSendReportToFeishu:
         from convert_to_docx import convert_md_to_docx_bytes
         docx_buf = convert_md_to_docx_bytes(str(_p))
 
-        tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
-        tmp.write(docx_buf.read())
-        tmp.close()
+        # 用报告名作为文件名
+        safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in report_id)
+        tmp_dir = tempfile.gettempdir()
+        tmp_path = _os.path.join(tmp_dir, f"{safe_name}.docx")
+        with open(tmp_path, "wb") as f:
+            f.write(docx_buf.read())
         docx_buf.close()
-        tmp_dir = _os.path.dirname(tmp.name)
-        tmp_filename = _os.path.basename(tmp.name)
+        tmp_filename = f"{safe_name}.docx"
+
+        # 验证文件名包含报告标识
+        assert "test_report" in tmp_filename
+        assert tmp_filename.endswith(".docx")
 
         import shutil
         _lark = shutil.which("lark-cli") or "lark-cli"
@@ -72,12 +78,11 @@ class TestSendReportToFeishu:
             file_idx = list(call_args[0][0]).index("--file") + 1
             passed_file = call_args[0][0][file_idx]
             assert not _os.path.isabs(passed_file), f"Expected relative path, got {passed_file}"
-            assert passed_file.endswith(".docx")
-            # 验证传了 cwd
+            assert passed_file == tmp_filename, f"Expected {tmp_filename}, got {passed_file}"
             assert "cwd" in call_args[1]
         finally:
             try:
-                _os.unlink(tmp.name)
+                _os.unlink(tmp_path)
             except OSError:
                 pass
 

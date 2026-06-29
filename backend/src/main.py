@@ -773,13 +773,14 @@ def create_app() -> FastAPI:
             logger.exception("Word generation failed for %s", report_id)
             raise HTTPException(500, f"Word 生成失败: {e}")
 
-        # 2. 写入临时文件（仅文件名，lark-cli --file 要求相对路径）
-        tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
-        tmp.write(docx_buf.read())
-        tmp.close()
+        # 2. 写入临时文件（用报告名作文件名，飞书里显示的就是这个名字）
+        safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in report_id)
+        tmp_dir = tempfile.gettempdir()
+        tmp_path = _os.path.join(tmp_dir, f"{safe_name}.docx")
+        with open(tmp_path, "wb") as f:
+            f.write(docx_buf.read())
         docx_buf.close()
-        tmp_dir = _os.path.dirname(tmp.name)
-        tmp_filename = _os.path.basename(tmp.name)
+        tmp_filename = f"{safe_name}.docx"
 
         # 3. 发送文件到飞书群（cd 到临时目录后使用相对路径）
         _lark = shutil.which("lark-cli") or "lark-cli"
@@ -803,7 +804,7 @@ def create_app() -> FastAPI:
         finally:
             # 4. 清理临时文件
             try:
-                _os.unlink(tmp.name)
+                _os.unlink(tmp_path)
             except OSError:
                 pass
 
