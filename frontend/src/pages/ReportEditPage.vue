@@ -36,7 +36,7 @@
           {{ saving ? '保存中...' : '💾 保存' }}
         </button>
         <button class="btn btn-outline" :disabled="sending || loadingChats" @click="openSendModal">
-          {{ loadingChats ? '加载群列表中...' : '📨 发送飞书' }}
+          {{ loadingChats ? '加载群列表中...' : '📨 发送飞书(Word)' }}
         </button>
         <span class="save-status">{{ saveStatus }}</span>
       </div>
@@ -325,7 +325,7 @@ async function sendToFeishu() {
     const data = await resp.json();
 
     if (data.status === "ok") {
-      showToast("success", data.truncated ? "发送成功（内容过长已截断）" : "发送成功");
+      showToast("success", "Word 报告已发送到群");
       closeSendModal();
     } else {
       showToast("error", "发送失败: " + (data.detail || "未知错误"));
