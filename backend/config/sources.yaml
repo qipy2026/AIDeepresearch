@@ -1,0 +1,169 @@
+# 数据采集源配置 — 人工可编辑，系统每次采集周期重新读取
+# enabled: true=启用 false=暂停
+# schedule: daily/weekly/monthly
+
+sources:
+
+  # ── 宏观数据 ──
+  - name: 国家统计局
+    url: https://www.stats.gov.cn/
+    category: 宏观数据
+    schedule: monthly
+    enabled: true
+
+  - name: 中国人民银行
+    url: http://www.pbc.gov.cn/
+    category: 宏观数据
+    schedule: monthly
+    enabled: true
+
+  - name: The World Bank
+    url: https://data.worldbank.org.cn/
+    category: 宏观数据
+    schedule: monthly
+    enabled: true
+
+  # ── 行业报告 / 研究院 ──
+  - name: 腾讯研究院
+    url: https://www.tisi.org/
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: 企鹅智库
+    url: https://re.qq.com/
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: 阿里研究院
+    url: https://www.aliresearch.com/
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: KPMG
+    url: https://home.kpmg/cn/zh/home/insights.html
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: McKinsey
+    url: https://www.mckinsey.com.cn/insights/
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: Bain & Company
+    url: https://www.bain.cn/new_list.php
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: EY
+    url: https://www.ey.com/zh_cn/insights
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: PwC
+    url: https://www.pwccn.com/zh/research-and-insights.html
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  - name: 易观分析
+    url: https://www.analysys.cn/
+    category: 行业报告
+    schedule: weekly
+    enabled: true
+
+  # ── 舆情 / 指数 ──
+  - name: 清博大数据指数
+    url: https://www.gsdata.cn/
+    category: 舆情指数
+    schedule: daily
+    enabled: false
+
+  - name: 新榜
+    url: https://www.newrank.cn/
+    category: 舆情指数
+    schedule: daily
+    enabled: false
+
+  - name: 百度指数
+    url: https://index.baidu.com/
+    category: 舆情指数
+    schedule: daily
+    enabled: false
+
+  - name: 好搜
+    url: https://www.haosou.com/
+    category: 舆情指数
+    schedule: daily
+    enabled: false
+
+  - name: 数读
+    url: https://data.163.com/
+    category: 舆情指数
+    schedule: daily
+    enabled: false
+
+  - name: 艾瑞数据
+    url: https://data.iresearch.com.cn/
+    category: 舆情指数
+    schedule: daily
+    enabled: false
+
+  # ── 电商 / 流量 ──
+  - name: 淘数据
+    url: https://www.taosj.com/
+    category: 电商流量
+    schedule: daily
+    enabled: false
+
+  - name: 生意参谋
+    url: https://sycm.taobao.com/
+    category: 电商流量
+    schedule: daily
+    enabled: false
+
+  - name: 九九抖商
+    url: https://www.99doushang.com/
+    category: 电商流量
+    schedule: daily
+    enabled: false
+
+  - name: 火烧云
+    url: https://www.hsydata.com/
+    category: 电商流量
+    schedule: daily
+    enabled: true
+
+  # ── 影视 / 票房 ──
+  - name: 骨朵数据
+    url: https://www.guduodata.com/
+    category: 影视票房
+    schedule: daily
+    enabled: false
+
+  - name: 猫眼票房分析
+    url: https://piaofang.maoyan.com/
+    category: 影视票房
+    schedule: daily
+    enabled: false
+
+  # ── 排行榜 ──
+  - name: 行业排行榜
+    url: https://www.askci.com/
+    category: 行业排名
+    schedule: weekly
+    enabled: true
+
+  # ── 巨潮公告（已接入，仅作为参考展示）──
+  - name: 巨潮资讯
+    url: http://www.cninfo.com.cn/
+    category: 上市公司公告
+    schedule: daily
+    enabled: true
+    builtin: true  # 标记为系统内置，不可删除

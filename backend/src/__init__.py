@@ -1,4 +1,4 @@
-"""AIDeepresearch - LangGraph 深度研究助手。"""
+"""AIDeepresearch - LangGraph 贷后管理助手。"""
 
 from .agent import DeepResearchAgent, run_deep_research
 

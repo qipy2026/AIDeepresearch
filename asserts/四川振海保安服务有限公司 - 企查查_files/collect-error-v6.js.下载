@@ -1,0 +1,89 @@
+/* eslint-disable */
+window.colloctError = function (error) {
+  var ignoreArr = [
+    'cefQuery is not defined',
+    'Cannot redefine property: platform',
+    "reading 'innerText'",
+    "Unexpected token 'export'",
+    'se-extension',
+    'chrome-extension',
+    'moz-extension',
+    'echarts.js',
+    'Request aborted',
+    'googletag',
+    'The quota has been exceeded',
+    'cwebview',
+    'MTTATTRIBUTE_Done',
+    'jsFinder',
+    '后裔采集器',
+    '操作太快，请稍后再试',
+    '未知错误',
+    '权限不足',
+    '内存不足',
+    '未连接到互联网，请检查网络连接',
+    '该功能需要登录'
+  ]
+  for (var i = 0; i < ignoreArr.length; i++) {
+    if (error.stack && error.stack.toString().indexOf(ignoreArr[i]) !== -1) {
+      return
+    }
+  }
+
+  var state = (window.AppRuntimeInstance && window.AppRuntimeInstance.store && window.AppRuntimeInstance.store.state) || {}
+  var storeString = JSON.stringify(state)
+  var storeFlag = false
+  if (storeString.length < 3500) {
+    storeFlag = storeString
+  }
+  // 创建兼容 IE11 的 AJAX 请求
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/web/log-client-error', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.send(JSON.stringify({
+    message: error.message,
+    stack: error.stack,
+    extra: {
+      version: window.version,
+      storeFlag: storeFlag,
+      storeLength: storeString.length,
+      originalUrl: window.location.href,
+      path: window.location.pathname,
+      message: error.message
+    }
+  }));
+}
+
+function logScriptError(event) {
+  var target = event.target || event.srcElement;
+  var isElementTarget = target instanceof HTMLScriptElement || target instanceof HTMLLinkElement;
+  if (isElementTarget) {
+    var url = target.src || target.href;
+    
+    // 创建兼容 IE11 的 AJAX 请求
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/web/log-client-error', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({
+      message: 'assets-load-error',
+      extra: {
+        version: window.version,
+        originalUrl: window.location.href,
+        path: url,
+        message: event.error && event.error.message
+      }
+    }));
+  }
+}
+
+window.addEventListener(
+  'error',
+  function (e) {
+    if (e && e.error) {
+      setTimeout(function () {
+        window.colloctError(e.error)
+      }, 500)
+    }
+    logScriptError(e)
+  },
+  true
+)

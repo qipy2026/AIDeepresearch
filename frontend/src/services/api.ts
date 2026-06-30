@@ -1,5 +1,4 @@
-const baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "";
 
 export interface ResearchRequest {
   topic: string;
@@ -13,6 +12,7 @@ export interface ResearchStreamEvent {
 
 export interface StreamOptions {
   signal?: AbortSignal;
+  onReader?: (reader: ReadableStreamDefaultReader<Uint8Array>) => void;
 }
 
 export async function runResearchStream(
@@ -33,16 +33,17 @@ export async function runResearchStream(
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
     throw new Error(
-      errorText || `研究请求失败，状态码：${response.status}`
+      errorText || `调查请求失败，状态码：${response.status}`
     );
   }
 
   const body = response.body;
   if (!body) {
-    throw new Error("浏览器不支持流式响应，无法获取研究进度");
+    throw new Error("浏览器不支持流式响应，无法获取调查进度");
   }
 
   const reader = body.getReader();
+  options.onReader?.(reader);
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
 
@@ -63,6 +64,8 @@ export async function runResearchStream(
             onEvent(event);
 
             if (event.type === "error" || event.type === "done") {
+              // 释放 reader 锁，避免遗弃的 reader 在浏览器清理时触发意外 abort
+              reader.cancel().catch(() => {});
               return;
             }
           } catch (error) {

@@ -22,6 +22,7 @@ class TodoItem:
     note_id: Optional[str] = field(default=None)
     note_path: Optional[str] = field(default=None)
     stream_token: Optional[str] = field(default=None)
+    micro_queries: Optional[list[str]] = field(default=None)
 
 
 @dataclass(kw_only=True)

@@ -22,7 +22,7 @@ class SummarizationService:
     def _build_prompt(self, state: SummaryState, task: TodoItem, context: str) -> str:
         guidance = build_note_guidance(task) if self._config.enable_notes else ""
         return (
-            f"研究主题：{state.research_topic}\n"
+            f"调查主题：{state.research_topic}\n"
             f"任务：{task.title}\n意图：{task.intent}\n查询：{task.query}\n"
             f"{guidance}\n检索上下文：\n{context}\n请输出该任务的简明总结。"
         )

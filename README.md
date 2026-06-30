@@ -1,6 +1,6 @@
-# AIDeepresearch · 深度研究助手
+# AIDeepresearch · 贷后管理助手
 
-> 输入研究主题，自动规划任务、检索网络、归纳洞见，并生成带引用的 Markdown 研究报告。
+> 输入调查主题，自动规划任务、检索网络、归纳洞见，并生成带引用的 Markdown 调查报告。
 
 ---
 
@@ -8,7 +8,7 @@
 
 | 维度 | 说明 |
 |------|------|
-| **一句话** | 面向调研、学习、写稿场景的 AI 深度研究工作台 |
+| **一句话** | 面向调研、学习、写稿场景的 AI 贷后管理工作台 |
 | **核心能力** | 多轮检索 + 任务拆解 + 流式进度 + 结构化报告 |
 | **差异化** | 过程可观测（时间线、子任务卡片、来源与笔记），结果可复核 |
 
@@ -21,7 +21,7 @@
 | 产品 / 运营 | 行业扫描、竞品与趋势简报 |
 | 研发 / 算法 | 技术主题文献与开源动态汇总 |
 | 内容创作者 | 长文选题前的资料收集与提纲 |
-| 学生 / 研究者 | 课程或课题的背景调研 |
+| 学生 / 调查者 | 课程或课题的背景调研 |
 
 **痛点**：手工搜索碎片化、难以并行多子题、缺少可引用的成稿结构。  
 **价值**：一次输入主题，自动拆成 3～5 个互补子任务并行推进，最终输出可阅读的 Markdown 报告。
@@ -32,15 +32,15 @@
 
 ```mermaid
 flowchart LR
-  A[输入研究主题] --> B[选择搜索引擎]
-  B --> C[开始研究]
+  A[输入调查主题] --> B[选择搜索引擎]
+  B --> C[开始调查]
   C --> D[规划待办任务]
   D --> E[并行检索与总结]
   E --> F[生成最终报告]
   F --> G[查看子任务详情与来源]
 ```
 
-1. **发起研究**：填写主题，可选覆盖搜索引擎（默认沿用后端 `.env`）。
+1. **发起调查**：填写主题，可选覆盖搜索引擎（默认沿用后端 `.env`）。
 2. **自动规划**：LLM 将主题拆解为若干互补子任务（通常 3～5 项）。
 3. **并行执行**：各子任务独立检索、总结，前端通过 SSE 实时展示进度。
 4. **交付报告**：汇总为带章节结构的 Markdown；可展开时间线、点击任务卡片查看来源与工具调用。
@@ -51,7 +51,7 @@ flowchart LR
 
 | 模块 | 功能 | 用户可见结果 |
 |------|------|----------------|
-| 研究规划 | 主题 → 待办任务清单 | 左侧进度条、任务卡片列表 |
+| 调查规划 | 主题 → 待办任务清单 | 左侧进度条、任务卡片列表 |
 | 智能检索 | Tavily / DuckDuckGo 等 | 每条任务附来源摘要 |
 | 流式反馈 | SSE 推送状态与片段 | 顶部时间线、进行中/已完成状态 |
 | 报告生成 | 多任务归纳 → 最终稿 | 「最终报告」区块（支持 GFM 渲染） |
@@ -64,17 +64,17 @@ flowchart LR
 
 > 截图目录：`asserts/`。README 使用压缩预览图以兼容编辑器预览；原图见 `search.png`、`result.png`。
 
-### 5.1 研究入口
+### 5.1 调查入口
 
-输入主题、选择搜索引擎，一键开始研究。
+输入主题、选择搜索引擎，一键开始调查。
 
-![研究入口](asserts/search-preview.jpg)
+![调查入口](asserts/search-preview.jpg)
 
-### 5.2 研究过程与报告
+### 5.2 调查过程与报告
 
 左侧展示主题与整体进度；右侧为流程时间线、最终报告与子任务卡片（可查看详情与来源）。
 
-![研究完成界面](asserts/result-preview.jpg)
+![调查完成界面](asserts/result-preview.jpg)
 
 ---
 
@@ -153,10 +153,10 @@ TAVILY_API_KEY=你的_Tavily_密钥
 ```powershell
 cd backend
 $env:PYTHONPATH=".\src"   # Windows PowerShell；Linux/macOS: export PYTHONPATH=./src
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8080
 ```
 
-验证：浏览器打开 http://127.0.0.1:8001/healthz ，应返回 `{"status":"ok"}`。
+验证：浏览器打开 http://127.0.0.1:8080/healthz ，应返回 `{"status":"ok"}`。
 
 ### 8.4 启动前端
 
@@ -168,7 +168,7 @@ npm install
 创建 `frontend/.env.local`（若尚未存在）：
 
 ```env
-VITE_API_BASE_URL=http://127.0.0.1:8001
+VITE_API_BASE_URL=http://127.0.0.1:8080
 ```
 
 ```bash
@@ -177,9 +177,9 @@ npm run dev
 
 默认开发地址：**http://localhost:5174**（见 `frontend/vite.config.ts`）。
 
-### 8.5 完成一次研究
+### 8.5 完成一次调查
 
-1. 打开前端，输入研究主题，点击 **开始研究**。
+1. 打开前端，输入调查主题，点击 **开始调查**。
 2. 等待进度条与时间线更新。
 3. 在 **最终报告** 阅读结果；点击子任务 **查看详情** 核对来源。
 
@@ -195,7 +195,7 @@ npm run dev
 | `TAVILY_API_KEY` | 使用 Tavily 时必填 |
 | `MAX_WEB_RESEARCH_LOOPS` | 单任务检索轮次上限（默认 3） |
 | `FETCH_FULL_PAGE` | 是否拉取完整页面内容 |
-| `PORT` | 后端端口（默认示例为 8001） |
+| `PORT` | 后端端口（默认示例为 8080） |
 
 完整示例见 [`backend/.env.example`](./backend/.env.example)。
 
@@ -206,8 +206,8 @@ npm run dev
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/healthz` | 健康检查 |
-| POST | `/research` | 同步研究（返回报告 JSON） |
-| POST | `/research/stream` | **推荐** SSE 流式研究 |
+| POST | `/research` | 同步调查（返回报告 JSON） |
+| POST | `/research/stream` | **推荐** SSE 流式调查 |
 | GET | `/docs` | OpenAPI 交互文档 |
 
 流式事件类型包括：`status`、`todo_list`、`task_status`、`task_summary_chunk`、`sources`、`final_report`、`done`、`error` 等。
@@ -218,7 +218,7 @@ npm run dev
 
 | 现象 | 可能原因 | 处理 |
 |------|----------|------|
-| 前端报「研究失败」 | LLM 未配或仍走 Ollama | 确认 `.env` 中 `LLM_PROVIDER=custom` 与 `LLM_BASE_URL`（含 `/v1`） |
+| 前端报「调查失败」 | LLM 未配或仍走 Ollama | 确认 `.env` 中 `LLM_PROVIDER=custom` 与 `LLM_BASE_URL`（含 `/v1`） |
 | 修改 `.env` 不生效 | 进程未重启 | 重启 uvicorn |
 | 502 / 模型不存在 | 模型名或网关错误 | 改用服务商支持的 `LLM_MODEL_ID`（如 `deepseek-chat`） |
 | 跨域错误 | 端口不一致 | `CORS_ORIGINS` 加入前端端口（如 5174） |
@@ -228,7 +228,7 @@ npm run dev
 ## 12. 版本与演进
 
 - **当前**：LangGraph + LangChain 编排，已移除 `hello-agents` 依赖。
-- **可规划**：历史研究列表、导出 PDF/Word、多语言报告、团队协作空间。
+- **可规划**：历史调查列表、导出 PDF/Word、多语言报告、团队协作空间。
 
 ---
 

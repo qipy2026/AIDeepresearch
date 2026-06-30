@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<!-- saved from url=(0026)http://192.168.10.30:5174/ -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script type="module" src="./贷后管理助手_files/client"></script>
+
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIDeepresearch 贷后管理助手</title>
+  <style type="text/css" data-vite-dev-id="E:/work/code/AIDeepresearch/frontend/src/App.vue?vue&amp;type=style&amp;index=0&amp;scoped=7a7a37b1&amp;lang.css">
+.app-shell[data-v-7a7a37b1] {
+  position: relative;
+  min-height: 100vh;
+  padding: 72px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at 20% 20%, #f8fafc, #dbeafe 60%);
+  color: #1f2937;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: padding 0.4s ease;
+}
+.app-shell.expanded[data-v-7a7a37b1] {
+  padding: 0;
+  align-items: stretch;
+}
+.aurora[data-v-7a7a37b1] {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.55;
+}
+.aurora span[data-v-7a7a37b1] {
+  position: absolute;
+  width: 45vw;
+  height: 45vw;
+  max-width: 520px;
+  max-height: 520px;
+  background: radial-gradient(circle, rgba(148, 197, 255, 0.35), transparent 60%);
+  filter: blur(90px);
+  animation: float-7a7a37b1 26s infinite linear;
+}
+.aurora span[data-v-7a7a37b1]:nth-child(1) {
+  top: -20%;
+  left: -18%;
+  animation-delay: 0s;
+}
+.aurora span[data-v-7a7a37b1]:nth-child(2) {
+  bottom: -25%;
+  right: -20%;
+  background: radial-gradient(circle, rgba(166, 139, 255, 0.28), transparent 60%);
+  animation-delay: -9s;
+}
+.aurora span[data-v-7a7a37b1]:nth-child(3) {
+  top: 35%;
+  left: 45%;
+  background: radial-gradient(circle, rgba(164, 219, 216, 0.26), transparent 60%);
+  animation-delay: -16s;
+}
+.layout[data-v-7a7a37b1] {
+  position: relative;
+  width: 100%;
+  display: flex;
+  gap: 24px;
+  z-index: 1;
+  transition: all 0.4s ease;
+}
+.layout-centered[data-v-7a7a37b1] {
+  max-width: 600px;
+  justify-content: center;
+  align-items: center;
+}
+.layout-fullscreen[data-v-7a7a37b1] {
+  height: 100vh;
+  max-width: 100%;
+  gap: 0;
+  align-items: stretch;
+}
+.panel[data-v-7a7a37b1] {
+  position: relative;
+  flex: 1 1 360px;
+  padding: 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+.panel-form[data-v-7a7a37b1] {
+  max-width: 420px;
+}
+.panel-centered[data-v-7a7a37b1] {
+  width: 100%;
+  max-width: 600px;
+  padding: 40px;
+  box-shadow: 0 32px 64px rgba(15, 23, 42, 0.15);
+  transform: scale(1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.panel-centered[data-v-7a7a37b1]:hover {
+  transform: scale(1.02);
+  box-shadow: 0 40px 80px rgba(15, 23, 42, 0.2);
+}
+.panel-result[data-v-7a7a37b1] {
+  min-width: 360px;
+  flex: 2 1 420px;
+}
+.panel[data-v-7a7a37b1]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(125, 86, 255, 0.1));
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  z-index: 0;
+}
+.panel[data-v-7a7a37b1]:hover::before {
+  opacity: 1;
+}
+.panel[data-v-7a7a37b1] > * {
+  position: relative;
+  z-index: 1;
+}
+.panel-form h1[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.01em;
+}
+.panel-form p[data-v-7a7a37b1] {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+.panel-head[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.logo[data-v-7a7a37b1] {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.4);
+}
+.logo svg[data-v-7a7a37b1] {
+  width: 28px;
+  height: 28px;
+  fill: #f8fafc;
+}
+.form[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.field[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field span[data-v-7a7a37b1] {
+  font-weight: 600;
+  color: #475569;
+}
+textarea[data-v-7a7a37b1],
+input[data-v-7a7a37b1],
+select[data-v-7a7a37b1] {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.92);
+  color: #1f2937;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+textarea[data-v-7a7a37b1]:focus,
+input[data-v-7a7a37b1]:focus,
+select[data-v-7a7a37b1]:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.65);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  background: #ffffff;
+}
+.options[data-v-7a7a37b1] {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.option[data-v-7a7a37b1] {
+  flex: 1;
+  min-width: 140px;
+}
+.form-actions[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.submit[data-v-7a7a37b1] {
+  align-self: flex-start;
+  padding: 12px 24px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+.submit-label[data-v-7a7a37b1] {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.submit .spinner[data-v-7a7a37b1] {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-linecap: round;
+  animation: spin-7a7a37b1 1s linear infinite;
+}
+.submit[data-v-7a7a37b1]:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.submit[data-v-7a7a37b1]:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+}
+.secondary-btn[data-v-7a7a37b1] {
+  padding: 10px 18px;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.secondary-btn[data-v-7a7a37b1]:hover {
+  background: rgba(148, 163, 184, 0.2);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #0f172a;
+}
+.error-chip[data-v-7a7a37b1] {
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 14px;
+  color: #b91c1c;
+  font-size: 14px;
+}
+.error-chip svg[data-v-7a7a37b1] {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.panel-result[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.result-main[data-v-7a7a37b1] {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.status-bar[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.status-main[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.status-controls[data-v-7a7a37b1] {
+  display: flex;
+  gap: 8px;
+}
+.status-chip[data-v-7a7a37b1] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(191, 219, 254, 0.28);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #1f2937;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+.status-chip.active[data-v-7a7a37b1] {
+  background: rgba(129, 140, 248, 0.2);
+  border-color: rgba(129, 140, 248, 0.4);
+  color: #1e293b;
+}
+.status-chip .dot[data-v-7a7a37b1] {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.45);
+  animation: pulse-7a7a37b1 1.8s ease-in-out infinite;
+}
+.status-meta[data-v-7a7a37b1] {
+  color: #64748b;
+  font-size: 13px;
+}
+.timeline-wrapper[data-v-7a7a37b1] {
+  margin-top: 12px;
+  flex-shrink: 0;
+  min-height: 160px;
+  max-height: min(48vh, 480px);
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(129, 140, 248, 0.45) rgba(226, 232, 240, 0.6);
+}
+.timeline-wrapper[data-v-7a7a37b1]::-webkit-scrollbar {
+  width: 6px;
+}
+.timeline-wrapper[data-v-7a7a37b1]::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.6);
+  border-radius: 999px;
+}
+.timeline-wrapper[data-v-7a7a37b1]::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(129, 140, 248, 0.8), rgba(59, 130, 246, 0.7));
+  border-radius: 999px;
+}
+.timeline-wrapper[data-v-7a7a37b1]::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.9), rgba(37, 99, 235, 0.8));
+}
+.timeline[data-v-7a7a37b1] {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  padding-left: 12px;
+}
+.timeline[data-v-7a7a37b1]::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.35), rgba(129, 140, 248, 0.15));
+}
+.timeline li[data-v-7a7a37b1] {
+  position: relative;
+  padding-left: 24px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.timeline-node[data-v-7a7a37b1] {
+  position: absolute;
+  left: -12px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #38bdf8, #7c3aed);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.22);
+}
+.timeline-enter-active[data-v-7a7a37b1],
+.timeline-leave-active[data-v-7a7a37b1] {
+  transition: all 0.35s ease, opacity 0.35s ease;
+}
+.timeline-enter-from[data-v-7a7a37b1],
+.timeline-leave-to[data-v-7a7a37b1] {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.tasks-section[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+.tasks-section-title[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.01em;
+}
+.tasks-section-hint[data-v-7a7a37b1] {
+  margin: -4px 0 4px;
+  font-size: 13px;
+}
+.task-card-list[data-v-7a7a37b1] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.task-card[data-v-7a7a37b1] {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.95);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+}
+.task-card[data-v-7a7a37b1]:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 8px 28px rgba(79, 70, 229, 0.12);
+}
+.task-card--active[data-v-7a7a37b1] {
+  border-color: rgba(129, 140, 248, 0.65);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.18);
+}
+.task-card--completed[data-v-7a7a37b1] {
+  background: rgba(240, 253, 244, 0.45);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+.task-card-inner[data-v-7a7a37b1] {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 16px 18px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 16px;
+}
+.task-card-top[data-v-7a7a37b1] {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.task-card-title[data-v-7a7a37b1] {
+  font-weight: 700;
+  font-size: 15px;
+  color: #0f172a;
+  line-height: 1.35;
+}
+.task-card-intent[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.task-card-preview[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.task-card-cta[data-v-7a7a37b1] {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4f46e5;
+  margin-top: 2px;
+}
+.task-status[data-v-7a7a37b1] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1f2937;
+  background: rgba(148, 163, 184, 0.2);
+}
+.task-status.pending[data-v-7a7a37b1] {
+  background: rgba(148, 163, 184, 0.18);
+  color: #475569;
+}
+.task-status.in_progress[data-v-7a7a37b1] {
+  background: rgba(129, 140, 248, 0.24);
+  color: #312e81;
+}
+.task-status.completed[data-v-7a7a37b1] {
+  background: rgba(34, 197, 94, 0.2);
+  color: #15803d;
+}
+.task-status.skipped[data-v-7a7a37b1] {
+  background: rgba(248, 113, 113, 0.18);
+  color: #b91c1c;
+}
+.task-detail[data-v-7a7a37b1] {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 18px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.5);
+}
+.task-detail--modal[data-v-7a7a37b1] {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.task-modal-backdrop[data-v-7a7a37b1] {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+}
+.task-modal-panel[data-v-7a7a37b1] {
+  width: min(920px, 100%);
+  max-height: min(90vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+.task-modal-toolbar[data-v-7a7a37b1] {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.98));
+}
+.task-modal-title[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+}
+.task-modal-close[data-v-7a7a37b1] {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+.task-modal-close[data-v-7a7a37b1]:hover {
+  background: rgba(241, 245, 249, 0.95);
+  border-color: rgba(100, 116, 139, 0.5);
+}
+.task-modal-body[data-v-7a7a37b1] {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 22px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.45) rgba(226, 232, 240, 0.7);
+}
+@media (max-width: 640px) {
+.task-modal-backdrop[data-v-7a7a37b1] {
+    padding: 0;
+    align-items: stretch;
+}
+.task-modal-panel[data-v-7a7a37b1] {
+    width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+}
+}
+.task-header[data-v-7a7a37b1] {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.task-chip-group[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.task-header h3[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+.task-header .muted[data-v-7a7a37b1] {
+  margin: 6px 0 0;
+}
+.task-label[data-v-7a7a37b1] {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(191, 219, 254, 0.32);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-size: 12px;
+  color: #1e3a8a;
+}
+.task-label.note-chip[data-v-7a7a37b1] {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #15803d;
+}
+.task-label.path-chip[data-v-7a7a37b1] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 360px;
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #0369a1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.path-label[data-v-7a7a37b1] {
+  font-weight: 500;
+}
+.path-text[data-v-7a7a37b1] {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip-action[data-v-7a7a37b1] {
+  border: none;
+  background: rgba(56, 189, 248, 0.2);
+  color: #0369a1;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.chip-action[data-v-7a7a37b1]:hover {
+  background: rgba(14, 165, 233, 0.28);
+  color: #0f172a;
+}
+.task-notices[data-v-7a7a37b1] {
+  background: rgba(191, 219, 254, 0.28);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 16px;
+  padding: 14px 18px;
+  color: #1f2937;
+}
+.task-notices h4[data-v-7a7a37b1] {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.task-notices ul[data-v-7a7a37b1] {
+  list-style: disc;
+  margin: 0 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.task-notices li[data-v-7a7a37b1] {
+  font-size: 13px;
+}
+.report-block[data-v-7a7a37b1] {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 18px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.report-block h3[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+.report-block--final[data-v-7a7a37b1] {
+  margin-bottom: 8px;
+  padding: 26px 24px 24px;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  box-shadow:
+    0 4px 24px rgba(37, 99, 235, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.65));
+}
+.report-head[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.report-head-accent[data-v-7a7a37b1] {
+  width: 5px;
+  height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #2563eb, #7c3aed);
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+  flex-shrink: 0;
+}
+.report-block--final .report-head h3[data-v-7a7a37b1] {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+.report-block--final .report-body[data-v-7a7a37b1] {
+  max-height: min(70vh, 680px);
+  overflow-y: auto;
+  padding: 22px 26px;
+  border-radius: 16px;
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 42%, #f1f5f9 100%);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  line-height: 1.78;
+  color: #334155;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.55) rgba(226, 232, 240, 0.75);
+}
+.report-block--final .report-body[data-v-7a7a37b1]::-webkit-scrollbar {
+  width: 7px;
+}
+.report-block--final .report-body[data-v-7a7a37b1]::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.65);
+  border-radius: 999px;
+}
+.report-block--final .report-body[data-v-7a7a37b1]::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.8), rgba(59, 130, 246, 0.65));
+  border-radius: 999px;
+}
+.report-block--final .report-body[data-v-7a7a37b1] h1,
+.report-block--final .report-body[data-v-7a7a37b1] h2 {
+  margin: 1.35em 0 0.65em;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+.report-block--final .report-body[data-v-7a7a37b1] h1:first-child,
+.report-block--final .report-body[data-v-7a7a37b1] h2:first-child {
+  margin-top: 0;
+}
+.report-block--final .report-body[data-v-7a7a37b1] h1 {
+  font-size: 1.45rem;
+  padding-bottom: 0.45em;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.35);
+}
+.report-block--final .report-body[data-v-7a7a37b1] h2 {
+  font-size: 1.28rem;
+  padding-bottom: 0.35em;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.92), rgba(129, 140, 248, 0.5)) left bottom /
+    100% 3px no-repeat;
+}
+.report-block--final .report-body[data-v-7a7a37b1] h3 {
+  margin: 1.15em 0 0.55em;
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.report-block--final .report-body[data-v-7a7a37b1] h3::before {
+  content: "";
+  width: 4px;
+  min-height: 1.05em;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #3b82f6, #7c3aed);
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
+.report-block--final .report-body[data-v-7a7a37b1] p {
+  margin: 0.6em 0;
+}
+.report-block--final .report-body[data-v-7a7a37b1] p:first-child {
+  margin-top: 0;
+}
+.report-block--final .report-body[data-v-7a7a37b1] strong {
+  color: #1d4ed8;
+  font-weight: 700;
+  background: linear-gradient(120deg, rgba(219, 234, 254, 0.95), rgba(224, 231, 255, 0.5));
+  padding: 0.12em 0.4em;
+  border-radius: 5px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.report-block--final .report-body[data-v-7a7a37b1] ol {
+  margin: 0.85em 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: report-ol;
+}
+.report-block--final .report-body[data-v-7a7a37b1] ol > li {
+  position: relative;
+  padding-left: 2.65em;
+  margin: 0.7em 0;
+  counter-increment: report-ol;
+}
+.report-block--final .report-body[data-v-7a7a37b1] ol > li::before {
+  content: counter(report-ol);
+  position: absolute;
+  left: 0;
+  top: 0.12em;
+  min-width: 1.75em;
+  height: 1.75em;
+  padding: 0 0.25em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #6366f1);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.38);
+}
+.report-block--final .report-body[data-v-7a7a37b1] ul {
+  margin: 0.65em 0;
+  padding-left: 1.35em;
+}
+.report-block--final .report-body[data-v-7a7a37b1] ul li::marker {
+  color: #6366f1;
+  font-weight: 700;
+}
+.report-block--final .report-body[data-v-7a7a37b1] blockquote {
+  margin: 1em 0;
+  padding: 12px 16px 12px 18px;
+  border-left: 4px solid rgba(99, 102, 241, 0.65);
+  background: rgba(238, 242, 255, 0.65);
+  border-radius: 0 12px 12px 0;
+  color: #475569;
+}
+.report-block--final .report-body[data-v-7a7a37b1] a {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.35);
+  text-underline-offset: 3px;
+}
+.report-block--final .report-body[data-v-7a7a37b1] a:hover {
+  color: #1d4ed8;
+  text-decoration-color: rgba(29, 78, 216, 0.55);
+}
+.report-block--final .report-body[data-v-7a7a37b1] code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.88em;
+  font-weight: 600;
+  color: #7c3aed;
+  background: rgba(237, 233, 254, 0.95);
+  padding: 0.15em 0.45em;
+  border-radius: 6px;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+}
+.report-block--final .report-body[data-v-7a7a37b1] pre {
+  margin: 1em 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.65;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  border-radius: 12px;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+.report-block--final .report-body[data-v-7a7a37b1] pre code {
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  font-weight: 500;
+}
+.report-block--final .report-body[data-v-7a7a37b1] hr {
+  margin: 1.5em 0;
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.55), transparent);
+}
+.report-block--final .report-body[data-v-7a7a37b1] .report-parse-hint {
+  margin: 0 0 12px;
+  color: #b45309;
+  font-weight: 600;
+}
+.report-block--final .report-body[data-v-7a7a37b1] .report-fallback {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: #334155;
+  background: rgba(248, 250, 252, 0.95);
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+.block-pre[data-v-7a7a37b1] {
+  font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+    Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1f2937;
+  background: rgba(248, 250, 252, 0.9);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  overflow: auto;
+  max-height: 420px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(129, 140, 248, 0.6) rgba(226, 232, 240, 0.7);
+}
+.block-pre[data-v-7a7a37b1]::-webkit-scrollbar {
+  width: 6px;
+}
+.block-pre[data-v-7a7a37b1]::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.7);
+  border-radius: 999px;
+}
+.block-pre[data-v-7a7a37b1]::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.75), rgba(59, 130, 246, 0.65));
+  border-radius: 999px;
+}
+.block-pre[data-v-7a7a37b1]::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.8), rgba(37, 99, 235, 0.75));
+}
+.summary-block .block-pre[data-v-7a7a37b1],
+.sources-block .block-pre[data-v-7a7a37b1] {
+  max-height: none;
+}
+.tools-block[data-v-7a7a37b1] {
+  position: relative;
+  margin-top: 16px;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tools-block h3[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  letter-spacing: 0.02em;
+}
+.tool-list[data-v-7a7a37b1] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tool-entry[data-v-7a7a37b1] {
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tool-entry-header[data-v-7a7a37b1] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.tool-entry-title[data-v-7a7a37b1] {
+  font-weight: 600;
+  color: #1f2937;
+}
+.tool-entry-note[data-v-7a7a37b1] {
+  font-size: 12px;
+  color: #0f766e;
+}
+.tool-entry-path[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #2563eb;
+}
+.tool-subtitle[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+}
+.tool-pre[data-v-7a7a37b1] {
+  font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+    Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1f2937;
+  background: rgba(248, 250, 252, 0.9);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  overflow: auto;
+  max-height: 260px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(129, 140, 248, 0.6) rgba(226, 232, 240, 0.7);
+}
+.tool-pre[data-v-7a7a37b1]::-webkit-scrollbar {
+  width: 6px;
+}
+.tool-pre[data-v-7a7a37b1]::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.7);
+}
+.tool-pre[data-v-7a7a37b1]::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.7);
+  border-radius: 10px;
+}
+.link-btn[data-v-7a7a37b1] {
+  background: none;
+  border: none;
+  color: #0369a1;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 12px;
+  border-radius: 8px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.link-btn[data-v-7a7a37b1]:hover {
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.16);
+}
+.sources-block[data-v-7a7a37b1],
+.summary-block[data-v-7a7a37b1] {
+  position: relative;
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.4);
+}
+.sources-history[data-v-7a7a37b1] {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sources-history h4[data-v-7a7a37b1] {
+  margin: 0;
+  color: #1f2937;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+.history-list[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.history-list details[data-v-7a7a37b1] {
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  padding: 12px 16px;
+  color: #1f2937;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.history-list details[open][data-v-7a7a37b1] {
+  background: rgba(224, 231, 255, 0.55);
+  border-color: rgba(129, 140, 248, 0.4);
+}
+.history-list summary[data-v-7a7a37b1] {
+  cursor: pointer;
+  font-weight: 600;
+  outline: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.history-list summary[data-v-7a7a37b1]::-webkit-details-marker {
+  display: none;
+}
+.history-list summary[data-v-7a7a37b1]::after {
+  content: "▾";
+  margin-left: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+.history-list details[open] summary[data-v-7a7a37b1]::after {
+  transform: rotate(180deg);
+}
+.block-highlight[data-v-7a7a37b1] {
+  animation: glow-7a7a37b1 1.2s ease;
+}
+.sources-block h3[data-v-7a7a37b1],
+.summary-block h3[data-v-7a7a37b1] {
+  margin: 0 0 14px;
+  color: #1f2937;
+  letter-spacing: 0.02em;
+}
+.sources-list[data-v-7a7a37b1] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.source-item[data-v-7a7a37b1] {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.source-link[data-v-7a7a37b1] {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: color 0.2s ease;
+}
+.source-link[data-v-7a7a37b1]::after {
+  content: " ↗";
+  font-size: 12px;
+  opacity: 0.6;
+}
+.source-link[data-v-7a7a37b1]:hover {
+  color: #0f172a;
+}
+.source-tooltip[data-v-7a7a37b1] {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.98);
+  color: #1f2937;
+  padding: 14px 16px;
+  border-radius: 16px;
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.18);
+  width: min(420px, 90vw);
+  z-index: 20;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+}
+.source-tooltip[data-v-7a7a37b1]::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 10px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.98) transparent transparent transparent;
+}
+.source-tooltip[data-v-7a7a37b1]::before {
+  content: "";
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 12px 10px 0 10px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.98) transparent transparent transparent;
+  filter: drop-shadow(0 -2px 4px rgba(15, 23, 42, 0.12));
+}
+.source-tooltip p[data-v-7a7a37b1] {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.source-tooltip p[data-v-7a7a37b1]:last-child {
+  margin-bottom: 0;
+}
+.muted-text[data-v-7a7a37b1] {
+  color: #64748b;
+}
+.source-item:hover .source-tooltip[data-v-7a7a37b1],
+.source-item:focus-within .source-tooltip[data-v-7a7a37b1] {
+  display: block;
+}
+.hint.muted[data-v-7a7a37b1] {
+  color: #64748b;
+}
+@keyframes float-7a7a37b1 {
+0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+}
+50% {
+    transform: translate3d(10%, 6%, 0) rotate(3deg);
+}
+100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+}
+}
+@keyframes spin-7a7a37b1 {
+to {
+    transform: rotate(360deg);
+}
+}
+@keyframes pulse-7a7a37b1 {
+0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+}
+50% {
+    transform: scale(1.3);
+    opacity: 0.5;
+}
+}
+@keyframes glow-7a7a37b1 {
+0% {
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+100% {
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+}
+@media (max-width: 960px) {
+.app-shell[data-v-7a7a37b1] {
+    padding: 56px 16px;
+}
+.layout[data-v-7a7a37b1] {
+    flex-direction: column;
+    align-items: stretch;
+}
+.panel[data-v-7a7a37b1] {
+    padding: 22px;
+}
+.panel-form[data-v-7a7a37b1],
+  .panel-result[data-v-7a7a37b1] {
+    max-width: none;
+}
+.status-bar[data-v-7a7a37b1] {
+    flex-direction: column;
+    align-items: flex-start;
+}
+.status-main[data-v-7a7a37b1],
+  .status-controls[data-v-7a7a37b1] {
+    width: 100%;
+}
+.status-controls[data-v-7a7a37b1] {
+    justify-content: flex-start;
+}
+}
+@media (max-width: 600px) {
+.options[data-v-7a7a37b1] {
+    flex-direction: column;
+}
+.status-meta[data-v-7a7a37b1] {
+    font-size: 12px;
+}
+.panel-head[data-v-7a7a37b1] {
+    flex-direction: column;
+    align-items: flex-start;
+}
+.panel-form h1[data-v-7a7a37b1] {
+    font-size: 24px;
+}
+}
+
+/* 侧边栏样式 */
+.sidebar[data-v-7a7a37b1] {
+  width: 400px;
+  min-width: 400px;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.98);
+  border-right: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.08);
+}
+.sidebar-header[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sidebar-header h2[data-v-7a7a37b1] {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  color: #1f2937;
+}
+.back-btn[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+.back-btn[data-v-7a7a37b1]:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.back-btn[data-v-7a7a37b1]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.research-info[data-v-7a7a37b1] {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.info-item[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.info-item label[data-v-7a7a37b1] {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+}
+.info-item p[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 14px;
+  color: #1f2937;
+  line-height: 1.6;
+}
+.topic-display[data-v-7a7a37b1] {
+  font-size: 16px !important;
+  font-weight: 600;
+  color: #0f172a !important;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+.progress-bar[data-v-7a7a37b1] {
+  width: 100%;
+  height: 8px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-fill[data-v-7a7a37b1] {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.progress-text[data-v-7a7a37b1] {
+  font-size: 13px !important;
+  color: #64748b !important;
+  font-weight: 500;
+}
+.sidebar-actions[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+.new-research-btn[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+.new-research-btn[data-v-7a7a37b1]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+.new-research-btn[data-v-7a7a37b1]:active {
+  transform: translateY(0);
+}
+.sidebar-link[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(148,163,184,.3);
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all .2s;
+}
+.sidebar-link[data-v-7a7a37b1]:hover {
+  background: rgba(59,130,246,.08);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+.sidebar-link svg[data-v-7a7a37b1] { flex-shrink: 0;
+}
+
+/* 侧边栏流程记录 */
+.sidebar-timeline[data-v-7a7a37b1] {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.timeline-sidebar[data-v-7a7a37b1] {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+.timeline-sidebar li[data-v-7a7a37b1] {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.45;
+}
+.tl-dot[data-v-7a7a37b1] {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #38bdf8, #7c3aed);
+  margin-top: 0.5em;
+}
+.timeline-sidebar p[data-v-7a7a37b1] {
+  margin: 0;
+}
+
+/* 可折叠区域 */
+.collapsible-head[data-v-7a7a37b1] {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.collapsible-head[data-v-7a7a37b1]:hover {
+  opacity: 0.8;
+}
+.fold-arrow[data-v-7a7a37b1] {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+.tasks-section-header[data-v-7a7a37b1] {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.tasks-section-header[data-v-7a7a37b1]:hover {
+  opacity: 0.8;
+}
+
+/* 报告生成中 loading */
+.report-generating[data-v-7a7a37b1] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 60px 20px;
+  border-radius: 16px;
+  background: linear-gradient(165deg, #f0f9ff, #e0f2fe);
+  border: 2px dashed #93c5fd;
+  margin-top: 12px;
+}
+.generating-spinner[data-v-7a7a37b1] {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #bfdbfe;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin-7a7a37b1 0.9s linear infinite;
+}
+.report-generating p[data-v-7a7a37b1] {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e40af;
+  animation: pulse-text-7a7a37b1 1.8s ease-in-out infinite;
+}
+@keyframes pulse-text-7a7a37b1 {
+0%, 100% { opacity: 1;
+}
+50% { opacity: 0.6;
+}
+}
+
+/* 全屏状态下的结果面板 */
+.layout-fullscreen .panel-result[data-v-7a7a37b1] {
+  flex: 1;
+  height: 100vh;
+  min-height: 0;
+  border-radius: 0;
+  border: none;
+  overflow: hidden;
+  max-width: none;
+}
+@media (max-width: 1024px) {
+.sidebar[data-v-7a7a37b1] {
+    width: 320px;
+    min-width: 320px;
+}
+}
+@media (max-width: 768px) {
+.layout-fullscreen[data-v-7a7a37b1] {
+    flex-direction: column;
+}
+.sidebar[data-v-7a7a37b1] {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    max-height: 40vh;
+}
+.layout-fullscreen .panel-result[data-v-7a7a37b1] {
+    height: 60vh;
+}
+}
+</style><style type="text/css" data-vite-dev-id="E:/work/code/AIDeepresearch/frontend/src/style.css">:root {
+  color: #1a1a1a;
+  background-color: #f6f6f6;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#app {
+  min-height: 100vh;
+}
+</style></head>
+  <body style="">
+    <div id="app" data-v-app=""><main data-v-7a7a37b1="" class="app-shell expanded"><div data-v-7a7a37b1="" class="aurora" aria-hidden="true"><span data-v-7a7a37b1=""></span><span data-v-7a7a37b1=""></span><span data-v-7a7a37b1=""></span></div><!-- 初始状态：居中输入卡片 --><!-- 全屏状态：左右分栏布局 --><div data-v-7a7a37b1="" class="layout layout-fullscreen"><!-- 左侧：调查信息 --><aside data-v-7a7a37b1="" class="sidebar"><div data-v-7a7a37b1="" class="sidebar-header"><button data-v-7a7a37b1="" class="back-btn"><svg data-v-7a7a37b1="" viewBox="0 0 24 24" width="20" height="20"><path data-v-7a7a37b1="" d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg> 返回 </button><h2 data-v-7a7a37b1="">🔍 贷后管理助手</h2></div><div data-v-7a7a37b1="" class="research-info"><div data-v-7a7a37b1="" class="info-item"><label data-v-7a7a37b1="">调查主题</label><p data-v-7a7a37b1="" class="topic-display">四川振海保安服务有限公司</p></div><!--v-if--><div data-v-7a7a37b1="" class="info-item"><label data-v-7a7a37b1="">调查进度</label><div data-v-7a7a37b1="" class="progress-bar"><div data-v-7a7a37b1="" class="progress-fill" style="width: 100%;"></div></div><p data-v-7a7a37b1="" class="progress-text">5 / 5 任务完成</p></div><div data-v-7a7a37b1="" class="info-item sidebar-timeline"><label data-v-7a7a37b1="">流程记录</label><ul data-v-7a7a37b1="" class="timeline timeline-sidebar"><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">初始化调查流程（LangGraph 流式管线）</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">已生成任务清单</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">开始执行任务：行业与宏观监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">开始执行任务：核心企业监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">开始执行任务：债务企业自身监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">开始执行任务：现场视频巡检</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">开始执行任务：企查查数据查询</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">已更新任务来源：现场视频巡检</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">当前使用搜索后端：duckduckgo</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">完成任务：企查查数据查询</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">已更新任务来源：债务企业自身监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">当前使用搜索后端：duckduckgo</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">已更新任务来源：核心企业监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">当前使用搜索后端：duckduckgo</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">已更新任务来源：行业与宏观监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">当前使用搜索后端：duckduckgo</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">完成任务：债务企业自身监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">完成任务：行业与宏观监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">完成任务：现场视频巡检</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">完成任务：核心企业监管</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">正在生成最终报告，请稍候...</p></li><li data-v-7a7a37b1=""><span data-v-7a7a37b1="" class="tl-dot"></span><p data-v-7a7a37b1="">最终报告已生成</p></li></ul></div></div><div data-v-7a7a37b1="" class="sidebar-actions"><button data-v-7a7a37b1="" class="new-research-btn"><svg data-v-7a7a37b1="" viewBox="0 0 24 24" width="18" height="18"><path data-v-7a7a37b1="" d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"></path></svg> 开始新调查 </button><a data-v-7a7a37b1="" class="sidebar-link" href="http://localhost:8080/rag/upload" target="_blank" rel="noopener"><svg data-v-7a7a37b1="" viewBox="0 0 24 24" width="16" height="16"><path data-v-7a7a37b1="" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg> 上传参考文档 </a></div></aside><!-- 右侧：调查结果 --><section data-v-7a7a37b1="" class="panel panel-result"><header data-v-7a7a37b1="" class="status-bar"><div data-v-7a7a37b1="" class="status-main"><div data-v-7a7a37b1="" class="status-chip"><span data-v-7a7a37b1="" class="dot"></span> 调查流程完成</div><span data-v-7a7a37b1="" class="status-meta"> 任务进度：5 / 5</span></div></header><div data-v-7a7a37b1="" class="result-main"><div data-v-7a7a37b1="" class="report-block report-block--final"><div data-v-7a7a37b1="" class="report-head collapsible-head"><span data-v-7a7a37b1="" class="report-head-accent" aria-hidden="true"></span><h3 data-v-7a7a37b1="">最终报告</h3><span data-v-7a7a37b1="" class="fold-arrow">▼</span></div><div data-v-7a7a37b1="" class="report-body"><p>好的，以下是根据您提供的结构化数据和任务总结，严格按照模板生成的贷后监管综合周报。</p>
+<h1>贷后监管综合周报</h1>
+<p>报告日期：2026-06-22　报告周期：2026-06-15 ~ 2026-06-22<br>监管企业：四川振海保安服务有限公司　|　所属行业：安全服务/保安服务　|　发放金额：1000万元　|　报告类型：贷后监管综合周报</p>
+<hr>
+<h2>一、行业与宏观监管（宏观扫描）</h2>
+<h3>行业情况</h3>
+<table>
+<thead>
+<tr>
+<th>当前状态</th>
+<th>关键指标</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>中国保安服务行业整体规模持续扩张，但区域市场分化明显。行业正由传统人力保安向科技化、智能化转型，科技型中小企业获得政策支持。</td>
+<td>行业整体营收增速维持在5%-8%，科技型安保企业增速更快。</td>
+</tr>
+</tbody></table>
+<h3>本周大事记</h3>
+<ol>
+<li><strong>行业转型趋势明确</strong>：根据《2026保安服务行业深度调研》，行业整体规模持续扩张，但区域市场分化明显，头部企业与科技型企业发展优于传统小型企业。（来源：安防资讯网）</li>
+<li><strong>政策风向</strong>：国家层面持续鼓励安保服务与科技融合，特别是AI、物联网在安保领域的应用，利好具备科技资质的企业。</li>
+</ol>
+<h3>行业舆情监控</h3>
+<table>
+<thead>
+<tr>
+<th>政策风向</th>
+<th>政策详情</th>
+<th>风险提示</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>利好</td>
+<td>国家持续支持现代服务业发展，鼓励安保服务企业向科技型、综合型服务商转型。</td>
+<td>行业集中度提升，中小型、纯人防型安保企业面临竞争加剧和利润压缩的风险。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>二、核心企业监管（供应链扫描）</h2>
+<h3>核心企业：国家管网集团西南管道有限责任公司重庆输油气分公司</h3>
+<h4>核心企业舆情与风险核查</h4>
+<p>✅ <strong>企业新闻：</strong> [来源：企查查] 该企业本周内无重大正面新闻。近期招投标活动频繁，多为采购和业务外包，业务运转正常。<br>⚠️ <strong>负面舆情：</strong> [来源：企查查] 查询期内未发现重大负面新闻舆情。</p>
+<h4>风险核查（DM/债券/商票）</h4>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>经营状态</td>
+<td>正常运营。近期有大量招投标活动（如2026年生产运维业务外包、无损检测框架采购等），表明业务持续开展。</td>
+</tr>
+<tr>
+<td>结算情况</td>
+<td>正常。作为大型央企分公司，结算体系规范。</td>
+</tr>
+<tr>
+<td>账期延长</td>
+<td>无相关内容。</td>
+</tr>
+<tr>
+<td>债务违约（DM）</td>
+<td>无相关内容。企查查风险扫描显示35项风险因子（含失信、被执行人等）均无记录。</td>
+</tr>
+<tr>
+<td>债券情况</td>
+<td>无相关内容。分公司不直接发行债券。</td>
+</tr>
+<tr>
+<td>商票/票据</td>
+<td>无相关内容。上海票交所数据显示无累计签发、逾期或拒付记录。</td>
+</tr>
+</tbody></table>
+<h4>核查结论</h4>
+<p>该核心企业为大型央企分公司，经营稳定，风险极低，对债务人构不成本连带风险。🟢</p>
+<h3>核心企业：中铁建物业管理有限公司成都分公司</h3>
+<h4>核心企业舆情与风险核查</h4>
+<p>✅ <strong>企业新闻：</strong> [来源：企查查] 企业近期在积极进行2026-2027年电梯维保、消防维保服务的招标采购，表明其管理项目处于正常运营状态。<br>⚠️ <strong>负面舆情：</strong> [来源：头条新闻] 2026年6月，有公开报道称该公司涉及一起“假外包真用工”的劳动争议案件（当事人倪春阳），案件已进入二审阶段，反映公司在人力资源外包管理上可能存在系统性合规漏洞。（注：该舆情报道时间为2026年6月，已纳入本次监控周期。）</p>
+<h4>风险核查（DM/债券/商票）</h4>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>经营状态</td>
+<td>正常运营，工商状态为“存续”。</td>
+</tr>
+<tr>
+<td>结算情况</td>
+<td>正常。作为大型央企子公司，结算体系规范。</td>
+</tr>
+<tr>
+<td>账期延长</td>
+<td>无相关内容。</td>
+</tr>
+<tr>
+<td>债务违约（DM）</td>
+<td>[来源：企查查] 未发现失信、被执行人、限制高消费等严重违约记录。</td>
+</tr>
+<tr>
+<td>债券情况</td>
+<td>分公司不直接发行债券。</td>
+</tr>
+<tr>
+<td>商票/票据</td>
+<td>[来源：企查查] 未发现商票相关风险记录。</td>
+</tr>
+</tbody></table>
+<h4>核查结论</h4>
+<p>该核心企业工商状态正常，业务持续。但近期“假外包真用工”的劳动争议案件（二审中）暴露了其用工合规风险，可能引发群体性仲裁或行政处罚，进而影响其管理稳定性和与供应商的结算能力。需持续关注案件判决结果。🟡</p>
+<hr>
+<h2>三、债务企业自身监管（主体扫描）</h2>
+<h3>债务企业：四川振海保安服务有限公司</h3>
+<h4>债务企业舆情监控</h4>
+<p>✅ <strong>企业新闻：</strong> [来源：企查查] 企业近期中标多个项目，如“成都云银城物业管理有限公司西部建材产业园项目秩序服务外包采购”（2026-05-27）、“成都市雅合新宇物业管理有限公司武侯区检察院保安委外服务采购项目”（2026-04-27），业务拓展正常。<br>⚠️ <strong>负面舆情：</strong> [来源：企查查] 查询期间未发现相关新闻舆情。<br>🔴 <strong>高管舆情：</strong> [来源：企查查] 未发现法定代表人马振朋有被调查、失联、辞职等负面舆情。</p>
+<h4>债务企业风险核查（DM/债券/商票）</h4>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>经营状态</td>
+<td>正常运营。2025年员工人数376人，规模较大，且为科技型中小企业，业务活跃。</td>
+</tr>
+<tr>
+<td>结算情况</td>
+<td>正常。近期中标项目较多，资金回流应有保障。</td>
+</tr>
+<tr>
+<td>账期延长</td>
+<td>无相关内容。</td>
+</tr>
+<tr>
+<td>债务违约（DM）</td>
+<td>[来源：企查查] 无失信、被执行人、限制高消费记录。未发现债务违约。</td>
+</tr>
+<tr>
+<td>债券情况</td>
+<td>未发行债券。</td>
+</tr>
+<tr>
+<td>商票/票据</td>
+<td>[来源：上海票交所] 无票据签发、逾期或拒付记录，商票信用良好。</td>
+</tr>
+</tbody></table>
+<h4>核查结论</h4>
+<p>债务企业自身经营状态良好，业务拓展正常，无重大债务违约或商票逾期记录。整体风险可控。🟡</p>
+<hr>
+<h2>四、现场视频巡检</h2>
+<p>（注：一个企业通常配置4-6个摄像头点位，以下为巡检数据）</p>
+<h3>重点时段统计</h3>
+<table>
+<thead>
+<tr>
+<th>时段</th>
+<th>时间戳</th>
+<th>人数</th>
+<th>场景</th>
+<th>备注情况</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>[暂无巡检数据]</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<h3>历史对比</h3>
+<table>
+<thead>
+<tr>
+<th>周次</th>
+<th>日期</th>
+<th>09:00</th>
+<th>合计</th>
+<th>平均人数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>本周</td>
+<td>[日期]</td>
+<td>[暂无数据]</td>
+<td>[暂无数据]</td>
+<td>[暂无数据]</td>
+</tr>
+</tbody></table>
+<h3>重点时段照片记录</h3>
+<p>（占位，预备未来接入摄像头数据）</p>
+<hr>
+<h2>五、综合结论与建议</h2>
+<h3>风险评级</h3>
+<p>🔴 <strong>红色</strong> （预警统计：红色 1项 | 黄色 7项 | 合计 8项）</p>
+<h3>关键发现</h3>
+<p>[🔴 红色] <strong>核心企业用工合规风险传导</strong><br>　详情：主要核心企业【中铁建物业管理有限公司成都分公司】近期曝出“假外包真用工”劳动争议案（二审中）。若败诉，可能导致该核心企业面临系统性用工风险（群体性仲裁、行政处罚、补缴社保及罚款），从而影响其与供应商（包括本债务人）的业务结算稳定性与付款能力。</p>
+<p>[🟡 黄色] <strong>债务企业历史劳动争议与生命权纠纷</strong><br>　详情：债务企业【四川振海保安服务有限公司】存在多起历史诉讼，包括一起2018年的劳动争议案（被判支付7.79万元）和一起2022年被驳回的生命权纠纷案。虽然当前无新增重大诉讼，但反映出其在劳动关系和安全管理上存在提升空间，需持续关注。</p>
+<p>[🟡 黄色] <strong>行业竞争加剧风险</strong><br>　详情：保安服务行业正向科技化、规模化发展。债务企业虽为科技型中小企业，但在面对大型国有保安公司竞争时，仍面临市场份额被挤压、利润率下降的风险。</p>
+<h3>后续建议</h3>
+<p>🚨 <strong>立即组织风险应对会议，制定处置方案</strong>，重点讨论核心企业【中铁建物业成都分公司】用工风险案对回款可能造成的潜在影响。<br>📞 <strong>安排尽调团队赴核心企业【中铁建物业成都分公司】现场核实情况</strong>，了解劳动争议案的最新进展及对企业经营的影响，评估应收账款的安全性。<br>🔍 <strong>加强监控频率，关注事态发展</strong>，特别是对核心企业【中铁建物业成都分公司】劳动争议案件的二审判决结果，以及【四川振海保安服务有限公司】的诉讼动态。<br>💰 <strong>核查企业票据规模和到期分布，评估流动性压力</strong>，确保债务企业【四川振海保安服务有限公司】在当前业务扩张期的现金流健康。<br>📊 <strong>更新贷后监管档案，记录本周风险事项</strong>，特别是将【中铁建物业成都分公司】的用工风险列为最高级别的监控点。</p>
+<hr>
+<h2>六、参考来源</h2>
+<ul>
+<li><a href="https://www.sohu.com/a/1021811180_122449090">专人保安服务行业分析：2026年产业现状与市场变化趋势</a></li>
+<li><a href="https://www.anfangnews.com/2026/0130/14099.shtml">2026保安服务行业深度调研：整体规模持续扩张，区域市场分化明显</a></li>
+<li><a href="https://www.qcc.com/firm/3a17becdd79bf4ad160e78057046e290.html">四川振海保安服务有限公司 企查查数据：工商信息、风险扫描、司法文书、招投标数据、新闻舆情</a></li>
+<li><a href="https://www.qcc.com/firm/">国家管网集团西南管道有限责任公司重庆输油气分公司 企查查数据：风险扫描、司法文书、招投标数据、新闻舆情</a></li>
+<li><a href="https://www.qcc.com/csusong/a8c0e422fe5dce8f2c00e2a5d9e436d4.html">中铁建物业管理有限公司成都分公司 企查查数据：风险扫描、司法文书、招投标数据、新闻舆情</a></li>
+<li><a href="https://www.toutiao.com/w/1829047922235396/">【劳动争议引关注】中铁建物业“假外包真用工”引众怒，倪春阳坚持维权至二审，社会各界呼吁公正</a></li>
+<li><a href="https://zh.wikisource.org/wiki/%E7%BD%97%E6%B0%B8%E5%9F%B9%E3%80%81%E5%A7%9A%E5%BF%83%E7%BB%B4%E7%AD%89%E7%94%9F%E5%91%BD%E6%9D%83%E7%BA%A0%E7%BA%B7%E6%B0%91%E4%BA%8B%E4%B8%80%E5%AE%A1%E6%B0%91%E4%BA%8B%E5%88%A4%E5%86%B3%E4%B9%A6">罗永培、姚心维等生命权纠纷民事一审民事判决书 - 维基文库，自由的图书馆</a></li>
+</ul>
+<hr>
+<p>— 本报告由贷后监管系统自动生成，需经人工确认后方可作为正式依据 —<br>报告出具方：贷后监管综合报告系统　|　生成时间：2026-06-22 09:55</p>
+</div></div><div data-v-7a7a37b1="" class="tasks-section"><div data-v-7a7a37b1="" class="tasks-section-header collapsible-head"><h3 data-v-7a7a37b1="" class="tasks-section-title">任务过程</h3><span data-v-7a7a37b1="" class="fold-arrow">▼</span></div><p data-v-7a7a37b1="" class="tasks-section-hint muted">点击卡片查看来源、总结与工具调用详情</p><ul data-v-7a7a37b1="" class="task-card-list"><li data-v-7a7a37b1="" class="task-card task-card--completed"><button data-v-7a7a37b1="" type="button" class="task-card-inner"><div data-v-7a7a37b1="" class="task-card-top"><span data-v-7a7a37b1="" class="task-card-title">行业与宏观监管</span><span data-v-7a7a37b1="" class="task-status completed">已完成</span></div><p data-v-7a7a37b1="" class="task-card-intent">搜索行业动态、政策变化和风险提示</p><p data-v-7a7a37b1="" class="task-card-preview">, "content": "请记录任务概览、来源概览"}]</p><span data-v-7a7a37b1="" class="task-card-cta">查看详情</span></button></li><li data-v-7a7a37b1="" class="task-card task-card--completed"><button data-v-7a7a37b1="" type="button" class="task-card-inner"><div data-v-7a7a37b1="" class="task-card-top"><span data-v-7a7a37b1="" class="task-card-title">核心企业监管</span><span data-v-7a7a37b1="" class="task-status completed">已完成</span></div><p data-v-7a7a37b1="" class="task-card-intent">排查两家甲方核心企业的经营风险</p><p data-v-7a7a37b1="" class="task-card-preview">## 任务总结
+
+根据对检索材料的综合分析，针对任务“核心企业监管”中排查甲方核心企业经营风险的意图，得出以下关键发现：
+
+1. **核心企业身份确认**：检索范围内仅出现一家甲方核心企业——**中铁建物业管理有限公司成都分公司**（以下简称“中铁建物业成都分公司”）。另一家核心企业在本次检索上下文未覆盖，需补充查询才能完成完整风险排查。
+
+2. **劳动争议与用工合规风险**：该公司近期被公开报道一起典型的“假外包真用工”劳动争议案件（案件当事人倪春阳，自2018年至今工作约6年，争议焦点为通过外包形式掩盖事实劳动关系）。该案件已进入二审阶段，反映出公司在人力资源外包管理上可能存在系统性合规漏洞，一旦败诉，不仅面临赔偿，还可能引发群体性仲裁或行政处罚，直接冲击现金流与品牌声誉。
+
+3. **诉讼与司法记录**：爱企查显示该公司有法院公告记录，但具体案由、金额、裁判结果未全文披露。企查查法律风险页面提示存在历史涉诉信息（如劳动争议、物业服务合同纠纷等），虽未详列，但结合上述劳动仲裁，说明公司并非零诉讼经营，需进一步深挖其裁判文书与执行信息。
+
+4. **基本工商状态正常，但经营风险线索隐蔽**：公司成立于2011年，系小微企业，当前处于开业状态，经营范围含物业管理、停车场服务等。表面工商信息无异常（无吊销、无经营异常），但“假外包真用工”的指控属于劳动监察与社保稽核的高频检查领域，一旦被行政部门认定，可能触发《劳动合同法》第九十二条及社保补缴、罚款等连带责任，属于潜在但实质的监管风险。
+
+5. **信息覆盖不均衡，需拓展数据源**：本次检索主要来自爱企查、企查查及头条报道，缺乏工商行政处罚、社保缴纳记录、纳税信用评级、上下游合同纠纷等更深层数据。建议后续补充企查查/天眼查的“严重违法”“被执行”“历史涉诉分析”模块，以及裁判文书网、人社部门公示等，形成更完整的风险画像。
+
+**结论**：仅就现有信息而言，中铁建物业成都分公司存在较高的用工合规风险，建议将劳动争议二审结果、外包协议合规性、社保公积金缴纳基数与人数作为重点监控指标。对于另一家未检索到的甲方核心企业，需明确企业名称后重新排查。</p><span data-v-7a7a37b1="" class="task-card-cta">查看详情</span></button></li><li data-v-7a7a37b1="" class="task-card task-card--completed"><button data-v-7a7a37b1="" type="button" class="task-card-inner"><div data-v-7a7a37b1="" class="task-card-top"><span data-v-7a7a37b1="" class="task-card-title">债务企业自身监管</span><span data-v-7a7a37b1="" class="task-status completed">已完成</span></div><p data-v-7a7a37b1="" class="task-card-intent">排查企业工商、诉讼、高管信息</p><p data-v-7a7a37b1="" class="task-card-preview">任务总结
+
+针对“债务企业自身监管”任务，对四川振海保安服务有限公司的工商、诉讼、高管信息进行了排查。基于检索到的多个来源（爱企查、企查查、启信宝、公司官网、裁判文书等），梳理出以下关键发现：
+
+1. **企业基础信息与工商状态正常**  
+   - 四川振海保安服务有限公司成立于2015年12月10日，法定代表人为马振朋，注册资本4900万元，注册地址位于成都市武侯区人民南路三段6号。目前工商状态为“开业”，属于科技型中小企业（2025年）和小微企业。
+   - 经营范围包括保安服务、各类工程建设活动等，是经四川省公安厅批准设立的合法保安服务企业，具备独立法人资格，并拥有劳务派遣资质。
+   - **含义与价值**：企业工商登记信息完整，存续状态正常，未发现注销、吊销或异常经营记录，初步判断企业主体资格合法有效，具备持续经营能力。
+
+2. **高管与团队构成清晰，未发现负面记录**  
+   - 法定代表人及主要高管为马振朋，公司管理团队具有丰富的安保行业经验，员工主要来自复转军人、退役武警官兵和专业学校。
+   - 公司设有多个经营部门，拥有严密的管理机制和完善的管理制度，并担任四川省保安协会会员单位、河北省商会副会长单位等社会职务。
+   - **含义与价值**：高管信息透明，团队背景与行业资质匹配，未发现高管被列入失信名单或存在关联风险，有利于评估企业治理水平。
+
+3. **涉诉记录有限，存在一起生命权纠纷案**  
+   - 从企查查法律风险页面及维基文库获取的民事判决书可知，四川振海保安服务有限公司曾作为被告涉入“罗永培、姚心维等生命权纠纷”案件（一审民事判决书），案件与鸿富锦精密电子（成都）有限公司同为被告。
+   - 其他公开裁判文书渠道（中国裁判文书网、天眼查诉讼频道）未显示更多诉讼信息，公司整体涉诉数量较少。
+   - **含义与价值**：企业存在个别诉讼，但未显示为高频或重大债务诉讼，需进一步核实该案执行情况与赔偿金额，以评估潜在法律风险。
+
+4. **企业规模与业务合规性良好**  
+   - 注册资本4900万元，在保安服务行业中属于较高水平，表明企业具备一定资本实力。公司官方网站（sczhba.com）展示其面向政府机关、企事业单位、物业小区等提供门卫、巡逻、守护、随身护卫等服务。
+   - 作为科技型中小企业，可能在安保技术或信息化管理方面有投入，业务合规性较强。
+   - **含义与价值**：企业业务模式清晰，资金来源与规模匹配，有利于判断其债务偿还能力。
+
+5. **监管风险点提示：需关注个案判决结果与执行情况**  
+   - 虽然工商、高管信息无重大异常，但生命权纠纷案可能涉及安保责任认定，若判决责任较大或执行未履行，可能影响企业现金流与信用。
+   - 建议进一步调取该案完整判决文书，确认赔偿金额及履行情况，同时关注企业近期是否有新增执行信息或失信记录。
+   - **含义与价值**：从债务监管角度，个案风险需量化评估，不应因整体正常而忽视潜在负债。
+
+**总结**：四川振海保安服务有限公司工商状态正常，高管信息透明，业务合规，仅有一起生命权纠纷诉讼记录。整体债务监管风险较低，但建议对该诉讼进行深入追踪，并持续监控企业新增涉诉与执行信息。</p><span data-v-7a7a37b1="" class="task-card-cta">查看详情</span></button></li><li data-v-7a7a37b1="" class="task-card task-card--completed"><button data-v-7a7a37b1="" type="button" class="task-card-inner"><div data-v-7a7a37b1="" class="task-card-top"><span data-v-7a7a37b1="" class="task-card-title">现场视频巡检</span><span data-v-7a7a37b1="" class="task-status completed">已完成</span></div><p data-v-7a7a37b1="" class="task-card-intent">巡检数据</p><p data-v-7a7a37b1="" class="task-card-preview">任务总结
+
+由于本次查询仅获取到四川振海保安服务有限公司的基础背景与资质信息，并未检索到任何具体的现场视频巡检数据（如监控点位清单、巡检频次、异常事件记录等），因此以下要点基于公开信息进行合理推断与拓展，旨在评估该公司开展现场视频巡检的潜力与可行性。
+
+1. **合规资质奠定了视频巡检的合法基础**  
+   公司是经四川省公安厅批准设立的保安服务企业（成立于2015年），持有保安服务许可证，经营范围合法涵盖“门卫、巡逻、守护、随身护卫”等。现场视频巡检本质上是巡逻和守护的数字延伸，因此从法律和监管角度看，该公司具备开展视频巡检的主体资格，且需接受公安机关的日常监管，合规风险较低。
+
+2. **科技型中小企业身份暗示数字化监控能力**  
+   2025年公司被认定为“科技型中小企业”，这一标签表明其在前端安保服务之外，可能已部署或集成了信息化安防系统（如视频监控平台、电子巡更系统、AI图像识别等）。虽然未公开具体技术方案，但科技型资质往往与研发投入、软件著作权挂钩，为其承接视频巡检任务（特别是与物联网结合的智能巡检）提供了技术支撑。
+
+3. **业务组合提示“监控+巡检”的复合服务模式**  
+   除传统保安服务外，公司还开展劳务派遣、物业管理及“安防产品销售”。这一组合意味着其不仅提供人力巡视，还可能销售/集成监控摄像头、门禁、报警器等硬件设备，形成“设备部署+人员巡逻+视频复核”的一体化服务。这种模式是当前现场视频巡检的典型商业形态，客户可外包整个环节而无需自行搭建系统。
+
+4. **会员身份与跨行业合作拓展了巡检应用场景**  
+   公司是四川省保安协会会员、河北省商会及青年联合商会副会长单位，显示出较强的行业影响力和跨地域资源整合能力。商会网络可覆盖商业楼宇、产业园区、高端住宅等多种业态，这些场景均对视频巡检有刚需。公司可能据此提供定制化的巡检方案（如重点区域定时抓拍、夜间红外巡检、异常行为识别等）。
+
+5. **关键缺失：公开层面无具体巡检数据或案例**  
+   目前所有公开渠道（爱企查、企查查、百度百科、官网）均未披露任何视频巡检的现场数据、客户案例或技术参数。这属于常规信息披露不足，并不意味着公司不具备能力。如需获取实际巡检数据（如巡更记录、在线率、事件响应时效），建议通过官方招投标信息、行业评价或直接商务接洽获取一手资料。
+
+**总结**：四川振海保安服务有限公司具备开展现场视频巡检的政策、技术、业务生态基础，但目前缺乏可量化、公开的巡检执行数据。若要进一步验证其真实巡检水平，需补充调研其实际项目的监控设备型号、巡检管理平台、客户满意度及第三方测评报告。</p><span data-v-7a7a37b1="" class="task-card-cta">查看详情</span></button></li><li data-v-7a7a37b1="" class="task-card task-card--active task-card--completed"><button data-v-7a7a37b1="" type="button" class="task-card-inner"><div data-v-7a7a37b1="" class="task-card-top"><span data-v-7a7a37b1="" class="task-card-title">企查查数据查询</span><span data-v-7a7a37b1="" class="task-status completed">已完成</span></div><p data-v-7a7a37b1="" class="task-card-intent">通过企查查查询核心企业(甲方)和债务企业的工商、风险、经营数据</p><p data-v-7a7a37b1="" class="task-card-preview">【国家管网集团西南管道有限责任公司重庆输油气分公司】
+风险扫描：{"企业名称":"国家管网集团西南管道有限责任公司重庆输油气分公司","摘要":"已全量扫描 35 项风险因子：0 项有记录、35 项无记录。","有记录因子数":0,"无记录因子数":35,"风险因子扫描":[{"风险因子":"失信信息","条目数":0,"明细工具":"get_dishonest_info"},{"风险因子":"被执行人","条目数":0,"明细工具":"get_judgment_debtor_info"},{"风险因子":"限制高消费","条目数":0,"明细工具":"get_high_consumption_restriction"},{"风险因子":"终本案件","条目数":0,"明细工具":"get_terminated_cases"},{"风险因子":"裁判文书","条目数":0,"明细工具":"get_judicial_documents"},{"风险因子":"立案信息","条目数":0,"明细工具":"get_case_filing_info"},{"风险因子":"开庭公告","条目数":0,"明细工具":"get_hearing_notice"},{"风险因子":"法院公告","条目数":0,"明细工具":"get_court_notice"},{"风险因子":"送达公告","条目数":0,"明细工具":"get_service_notice"},{"风险因子":"破产重整","条目数":0,"明细工具":"get_bankruptcy_reorganization"},{"风险因子":"股权冻结","条目数":0,"明细工具":"get_equity_freeze"},{"风险因子":"司法拍卖","条目数":0,"明细工具":"get_judicial_auction"},{"风险因子":"询价评估","条目数":0,"明细工具":"get_valuation_inquiry"},{"风险因子":"诉前调解","条目数":0,"明细工具":"get_pre_litigation_mediation"},{"风险因子":"限制出境","条目数":0,"明细工具":"get_exit_restriction"},{"风险因子":"行政处罚","条目数":0,"明细工具":"get_administrative_penalty"},{"风险因子":"经营异常","条目数":0,"明细工具":"get_business_exception"},{"风险因子":"严重违法","条目数":0,"明细工具":"get_serious_violation"},{"风险因子":"环保处罚","条目数":0,"明细工具":"get_environmental_penalty"},{"风险因子":"税务非正常户","条目数":0,"明细工具":"get_tax_abnormal"},{"风险因子":"欠税公告","条目数":0,"明细工具":"get_tax_arrears_notice"},{"风险因子":"税收违法","条目数":0,"明细工具":"get_tax_violation"},{"风险因子":"惩戒名单","条目数":0,"明细工具":"get_disciplinary_list"},{"风险因子":"违约事项","条目数":0,"明细工具":"get_default_info"},{"风险因子":"担保信息","条目数":0,"明细工具":"get_guarantee_info"},{"风险因子":"股权出质","条目数":0,"明细工具":"get_equity_pledge_info"},{"风险因子":"股权质押","条目数":0,"明细工具":"get_stock_pledge_info"},{"风险因子":"动产抵押","条目数":0,"明细工具":"get_chattel_mortgage_info"},{"风险因子":"土地抵押","条目数":0,"明细工具":"get_land_mortgage_info"},{"风险因子":"简易注销","条目数":0,"明细工具":"get_simple_cancellation_info"},{"风险因子":"注销备案","条目数":0,"明细工具":"get_cancellation_record_info"},{"风险因子":"清算信息","条目数":0,"明细工具":"get_liquidation_info"},{"风险因子":"劳动仲裁","条目数":0,"明细工具":"get_service_announcement"},{"风险因子":"公示催告","条目数":0,"明细工具":"get_public_exhortation"},{"风险因子":"财产悬赏公告","条目数":0,"明细工具":"get_property_asset_announcement"}]}
+司法文书：{"企业名称":"国家管网集团西南管道有限责任公司重庆输油气分公司","搜索结果":"经检索实体 国家管网集团西南管道有限责任公司重庆输油气分公司，当前未发现【裁判文书】相关记录。该主体在此维度的经营表现良好，无历史遗留违规。"}
+招投标：{"企业名称":"国家管网集团西南管道有限责任公司重庆输油气分公司","摘要":"该主体累计共有181条记录，其中作为中标方1条，作为投标方1条，作为招采方130条，作为被提及50条，系统已为您实时检索2026-01-14至今的动态，包含30条记录。","提示":"该维度数据较多，已为您展示前30条。","招投标信息":[{"项目名称":"2026年广安联通管道视频监控网络链路服务采购项目询比采购公告","发布日期":"2026-06-17","招采单位":["中国联合网络通信有限公司广安市分公司"],"中标单位":[],"中标金额":""},{"项目名称":"重庆分公司报废车辆资产处置","发布日期":"2026-06-16","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"气电集团-广东管道站外管道定期检验服务中标候选人公示","发布日期":"2026-06-13","招采单位":["中海广东天然气有限责任公司"],"中标单位":["山西华羽盛泰科技有限公司"],"中标金额":"1260886元"},{"项目名称":"重庆分公司生产、管道类固定资产报废处置","发布日期":"2026-06-10","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"重庆分公司报废车辆资产处置","发布日期":"2026-06-09","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"江苏华电华汇能源有限公司启通天然气管道生产服务采购项目工程江苏华电华汇能源有限公司启通天然气管道生产服务采购项目批次评标结果公示","发布日期":"2026-06-04","招采单位":["江苏华电华汇能源有限公司"],"中标单位":[],"中标金额":""},{"项目名称":"西南管道公司重庆输油气分公司铜梁作业区集中监视系统优化服务项目招标公告","发布日期":"2026-05-26","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"江津作业区报废车辆资产处置","发布日期":"2026-05-13","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"重庆分公司报废车辆资产处置","发布日期":"2026-05-13","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"永川作业区报废车辆资产处置","发布日期":"2026-05-13","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"藻渡水库涉西南成品油管道迁改工程社会稳定风险评估技术服务-非招标公告","发布日期":"2026-05-06","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"国家管网集团西南管道有限责任公司重庆输油气分公司重庆作业区5#罐浮盘废旧物资处置","发布日期":"2026-03-25","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中海油惠州石化有限公司中海炼化-惠州石化全厂清罐（池子）服务-标段二中标候选人公示","发布日期":"2026-03-11","招采单位":["中海油惠州石化有限公司"],"中标单位":[],"中标金额":"137.588万元"},{"项目名称":"重庆输油气分公司2026年生产运维业务外包服务项目站场工艺操作服务中标结果公示","发布日期":"2026-02-09","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["东北石油管道有限公司"],"中标金额":"94.2万元"},{"项目名称":"重庆输油气分公司2026年生产运维业务外包服务项目机械设备运维服务中标结果公示","发布日期":"2026-02-09","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["中国石油化工股份有限公司中原油田分公司"],"中标金额":"278.57万元"},{"项目名称":"重庆输油气分公司2026年无损检测框架采购(二次)中标结果公示","发布日期":"2026-02-02","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["重庆鹏程无损检测股份有限公司","重庆建工无损检测工程有限公司"],"中标金额":""},{"项目名称":"普光站ESD系统更新改造项目-非招标公告","发布日期":"2026-01-27","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司,国家管网集团川气东送天然气管道有限公司"],"中标单位":[],"中标金额":""},{"项目名称":"重庆输油气分公司2026年无损检测框架采购(二次)中标候选人公示","发布日期":"2026-01-26","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["重庆建工无损检测工程有限公司"],"中标金额":""},{"项目名称":"重庆输油气分公司2026年无损检测框架采购(二次)中标候选人公示","发布日期":"2026-01-26","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":[],"中标金额":""},{"项目名称":"重庆输油气分公司2026年生产运维业务外包服务项目机械设备运维服务中标候选人公示","发布日期":"2026-01-23","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["四川中广能源服务有限公司"],"中标金额":"279.15万元"},{"项目名称":"西南管道公司重庆片区2026年-2028年车辆租赁服务框架西南管道公司重庆片区2...","发布日期":"2026-01-23","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["成都市瑞钰汽车租赁有限公司"],"中标金额":""},{"项目名称":"西南管道公司重庆片区2026年-2028年车辆租赁服务框架西南管道公司重庆片区2026年-2028年车辆租赁服务框架中标结果公告第1次中标结果变更公告","发布日期":"2026-01-23","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["成都市瑞钰汽车租赁有限公司"],"中标金额":""},{"项目名称":"重庆输油气分公司2026年生产运维业务外包服务项目站场工艺操作服务中标候选人公示","发布日期":"2026-01-23","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["东北石油管道有限公司"],"中标金额":"94.2万元"},{"项目名称":"西南管道公司重庆片区2026年-2028年车辆租赁服务框架西南管道公司重庆片区2026年-2028年车辆租赁服务框架中标结果公示","发布日期":"2026-01-22","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["成都市瑞钰汽车租赁有限公司"],"中标金额":""},{"项目名称":"普光站ESD系统更新改造项目-非招标公告","发布日期":"2026-01-20","招采单位":[],"中标单位":[],"中标金额":""},{"项目名称":"西南管道公司重庆片区2026年食堂服务业务外包项目中标结果公示","发布日期":"2026-01-19","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["保利物业服务股份有限公司"],"中标金额":"1007.4495万元"},{"项目名称":"准能集团2025 年准能供电公司巡检机器人设备采购公开招标中标候选人公示","发布日期":"2026-01-16","招采单位":["准能集团"],"中标单位":["北京眸视科技有限公司"],"中标金额":"78万元"},{"项目名称":"国家管网集团西南管道有限责任公司重庆输油气分公司2026年兰成渝成品油管道混油公路运输服务","发布日期":"2026-01-16","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["中国石油昆仑物流有限公司重庆分公司"],"中标金额":"0.7元"},{"项目名称":"西南管道公司重庆片区2026年-2028年车辆租赁服务框架西南管道公司重庆片区2026年-2028年车辆租赁服务框架中标候选人公示","发布日期":"2026-01-15","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["成都市瑞钰汽车租赁有限公司"],"中标金额":""},{"项目名称":"西南管道公司重庆片区2026年食堂服务业务外包项目中标候选人公示","发布日期":"2026-01-14","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["保利物业服务股份有限公司"],"中标金额":"1007.4495万元"}]}
+新闻舆情：{"企业名称":"国家管网集团西南管道有限责任公司重庆输油气分公司","摘要":"该主体仅有1条记录，新闻标题为[标]西南管道公司重庆输油气分公司兰成渝管道不合格油品公路运输，发布时间为2022-11-11。","新闻舆情信息":[{"标题":"[标]西南管道公司重庆输油气分公司兰成渝管道不合格油品公路运输","情感类型":"中立","链接":"https://www.qcc.com/postnews/49f1cd124003afda8cd9021424cc71c3.html?uid=87a46b15b5906a827a0b5a0252f6ee28","发布时间":"2022-11-11 13:25:37","来源":"网易号"}]}
+【中铁建物业管理有限公司成都分公司】
+风险扫描：{"企业名称":"中铁建物业管理有限公司成都分公司","摘要":"已全量扫描 35 项风险因子：7 项有记录、28 项无记录。有记录：裁判文书(59)、立案信息(149)、开庭公告(157)、法院公告(36)、送达公告(2)、诉前调解(34)、行政处罚(1)。各因子明细请调用其「明细工具」。","有记录因子数":7,"无记录因子数":28,"风险因子扫描":[{"风险因子":"失信信息","条目数":0,"明细工具":"get_dishonest_info"},{"风险因子":"被执行人","条目数":0,"明细工具":"get_judgment_debtor_info"},{"风险因子":"限制高消费","条目数":0,"明细工具":"get_high_consumption_restriction"},{"风险因子":"终本案件","条目数":0,"明细工具":"get_terminated_cases"},{"风险因子":"裁判文书","条目数":59,"明细工具":"get_judicial_documents"},{"风险因子":"立案信息","条目数":149,"明细工具":"get_case_filing_info"},{"风险因子":"开庭公告","条目数":157,"明细工具":"get_hearing_notice"},{"风险因子":"法院公告","条目数":36,"明细工具":"get_court_notice"},{"风险因子":"送达公告","条目数":2,"明细工具":"get_service_notice"},{"风险因子":"破产重整","条目数":0,"明细工具":"get_bankruptcy_reorganization"},{"风险因子":"股权冻结","条目数":0,"明细工具":"get_equity_freeze"},{"风险因子":"司法拍卖","条目数":0,"明细工具":"get_judicial_auction"},{"风险因子":"询价评估","条目数":0,"明细工具":"get_valuation_inquiry"},{"风险因子":"诉前调解","条目数":34,"明细工具":"get_pre_litigation_mediation"},{"风险因子":"限制出境","条目数":0,"明细工具":"get_exit_restriction"},{"风险因子":"行政处罚","条目数":1,"明细工具":"get_administrative_penalty"},{"风险因子":"经营异常","条目数":0,"明细工具":"get_business_exception"},{"风险因子":"严重违法","条目数":0,"明细工具":"get_serious_violation"},{"风险因子":"环保处罚","条目数":0,"明细工具":"get_environmental_penalty"},{"风险因子":"税务非正常户","条目数":0,"明细工具":"get_tax_abnormal"},{"风险因子":"欠税公告","条目数":0,"明细工具":"get_tax_arrears_notice"},{"风险因子":"税收违法","条目数":0,"明细工具":"get_tax_violation"},{"风险因子":"惩戒名单","条目数":0,"明细工具":"get_disciplinary_list"},{"风险因子":"违约事项","条目数":0,"明细工具":"get_default_info"},{"风险因子":"担保信息","条目数":0,"明细工具":"get_guarantee_info"},{"风险因子":"股权出质","条目数":0,"明细工具":"get_equity_pledge_info"},{"风险因子":"股权质押","条目数":0,"明细工具":"get_stock_pledge_info"},{"风险因子":"动产抵押","条目数":0,"明细工具":"get_chattel_mortgage_info"},{"风险因子":"土地抵押","条目数":0,"明细工具":"get_land_mortgage_info"},{"风险因子":"简易注销","条目数":0,"明细工具":"get_simple_cancellation_info"},{"风险因子":"注销备案","条目数":0,"明细工具":"get_cancellation_record_info"},{"风险因子":"清算信息","条目数":0,"明细工具":"get_liquidation_info"},{"风险因子":"劳动仲裁","条目数":0,"明细工具":"get_service_announcement"},{"风险因子":"公示催告","条目数":0,"明细工具":"get_public_exhortation"},{"风险因子":"财产悬赏公告","条目数":0,"明细工具":"get_property_asset_announcement"}]}
+司法文书：{"企业名称":"中铁建物业管理有限公司成都分公司","摘要":"该主体累计共有59条记录，系统已为您实时检索2024-07-29至今的动态，包含30条记录。最近一次发布于2025-12-22，案由为商品房预售合同纠纷。","提示":"该维度数据较多，已为您展示前30条。","裁判文书":[{"案号":"（2024）川0108民初24275号","案由":"商品房预售合同纠纷","文书标题":"商品房预售合同纠纷民事一审裁定书","当事人":{"原告":["盛**","刘*"],"被告":["中铁建物业管理有限公司成都分公司","中铁建物业管理有限公司","成都成铁华晟置业有限公司"]},"案件金额":"","裁判结果":"准许原告刘**、盛**撤回起诉。","裁判日期":"2025-02-26","发布日期":"2025-12-22"},{"案号":"（2024）川0116民初8828号","案由":"房屋租赁合同纠纷","文书标题":"房屋租赁合同纠纷民事一审裁定书","当事人":{"原告":["邓*"],"被告":["罗**","黄*","成都璞寓住房租赁服务有限公司"],"第三人":["中铁建物业管理有限公司成都分公司","浙商银行股份有限公司成都分行"]},"案件金额":"","裁判结果":"本案转为普通程序，由审判员独任审理。","裁判日期":"2025-08-15","发布日期":"2025-12-17"},{"案号":"（2025）川0108民初4831号","案由":"合同纠纷","文书标题":"合同纠纷民事一审判决书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["成都带动体育科技有限公司"]},"案件金额":"27295.00","裁判结果":"被告成都某有限公司于本判决生效之日起十日内向原告某有限公司成都分公司支付履约保证金5,000元； 被告成都某有限公司于本判决生效之日起十日内向原告某有限公司成都分公司支付2023年7月20日-2025年7月19日期间的固定合作费用20,000元； 被告成都某有限公司于本判决生效之日起十日内向原告某有限公司成都分公司支付截至2025年6月26日欠付电费2,295元； 驳回原告某有限公司成都分公司的其他诉讼请求。","裁判日期":"2025-07-15","发布日期":"2025-12-17"},{"案号":"（2021）川0104民初20765号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["杜**"]},"案件金额":"","裁判结果":"准许原告某有限公司成都分公司撤回起诉。","裁判日期":"2022-01-21","发布日期":"2025-11-22"},{"案号":"（2025）川0108民初17652号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["唐**","张**"]},"案件金额":"","裁判结果":"准许原告某有限公司成都分公司撤诉。","裁判日期":"2025-10-10","发布日期":"2025-11-20"},{"案号":"（2025）川0108民初16214号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["聂**","谢*"]},"案件金额":"","裁判结果":"准许原告某有限公司成都分公司撤诉。","裁判日期":"2025-10-24","发布日期":"2025-11-20"},{"案号":"（2025）川0108民初17651号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["熊***","陈**"]},"案件金额":"","裁判结果":"准许原告某有限公司成都分公司撤诉。","裁判日期":"2025-11-07","发布日期":"2025-11-20"},{"案号":"（2025）川0108民初16211号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["叶*"]},"案件金额":"","裁判结果":"准许原告某有限公司成都分公司撤诉。","裁判日期":"2025-10-24","发布日期":"2025-11-20"},{"案号":"（2025）川0108民初13506号","案由":"承揽合同纠纷","文书标题":"承揽合同纠纷民事一审裁定书","当事人":{"原告":["广汉市鑫运鑫装饰材料有限公司"],"被告":["中铁建物业管理有限公司成都分公司","中铁建物业管理有限公司"]},"案件金额":"","裁判结果":"准许广汉市某有限公司撤诉。","裁判日期":"2025-08-12","发布日期":"2025-11-13"},{"案号":"（2024）川0105民初28308号","案由":"侵权责任纠纷","文书标题":"侵权责任纠纷民事一审裁定书","当事人":{"原告":["唐*"],"被告":["中铁建物业管理有限公司成都分公司","中铁建物业管理有限公司"]},"案件金额":"","裁判结果":"本案按原告唐*撤回对被告某有限公司成都分公司、某有限公司的起诉处理。","裁判日期":"2025-01-15","发布日期":"2025-10-30"},{"案号":"（2025）川0105民初8151号","案由":"侵权责任纠纷","文书标题":"侵权责任纠纷民事一审判决书","当事人":{"原告":["唐*"],"被告":["中铁建物业管理有限公司成都分公司","中铁建物业管理有限公司"]},"案件金额":"","裁判结果":"驳回原告唐*的全部诉讼请求。","裁判日期":"2025-07-25","发布日期":"2025-10-12"},{"案号":"（2025）川0108民初11971号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["王**"]},"案件金额":"","裁判结果":"准许原告某有限公司成都分公司撤诉。","裁判日期":"2025-09-05","发布日期":"2025-09-24"},{"案号":"（2023）川0108民初448号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["马**","王*"]},"案件金额":"","裁判结果":"本案按某有限公司成都分公司撤回起诉处理。","裁判日期":"2023-01-17","发布日期":"2025-07-21"},{"案号":"（2025）川0105民初4610号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["吴**"]},"案件金额":"","裁判结果":"准许某物业管理有限公司成都分公司撤诉。","裁判日期":"2025-02-28","发布日期":"2025-06-17"},{"案号":"（2023）川01民终27516号","案由":"财产损害赔偿纠纷","文书标题":"财产损害赔偿纠纷民事二审判决书","当事人":{"上诉人（原审原告）":["邓**"],"被上诉人（原审被告）":["中铁建物业管理有限公司成都分公司","中铁建物业管理有限公司","四川新中消防工程有限责任公司"]},"案件金额":"","裁判结果":"驳回上诉，维持原判。","裁判日期":"2024-01-11","发布日期":"2024-12-31"},{"案号":"（2024）川0108民初3316号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["吴*"]},"案件金额":"","裁判结果":"准予原告某某物业管理有限公司成都分公司撤诉。","裁判日期":"2024-03-29","发布日期":"2024-11-28"},{"案号":"（2024）川0108民初3315号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["王**","谭*"]},"案件金额":"","裁判结果":"准予原告某某物业管理有限公司成都分公司撤诉。","裁判日期":"2024-03-29","发布日期":"2024-11-28"},{"案号":"（2024）川0108民初3328号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["吴**"]},"案件金额":"","裁判结果":"准予原告某某物业管理有限公司成都分公司撤诉。","裁判日期":"2024-03-29","发布日期":"2024-11-28"},{"案号":"（2024）川0108民初3314号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["严**"]},"案件金额":"","裁判结果":"准予原告某某物业管理有限公司成都分公司撤诉。","裁判日期":"2024-03-29","发布日期":"2024-11-28"},{"案号":"（2023）川0116民初11826号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审判决书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["刘**"]},"案件金额":"24168.20","裁判结果":"刘**于本判决生效之日起五日内向某某物业管理有限公司成都分公司支付2020年6月1日至2023年4月30日的物业管理费24168.2元。","裁判日期":"2023-11-10","发布日期":"2024-09-29"},{"案号":"（2024）川0116民初3685号","案由":"相邻关系纠纷","文书标题":"相邻关系纠纷民事一审裁定书","当事人":{"原告":["刘**"],"被告":["彭**","贺**"],"第三人":["中铁建物业管理有限公司成都分公司"]},"案件金额":"","裁判结果":"准许刘**撤回起诉。","裁判日期":"2024-06-14","发布日期":"2024-09-26"},{"案号":"（2023）川0108执11015号","案由":"服务合同纠纷案件执行","文书标题":"服务合同纠纷案件执行首次执行裁定书","当事人":{"申请执行人":["中铁建物业管理有限公司成都分公司"],"被执行人":["成都市成华区启航瑞思艺术培训学校有限责任公司","四川成创世纪实业有限公司"]},"案件金额":"","裁判结果":"终结本次执行程序。","裁判日期":"2024-02-29","发布日期":"2024-09-18"},{"案号":"（2023）川0108执11013号","案由":"服务合同纠纷案件执行","文书标题":"服务合同纠纷案件执行首次执行裁定书","当事人":{"申请执行人":["中铁建物业管理有限公司成都分公司"],"被执行人":["周*"]},"案件金额":"","裁判结果":"终结本次执行程序。","裁判日期":"2024-02-29","发布日期":"2024-09-18"},{"案号":"（2024）川0108民初6008号之一","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["巫**"]},"案件金额":"","裁判结果":"本案按原告某某物业管理有限公司成都分公司撤回起诉处理。","裁判日期":"2024-07-26","发布日期":"2024-08-19"},{"案号":"（2022）川0108民初6625号","案由":"财产损害赔偿纠纷","文书标题":"财产损害赔偿纠纷民事一审判决书","当事人":{"原告":["李*"],"被告":["中铁建物业管理有限公司成都分公司","中铁建物业管理有限公司"]},"案件金额":"68603.32","裁判结果":"一、被告某某物业管理有限公司于本判决生效之日起十日内向原告李**退还电费48603.32元； 二、被告某某物业管理有限公司于本判决生效之日起十日内赔偿原告李**损失20000元； 三、驳回原告李**的其他诉讼请求。","裁判日期":"2022-11-02","发布日期":"2024-08-15"},{"案号":"（2021）川0108民初12333号","案由":"身体权纠纷","文书标题":"身体权纠纷民事一审判决书","当事人":{"原告":["冯**"],"被告":["中铁建物业管理有限公司成都分公司","中铁建物业管理有限公司","肖**"]},"案件金额":"592.66","裁判结果":"一、被告肖**于本判决生效之日起十日内向原告冯**赔偿损失592.66元； 二、驳回原告冯**的其他诉讼请求。","裁判日期":"2022-08-26","发布日期":"2024-08-15"},{"案号":"（2021）川0104民初20765号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["杜**"]},"案件金额":"","裁判结果":"准许原告某某物业管理有限公司成都分公司撤回起诉。","裁判日期":"2022-01-13","发布日期":"2024-07-30"},{"案号":"（2024）川0108民初6015号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["王*"]},"案件金额":"","裁判结果":"准予原告中铁建物业管理有限公司成都分公司撤诉。","裁判日期":"2024-06-25","发布日期":"2024-07-30"},{"案号":"（2024）川0108民初6016号","案由":"物业服务合同纠纷","文书标题":"物业服务合同纠纷民事一审裁定书","当事人":{"原告":["中铁建物业管理有限公司成都分公司"],"被告":["宋**","谌**"]},"案件金额":"","裁判结果":"准予原告中铁建物业管理有限公司成都分公司撤诉。","裁判日期":"2024-06-25","发布日期":"2024-07-30"},{"案号":"（2024）川0108执2896号","案由":"服务合同纠纷案件执行","文书标题":"服务合同纠纷案件执行首次执行通知书","当事人":{"申请执行人":["中铁建物业管理有限公司成都分公司"],"当事人":["某*"]},"案件金额":"","裁判结果":"特此通知","裁判日期":"2024-03-29","发布日期":"2024-07-29"}]}
+招投标：{"企业名称":"中铁建物业管理有限公司成都分公司","摘要":"该主体累计共有80条记录，其中作为中标方28条，作为投标方31条，作为招采方22条，作为被提及27条，系统已为您实时检索2025-04-03至今的动态，包含30条记录。","提示":"该维度数据较多，已为您展示前30条。","招投标信息":[{"项目名称":"中铁建物业管理有限公司成都分公司国际城Ⅱ项目消防设备维修改造采购资格预审公告","发布日期":"2026-06-10","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司 2026-2027年消防维保服务中标公告","发布日期":"2026-06-09","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["四川瑞安消防工程有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司 2026-2027年电梯维保服务中标公告","发布日期":"2026-06-02","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["四川三众电梯有限公司","四川三众电梯有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司2026-2027年消防维保服务招标中标公示","发布日期":"2026-06-02","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["四川瑞安消防工程有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司2026-2027年电梯维保服务招标公告","发布日期":"2026-04-29","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司2026-2027年消防维保服务采购招标公告","发布日期":"2026-04-10","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司 2026-2027年消防维保服务中标公告","发布日期":"2026-03-24","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["四川鼎宏邦悦消防安全技术服务有限公司","四川创思众消防技术咨询有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司项目四害消杀及蛇患治理服务中标公告","发布日期":"2026-03-18","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["成都康无忧环境治理有限公司","四川康洁环境工程有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司 2026-2027年消防维保服务中标公示","发布日期":"2026-03-17","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["四川创思众消防技术咨询有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司项目四害消杀及蛇患治理服务采购中标结果公示","发布日期":"2026-03-14","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["四川康洁环境工程有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司项目四害消杀及蛇患治理服务采购中标结果公示","发布日期":"2026-03-13","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["成都康无忧环境治理有限公司"],"中标金额":""},{"项目名称":"2026年2月成华分公司采购公示(汇富大厦、锦城苑)等8个基站","发布日期":"2026-02-25","招采单位":["中国电信成华区分公司"],"中标单位":["成都汇富圆物业管理有限公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司项目四害消杀及蛇患治理服务","发布日期":"2026-02-11","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司2026-2027年消防维保服务采购招标公告","发布日期":"2026-02-05","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"2025年12月成华分公司(北湖国际城1期、北湖国际城2期)等12个基站","发布日期":"2025-12-30","招采单位":["中国电信成华区分公司"],"中标单位":["中铁建物业管理有限公司成都分公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司2026-2028年度保洁服务集中采购资格预审公告","发布日期":"2025-12-27","招采单位":["中铁建物业管理有限公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司二次供水设备节能改造及维护服务采购项目废标公告","发布日期":"2025-10-28","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"【电信公寓等16处】项目直接采购公示","发布日期":"2025-10-27","招采单位":["中国电信武侯区分公司"],"中标单位":["成都百恩斯物业服务有限公司"],"中标金额":""},{"项目名称":"新签成都金牛西派金沙二期点射基站采购公示","发布日期":"2025-10-20","招采单位":["中国电信金牛区分公司"],"中标单位":["中铁建物业管理有限公司成都分公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司二次供水设备节能改造及维护服务采购资格预审结果公告","发布日期":"2025-09-30","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司鹿溪名邸项目电梯维护保养采购中标结果公示","发布日期":"2025-09-24","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":["迅达（中国）电梯有限公司成都分公司"],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司鹿溪名邸项目电梯维护保养中铁建物业管理有限公司成都分公司鹿溪名邸项目电梯维护保养开标记录","发布日期":"2025-09-22","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司二次供水设备节能改造及维护服务采购资格预审公告","发布日期":"2025-09-17","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司鹿溪名邸项目电梯维护保养服务","发布日期":"2025-09-13","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司鹿溪名邸项目电梯维护保养资格预审结果公告","发布日期":"2025-09-06","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司鹿溪名邸项目电梯维护保养资格预审文件的补遗公告","发布日期":"2025-08-28","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"中铁建物业管理有限公司成都分公司鹿溪名邸项目电梯维护保养","发布日期":"2025-08-21","招采单位":["中铁建物业管理有限公司成都分公司"],"中标单位":[],"中标金额":""},{"项目名称":"河北雄安新区公安局2025年度物业服务采购项目公开招标中标公告","发布日期":"2025-04-29","招采单位":["河北雄安新区公安局"],"中标单位":["中铁建物业管理有限公司","河北省直冀勤城市服务有限公司"],"中标金额":"6717748.32"},{"项目名称":"中国电信股份有限公司成都分公司2025年【青羊樾府，锦樾名邸 租赁合同】项目单一来源采购公示","发布日期":"2025-04-10","招采单位":["中国电信股份有限公司成都分公司"],"中标单位":["中铁建物业管理有限公司成都分公司"],"中标金额":""},{"项目名称":"2025年4月天府新区分公司万达华府、麓岭汇三期等8个基站/机房项目直接采购采购公示","发布日期":"2025-04-03","招采单位":["中国电信股份有限公司成都分公司"],"中标单位":["浙江绿城生活服务集团有限公司成都分公司"],"中标金额":""}]}
+新闻舆情：{"企业名称":"中铁建物业管理有限公司成都分公司","摘要":"该查询实体共有2条新闻舆情记录。","新闻舆情信息":[{"标题":"2022物业论坛丨第五届中国西部(成都)创新物业高峰论坛榜单重磅揭晓","情感类型":"积极","链接":"https://www.qcc.com/postnews/9187b145dc4c1e0723e9c3c08d89b8eb.html?uid=a8c0e422fe5dce8f2c00e2a5d9e436d4","发布时间":"2022-08-25 17:23:00","来源":"凤凰网"},{"标题":"成都农业科技职业学院与中铁建人才培养达成框架协议","情感类型":"积极","链接":"https://www.qcc.com/postnews/05d749ac6acd1b1a09ae83a592086897.html?uid=a8c0e422fe5dce8f2c00e2a5d9e436d4","发布时间":"2020-01-17 11:31:54","来源":"网易号"}]}
+【四川振海保安服务有限公司】
+风险扫描：{"企业名称":"四川振海保安服务有限公司","摘要":"已全量扫描 35 项风险因子：3 项有记录、32 项无记录。有记录：裁判文书(4)、立案信息(6)、开庭公告(6)。各因子明细请调用其「明细工具」。","有记录因子数":3,"无记录因子数":32,"风险因子扫描":[{"风险因子":"失信信息","条目数":0,"明细工具":"get_dishonest_info"},{"风险因子":"被执行人","条目数":0,"明细工具":"get_judgment_debtor_info"},{"风险因子":"限制高消费","条目数":0,"明细工具":"get_high_consumption_restriction"},{"风险因子":"终本案件","条目数":0,"明细工具":"get_terminated_cases"},{"风险因子":"裁判文书","条目数":4,"明细工具":"get_judicial_documents"},{"风险因子":"立案信息","条目数":6,"明细工具":"get_case_filing_info"},{"风险因子":"开庭公告","条目数":6,"明细工具":"get_hearing_notice"},{"风险因子":"法院公告","条目数":0,"明细工具":"get_court_notice"},{"风险因子":"送达公告","条目数":0,"明细工具":"get_service_notice"},{"风险因子":"破产重整","条目数":0,"明细工具":"get_bankruptcy_reorganization"},{"风险因子":"股权冻结","条目数":0,"明细工具":"get_equity_freeze"},{"风险因子":"司法拍卖","条目数":0,"明细工具":"get_judicial_auction"},{"风险因子":"询价评估","条目数":0,"明细工具":"get_valuation_inquiry"},{"风险因子":"诉前调解","条目数":0,"明细工具":"get_pre_litigation_mediation"},{"风险因子":"限制出境","条目数":0,"明细工具":"get_exit_restriction"},{"风险因子":"行政处罚","条目数":0,"明细工具":"get_administrative_penalty"},{"风险因子":"经营异常","条目数":0,"明细工具":"get_business_exception"},{"风险因子":"严重违法","条目数":0,"明细工具":"get_serious_violation"},{"风险因子":"环保处罚","条目数":0,"明细工具":"get_environmental_penalty"},{"风险因子":"税务非正常户","条目数":0,"明细工具":"get_tax_abnormal"},{"风险因子":"欠税公告","条目数":0,"明细工具":"get_tax_arrears_notice"},{"风险因子":"税收违法","条目数":0,"明细工具":"get_tax_violation"},{"风险因子":"惩戒名单","条目数":0,"明细工具":"get_disciplinary_list"},{"风险因子":"违约事项","条目数":0,"明细工具":"get_default_info"},{"风险因子":"担保信息","条目数":0,"明细工具":"get_guarantee_info"},{"风险因子":"股权出质","条目数":0,"明细工具":"get_equity_pledge_info"},{"风险因子":"股权质押","条目数":0,"明细工具":"get_stock_pledge_info"},{"风险因子":"动产抵押","条目数":0,"明细工具":"get_chattel_mortgage_info"},{"风险因子":"土地抵押","条目数":0,"明细工具":"get_land_mortgage_info"},{"风险因子":"简易注销","条目数":0,"明细工具":"get_simple_cancellation_info"},{"风险因子":"注销备案","条目数":0,"明细工具":"get_cancellation_record_info"},{"风险因子":"清算信息","条目数":0,"明细工具":"get_liquidation_info"},{"风险因子":"劳动仲裁","条目数":0,"明细工具":"get_service_announcement"},{"风险因子":"公示催告","条目数":0,"明细工具":"get_public_exhortation"},{"风险因子":"财产悬赏公告","条目数":0,"明细工具":"get_property_asset_announcement"}]}
+司法文书：{"企业名称":"四川振海保安服务有限公司","摘要":"该主体累计共有4条记录，最近一次发布于2025-11-13，案由为买卖合同纠纷。已为您完整呈现该窗口内的全部明细。","裁判文书":[{"案号":"（2025）川0107民初13713号","案由":"买卖合同纠纷","文书标题":"买卖合同纠纷民事一审裁定书","当事人":{"原告":["胡**"],"被告":["四川振海保安服务有限公司"]},"案件金额":"","裁判结果":"准许原告胡**撤回起诉。","裁判日期":"2025-08-01","发布日期":"2025-11-13"},{"案号":"（2021）川0191民初13404号","案由":"生命权纠纷","文书标题":"生命权纠纷民事一审判决书","当事人":{"原告":["罗**","姚**"],"被告":["四川振海保安服务有限公司","鸿富锦精密电子（成都）有限公司","成都高新区住房保障中心","成都高投世纪物业服务有限公司"]},"案件金额":"","裁判结果":"驳回原告罗**、姚**的全部诉讼请求。","裁判日期":"2022-04-11","发布日期":"2024-09-01"},{"案号":"（2019）川01民终10733号","案由":"劳动争议","文书标题":"劳动争议民事二审判决书","当事人":{"上诉人（原审被告）":["四川振海保安服务有限公司","成都光明乳业有限公司"],"上诉人（原审原告）":["李**"],"被上诉人（原审被告）":["保全世纪（北京）保安服务有限公司"]},"案件金额":"","裁判结果":"驳回上诉，维持原判。","裁判日期":"2019-09-26","发布日期":"2019-12-19"},{"案号":"（2018）川0108民初3755号","案由":"劳动争议","文书标题":"劳动争议民事一审判决书","当事人":{"原告":["李**"],"被告":["四川振海保安服务有限公司","成都光明乳业有限公司","保全世纪（北京）保安服务有限公司"]},"案件金额":"77900.00","裁判结果":"一、被告四川振海保安服务有限公司在本判决生效之日起十日内向原告李**支付违法解除劳动关系赔偿金32,800元，被告成都光明乳业有限公司承担连带支付责任； 二、被告四川振海保安服务有限公司在本判决生效之日起十日内向原告李**支付未签订劳动合同二倍工资余额45,100元； 三、驳回原告李**的其他诉讼请求。","裁判日期":"2019-03-12","发布日期":"2019-12-13"}]}
+招投标：{"企业名称":"四川振海保安服务有限公司","摘要":"该主体累计共有108条记录，其中作为中标方19条，作为投标方84条，作为被提及24条，系统已为您实时检索2025-07-25至今的动态，包含30条记录。","提示":"该维度数据较多，已为您展示前30条。","招投标信息":[{"项目名称":"成都环境工程建设有限公司2026-2027年度后勤安保服务集中采购成交候选人公示","发布日期":"2026-06-15","招采单位":["成都环境工程建设有限公司"],"中标单位":["四川省杰濠保安服务有限公司"],"中标金额":""},{"项目名称":"成都云银城物业管理有限公司西部建材产业园项目秩序服务外包采购中标候选人公示","发布日期":"2026-05-27","招采单位":["成都云银城物业管理有限公司"],"中标单位":["四川振海保安服务有限公司"],"中标金额":"59.3135万元"},{"项目名称":"成都市雅合新宇物业管理有限公司成都雅合新宇物业武侯区检察院保安委外服务采购项目中标更正公告","发布日期":"2026-05-27","招采单位":["成都市雅合新宇物业管理有限公司"],"中标单位":["振远特卫保安集团有限公司"],"中标金额":"50.4万元/年"},{"项目名称":"成都市雅合新宇物业管理有限公司成都雅合新宇物业武侯区检察院保安委外服务采购项目竞争性磋商成交公告","发布日期":"2026-04-27","招采单位":["成都市雅合新宇物业管理有限公司"],"中标单位":["四川振海保安服务有限公司"],"中标金额":"48.504万元/年"},{"项目名称":"重庆新宁捷通物流有限公司安保服务询比单采购采购结果公告","发布日期":"2026-02-24","招采单位":["重庆新宁捷通物流有限公司"],"中标单位":["四川振海保安服务有限公司"],"中标金额":""},{"项目名称":"简阳市教育局校园安保服务采购项目中标（成交）结果公告","发布日期":"2026-01-27","招采单位":["简阳市教育局"],"中标单位":["简阳市城兴物业管理有限公司","中融安保集团有限责任公司","四川壹贰壹戎马保安服务有限公司"],"中标金额":"1498万元"},{"项目名称":"重庆输油气分公司2026年保安业务外包重庆输油气分公司2026年保安业务外包中标结果公示","发布日期":"2025-12-16","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["四川振海保安服务有限公司"],"中标金额":"148.8584万元"},{"项目名称":"成都市龙泉驿区教育局2026-2027年公办中小学安保委托管理服务(二次)中标（成交）结果公告","发布日期":"2025-12-12","招采单位":["成都市龙泉驿区教育局"],"中标单位":["成都天虎锦卫保安服务有限公司","四川御府保安服务有限公司","四川中安卫保安服务有限公司"],"中标金额":"1302.75万元"},{"项目名称":"成都武侯祠博物馆2026武侯祠成都大庙会安全保卫服务中标（成交）结果公告","发布日期":"2025-12-12","招采单位":["成都武侯祠博物馆"],"中标单位":["四川欣华安保安服务有限公司"],"中标金额":"299.094万元"},{"项目名称":"重庆输油气分公司2026年保安业务外包重庆输油气分公司2026年保安业务外包中标候选人公示","发布日期":"2025-12-10","招采单位":["国家管网集团西南管道有限责任公司重庆输油气分公司"],"中标单位":["四川振海保安服务有限公司"],"中标金额":"148.8584万元"},{"项目名称":"自贡市中医医院保安服务中标（成交）结果公告","发布日期":"2025-10-28","招采单位":["自贡市中医医院"],"中标单位":["四川合盛华安保安服务有限公司"],"中标金额":"186.84万元"},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目B标段评标结果公示","发布日期":"2025-10-14","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":["中融安保集团有限责任公司"],"中标金额":"1924.4697万元"},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目C标段评标结果公示","发布日期":"2025-10-14","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":["中融安保集团有限责任公司"],"中标金额":"2583.0107万元"},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目D标段评标结果公示","发布日期":"2025-10-14","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":["中融安保集团有限责任公司"],"中标金额":"1775.5527万元"},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目A标段评标结果公示","发布日期":"2025-10-14","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":["中军军弘保安服务有限公司"],"中标金额":"2081.3798万元"},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目A标段开标记录表","发布日期":"2025-10-10","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":[],"中标金额":""},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目B标段开标记录表","发布日期":"2025-10-10","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":[],"中标金额":""},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目D标段开标记录表","发布日期":"2025-10-10","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":[],"中标金额":""},{"项目名称":"成都轨道资源经营管理有限公司2025-2027年成都地铁场段秩序服务项目C标段开标记录表","发布日期":"2025-10-10","招采单位":["成都轨道资源经营管理有限公司"],"中标单位":[],"中标金额":""},{"项目名称":"成都市沙河源小学校安保服务采购项目中选公告","发布日期":"2025-08-19","招采单位":["成都市沙河源小学校"],"中标单位":["四川金铭保安服务有限责任公司"],"中标金额":"29.52万元"},{"项目名称":"成都城鼎物业服务有限公司2025-2027年两年度融城云熙保安、保洁外委服务采购项目成交结果公示","发布日期":"2025-08-18","招采单位":["成都城鼎物业服务有限公司"],"中标单位":["新疆辰龙保安服务有限公司"],"中标金额":"192.96万元"},{"项目名称":"成都城鼎物业服务有限公司2025-2027年两年度融城云熙保安、保洁外委服务采购项目中标候选人公示","发布日期":"2025-08-14","招采单位":["成都城鼎物业服务有限公司"],"中标单位":["新疆辰龙保安服务有限公司"],"中标金额":"2159040"},{"项目名称":"成都城鼎物业服务有限公司2025-2027年两年度融城云熙保安、保洁外委服务采购项目中标候选人公示","发布日期":"2025-08-14","招采单位":["成都城鼎物业服务有限公司"],"中标单位":["新疆辰龙保安服务有限公司"],"中标金额":"192.96万元"},{"项目名称":"四川师范大学附属生物城学校物业管理服务采购项目中标（成交）结果公告","发布日期":"2025-08-05","招采单位":["四川师范大学附属生物城学校"],"中标单位":["四川茂军保安服务有限公司"],"中标金额":"73.6万元"},{"项目名称":"成都地铁运营有限公司2025年成都地铁第二批安保服务项目（A/B/C/D/E/F/G/H标）H标段中标候选人公示","发布日期":"2025-08-04","招采单位":["成都地铁运营有限公司"],"中标单位":["北京都杰安防科技有限公司"],"中标金额":"7131.1164万元"},{"项目名称":"成都地铁运营有限公司2025年成都地铁第二批安保服务项目（A/B/C/D/E/F/G/H标）A标段中标候选人公示","发布日期":"2025-08-04","招采单位":["成都地铁运营有限公司"],"中标单位":["北京都杰安防科技有限公司"],"中标金额":"9209.2208万元"},{"项目名称":"2025年成都地铁第二批安保服务项目（ABCDEFGH标）H标标段中标候选人公示","发布日期":"2025-08-04","招采单位":["成都地铁运营有限公司"],"中标单位":["北京都杰安防科技有限公司"],"中标金额":"7131.1164万元"},{"项目名称":"2025年成都地铁第二批安保服务项目（ABCDEFGH标）A标标段中标候选人公示","发布日期":"2025-08-04","招采单位":["成都地铁运营有限公司"],"中标单位":["北京都杰安防科技有限公司"],"中标金额":"9209.2208万元"},{"项目名称":"成都市锦江区花园街幼儿园安保服务采购项目成交结果公示","发布日期":"2025-07-28","招采单位":["成都市锦江区花园街幼儿园"],"中标单位":["四川振海保安服务有限公司"],"中标金额":"19.4657万元"},{"项目名称":"成都市锦江区花园街幼儿园安保服务采购项目成交结果公示","发布日期":"2025-07-25","招采单位":["成都市锦江区花园街幼儿园"],"中标单位":["四川振海保安服务有限公司"],"中标金额":""}]}
+新闻舆情：{"企业名称":"四川振海保安服务有限公司","搜索结果":"已全量扫描该主体新闻舆情数据库，未发现任何记录。"}</p><span data-v-7a7a37b1="" class="task-card-cta">查看详情</span></button></li></ul></div></div></section><!--teleport start--><!--teleport end--></div></main></div>
+    <script type="module" src="./贷后管理助手_files/main.ts"></script>
+  
+
+<!--v-if--></body></html>

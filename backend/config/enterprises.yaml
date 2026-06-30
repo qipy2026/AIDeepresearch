@@ -1,0 +1,74 @@
+enterprises:
+- core_parties:
+  - 国家管网集团西南管道有限责任公司重庆输油气分公司
+  - 中铁建物业管理有限公司成都分公司
+  industry: 安保服务
+  keywords:
+  - 四川振海
+  - 振海保安
+  loan_amount: 1000.0
+  name: 四川振海保安服务有限公司
+  role: 乙方
+  stock_code: ''
+- concept_code: 885692.TI
+  debtor: 四川振海保安服务有限公司
+  industry: 管道运输
+  keywords:
+  - 国家管网
+  - 西南管道
+  name: 国家管网集团西南管道有限责任公司重庆输油气分公司
+  parent: 国家管网集团
+  parent_stock_code: ''
+  role: 甲方
+  stock_code: ''
+- debtor: 四川振海保安服务有限公司
+  industry: 物业管理
+  keywords:
+  - 中铁建物业
+  - 中国铁建
+  name: 中铁建物业管理有限公司成都分公司
+  parent: 中国铁建
+  parent_stock_code: 601186.SH
+  role: 甲方
+  stock_code: 601186.SH
+- concept_code: ''
+  core_parties:
+  - 新街里南城都汇
+  - 四川能投润嘉
+  debtor: ''
+  industry: 物业管理
+  keywords:
+  - 成都瑜璟物业
+  - 瑜璟物业
+  - 成都瑜璟
+  loan_amount: ''
+  name: 成都瑜璟物业服务有限公司
+  parent: ''
+  parent_stock_code: ''
+  role: 乙方
+  stock_code: ''
+- concept_code: ''
+  core_parties: []
+  debtor: 成都瑜璟物业服务有限公司
+  industry: 房地产开发
+  keywords:
+  - 新街里南城都汇
+  loan_amount: ''
+  name: 新街里南城都汇
+  parent: ''
+  parent_stock_code: ''
+  role: 甲方
+  stock_code: ''
+- concept_code: ''
+  core_parties: []
+  debtor: 成都瑜璟物业服务有限公司
+  industry: 综合能源服务
+  keywords:
+  - 四川能投润嘉
+  - 能投润嘉
+  loan_amount: ''
+  name: 四川能投润嘉
+  parent: ''
+  parent_stock_code: ''
+  role: 甲方
+  stock_code: ''

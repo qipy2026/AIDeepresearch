@@ -75,7 +75,7 @@ class NotesStore:
             if item.get("note_type") == "conclusion":
                 return item.get("id")
             title = item.get("title") or ""
-            if isinstance(title, str) and title.startswith("研究报告"):
+            if isinstance(title, str) and title.startswith("调查报告"):
                 return item.get("id")
         return None
 

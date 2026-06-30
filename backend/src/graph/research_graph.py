@@ -1,4 +1,4 @@
-"""LangGraph 深度研究工作流：规划 → 串行执行任务 → 撰写报告。"""
+"""LangGraph 贷后管理工作流：规划 → 串行执行任务 → 撰写报告。"""
 
 from __future__ import annotations
 
@@ -17,13 +17,34 @@ class ResearchGraphState(TypedDict, total=False):
     output: SummaryStateOutput
 
 
+def _check_and_collect(topic: str):
+    """周报模式：检查目标企业预警数据新鲜度，不足时触发采集。"""
+    import logging
+    _logger = logging.getLogger(__name__)
+    try:
+        from services.reporter import ReportingService
+        from warning_db import WarningDB
+        _ent = ReportingService._extract_enterprise_from_topic(topic)
+        _db = WarningDB()
+        _recent = _db.count_recent_warnings(_ent, hours=24)
+        if _recent < 5:
+            _logger.info("预警数据不足(%s近24h仅%d条)，触发自动采集", _ent, _recent)
+            try:
+                from main import _warning_collect_cycle
+                _warning_collect_cycle()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def run_research_graph(agent: Any, topic: str) -> SummaryStateOutput:
     """同步全流程（流式接口仍走 agent.run_stream 的并行实现）。"""
     graph = _build_graph(agent)
     result = graph.invoke({"topic": topic})
     out = result.get("output")
     if out is None:
-        raise RuntimeError("研究流程未返回结果")
+        raise RuntimeError("调查流程未返回结果")
     return out
 
 
@@ -31,11 +52,19 @@ def _build_graph(agent: Any):
     workflow = StateGraph(ResearchGraphState)
 
     def init_state(data: ResearchGraphState) -> dict:
-        return {"state": SummaryState(research_topic=data["topic"])}
+        topic = data["topic"]
+        # 周报模式：检查预警数据新鲜度，不足时先采集
+        if getattr(agent.reporting, '_style', None) == 'weekly':
+            _check_and_collect(topic)
+        return {"state": SummaryState(research_topic=topic)}
 
     def plan(data: ResearchGraphState) -> dict:
         st = data["state"]
-        st.todo_items = agent.planner.plan_todo_list(st)
+        # 周报模式使用固定 5 任务管线（和 stream 路径一致）
+        if getattr(agent.reporting, '_style', None) == 'weekly':
+            st.todo_items = agent._make_weekly_tasks(st.research_topic)
+        else:
+            st.todo_items = agent.planner.plan_todo_list(st)
         if not st.todo_items:
             st.todo_items = [agent.planner.create_fallback_task(st)]
         return {"state": st}

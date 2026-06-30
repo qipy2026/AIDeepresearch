@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "qcc-company": {
+      "url": "https://agent.qcc.com/mcp/company/stream",
+      "headers": {
+        "Authorization": "Bearer MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV"
+      }
+    },
+    "qcc-risk": {
+      "url": "https://agent.qcc.com/mcp/risk/stream",
+      "headers": {
+        "Authorization": "Bearer MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV"
+      }
+    },
+    "qcc-ipr": {
+      "url": "https://agent.qcc.com/mcp/ipr/stream",
+      "headers": {
+        "Authorization": "Bearer MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV"
+      }
+    },
+    "qcc-operation": {
+      "url": "https://agent.qcc.com/mcp/operation/stream",
+      "headers": {
+        "Authorization": "Bearer MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV"
+      }
+    },
+    "qcc-executive": {
+      "url": "https://agent.qcc.com/mcp/executive/stream",
+      "headers": {
+        "Authorization": "Bearer MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV"
+      }
+    },
+    "qcc-history": {
+      "url": "https://agent.qcc.com/mcp/history/stream",
+      "headers": {
+        "Authorization": "Bearer MNU3SlOkHxnjAR1sw6ZgbAFMPXhKWNA6FPp4XYvVKbhXP0rV"
+      }
+    }
+  }
+}

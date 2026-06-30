@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # 加载 backend/.env（与 src 同级目录）；override=True 使 .env 覆盖系统里残留的旧 LLM_* 变量
 _backend_root = Path(__file__).resolve().parent.parent
@@ -18,6 +18,8 @@ class SearchAPI(Enum):
     DUCKDUCKGO = "duckduckgo"
     SEARXNG = "searxng"
     ADVANCED = "advanced"
+    LOCAL = "local"
+    BAIDU = "baidu"
 
 
 class Configuration(BaseModel):
@@ -39,7 +41,7 @@ class Configuration(BaseModel):
         description="Provider identifier (ollama, lmstudio, or custom)",
     )
     search_api: SearchAPI = Field(
-        default=SearchAPI.DUCKDUCKGO,
+        default=SearchAPI.LOCAL,
         title="Search API",
         description="Web search API to use",
     )
@@ -83,6 +85,11 @@ class Configuration(BaseModel):
         title="LLM API Key",
         description="Optional API key when using custom OpenAI-compatible services",
     )
+    camera_api_url: str = Field(
+        default="http://localhost:5000",
+        title="Camera API URL",
+        description="Base URL of the camera snapshot counting service (search project Flask app)",
+    )
     llm_base_url: Optional[str] = Field(
         default=None,
         title="LLM Base URL",
@@ -108,6 +115,40 @@ class Configuration(BaseModel):
         title="LLM HTTP timeout seconds",
         description="OpenAI client timeout (per request)",
     )
+
+    @model_validator(mode="after")
+    def _fill_from_env(self) -> "Configuration":
+        """裸 Configuration() 时从环境变量回填关键字段，避免回退到 Pydantic 默认值。
+
+        生产代码走 from_env() 不受影响；此处作为安全网，防止测试/脚本中误用 Configuration()
+        导致 provider=ollama 连本地超时。
+        """
+        _env_map = {
+            "llm_provider": "LLM_PROVIDER",
+            "llm_api_key": "LLM_API_KEY",
+            "llm_model_id": "LLM_MODEL_ID",
+            "llm_base_url": "LLM_BASE_URL",
+            "llm_max_tokens": "LLM_MAX_TOKENS",
+            "llm_max_retries": "LLM_MAX_RETRIES",
+            "llm_timeout": "LLM_TIMEOUT",
+        }
+        for field_name, env_key in _env_map.items():
+            env_val = os.getenv(env_key)
+            if env_val is None:
+                continue
+            current = getattr(self, field_name)
+            # 只在值为默认值（None 或空字符串或默认 provider）时才覆盖
+            field_info = self.model_fields[field_name]
+            default = field_info.default
+            if current == default or (current is None and default is None):
+                if field_name in ("llm_max_tokens", "llm_max_retries", "llm_timeout"):
+                    try:
+                        object.__setattr__(self, field_name, int(env_val))
+                    except ValueError:
+                        pass
+                else:
+                    object.__setattr__(self, field_name, env_val.strip())
+        return self
 
     @classmethod
     def from_env(cls, overrides: Optional[dict[str, Any]] = None) -> "Configuration":
@@ -189,4 +230,42 @@ class Configuration(BaseModel):
         """Best-effort resolution of the model identifier to use."""
 
         return self.llm_model_id or self.local_llm
+
+
+class WarningConfig(BaseModel):
+    """实时预警模块配置。"""
+
+    cron_interval: int = Field(default=7200, description="采集间隔（秒）")
+    source_timeout: int = Field(default=30, description="单源超时（秒）")
+    keywords_path: str = Field(default="./config/keywords.yaml")
+    red_max_delay: int = Field(default=300, description="红色最大延迟（秒）")
+    daily_push_time: str = Field(default="18:00", description="日汇总推送时间")
+    enabled_sources: str = Field(default="all", description="启用的数据源，逗号分隔")
+    llm_timeout: int = Field(default=15, description="预警专用LLM超时（秒）")
+    qichacha_token: str = Field(default="", description="企查查MCP Token")
+    dm_username: str = Field(default="", description="DM查债通用户名")
+    dm_password: str = Field(default="", description="DM查债通密码")
+    ths_username: str = Field(default="", description="同花顺用户名")
+    ths_password: str = Field(default="", description="同花顺密码")
+    feishu_bot_token: str = Field(default="", description="飞书Bot Token")
+    warning_api_key: str = Field(default="", description="预警API认证Key")
+
+    @classmethod
+    def from_env(cls) -> "WarningConfig":
+        return cls(
+            cron_interval=int(os.getenv("WARNING_CRON_INTERVAL", "7200")),
+            source_timeout=int(os.getenv("WARNING_SOURCE_TIMEOUT", "30")),
+            keywords_path=os.getenv("WARNING_KEYWORDS_PATH", "./config/keywords.yaml"),
+            red_max_delay=int(os.getenv("WARNING_RED_MAX_DELAY", "300")),
+            daily_push_time=os.getenv("WARNING_DAILY_PUSH_TIME", "18:00"),
+            enabled_sources=os.getenv("WARNING_ENABLED_SOURCES", "all"),
+            llm_timeout=int(os.getenv("WARNING_LLM_TIMEOUT", "15")),
+            qichacha_token=os.getenv("QICHACHA_MCP_TOKEN", ""),
+            dm_username=os.getenv("DM_USERNAME", ""),
+            dm_password=os.getenv("DM_PASSWORD", ""),
+            ths_username=os.getenv("THS_USERNAME", "dhsybl002"),
+            ths_password=os.getenv("THS_PASSWORD", "5TSc27g4"),
+            feishu_bot_token=os.getenv("FEISHU_BOT_TOKEN", ""),
+            warning_api_key=os.getenv("WARNING_API_KEY", ""),
+        )
 
